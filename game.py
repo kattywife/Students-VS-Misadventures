@@ -7,7 +7,6 @@ import time
 # <<<--- Импортируем наши модули ---
 import settings # Файл с константами
 import sprites  # Файл с классами спрайтов
-# <<<--- Используем levels вместо данных в settings ---
 import levels   # Файл с данными уровней
 from assets import load_image # Функция загрузки изображений
 
@@ -25,10 +24,10 @@ class Game:
         # Загрузка шрифтов
         self.font = pygame.font.SysFont(None, 36)
         self.shop_font = pygame.font.SysFont(None, 24)
-        # self.intro_font больше не используется
         self.end_game_font = pygame.font.SysFont(None, 72)
         self.menu_title_font = pygame.font.SysFont(None, settings.MENU_TITLE_FONT_SIZE)
         self.menu_button_font = pygame.font.SysFont(None, settings.MENU_BUTTON_FONT_SIZE)
+        self.progress_font = pygame.font.SysFont(None, 20) # Шрифт для прогресс-бара
 
         # Загрузка ассетов интерфейса
         self.sun_icon_img = load_image(settings.SUN_ICON_FILE, 30, settings.YELLOW)
@@ -60,6 +59,7 @@ class Game:
         self.last_zombie_spawn_time = 0
         self.zombies_defeated_count = 0
         self.target_zombies = 0
+        self.mid_wave_triggered = False # Флаг для средней волны
 
         # Переменные для цикла
         self.current_time_in_loop = 0
@@ -103,10 +103,11 @@ class Game:
         # Сброс переменных уровня
         self.sun_points = self.current_level_data.get("starting_sun", 150)
         self.selected_plant_type = None
-        self.game_start_time = self.current_time_in_loop # Важно установить ДО создания косилок
+        self.game_start_time = self.current_time_in_loop # Устанавливаем время начала
         self.last_zombie_spawn_time = self.game_start_time
         self.zombies_defeated_count = 0
         self.target_zombies = self.current_level_data.get("zombies_to_defeat", 10)
+        self.mid_wave_triggered = False # Сбрасываем флаг волны
         print(f"  Цель уровня: победить {self.target_zombies} зомби.") # ОТЛАДКА
 
         # Создаем косилки
@@ -162,7 +163,7 @@ class Game:
                             print(f"Нажата кнопка уровня {level_id}. Вызов start_level...") # ОТЛАДКА
                             try: self.start_level(level_id)
                             except Exception as e: print(f"!!! КРИТ. ОШИБКА start_level({level_id}): {e}"); import traceback; traceback.print_exc(); pygame.quit(); sys.exit();
-                            break
+                            break # Выходим из цикла for, если кнопка нажата
                 elif self.game_state == "PLAYING":
                     clicked_handled = False; clicked_suns = [sun for sun in self.suns if sun.rect.collidepoint(mouse_pos)];
                     if clicked_suns:
@@ -194,104 +195,217 @@ class Game:
                             else: print("Клик в сетке, но мимо?"); self.selected_plant_type = None;
                         else: print("Клик вне сетки"); self.selected_plant_type = None;
                 elif self.game_state == "GAME_OVER" or self.game_state == "LEVEL_COMPLETE":
-                     self.go_to_main_menu()
+                     self.go_to_main_menu() # Клик возвращает в меню
 
     # ===============================================
-    # --- Метод Обновления (С ОТЛАДКОЙ) ---
+    # --- Метод Обновления (С ИСПРАВЛЕННОЙ ЛОГИКОЙ ВОЛНЫ) ---
     # ===============================================
+        # game.py -> class Game
+
+        # ===============================================
+        # --- Метод Обновления (С ДОПОЛНИТЕЛЬНОЙ ОТЛАДКОЙ) ---
+        # ===============================================
+        # game.py -> class Game
+
+        # ===============================================
+        # --- Метод Обновления (С ИСПРАВЛЕННЫМ ПОДСЧЕТОМ УБИЙСТВ КОСИЛКОЙ) ---
+        # ===============================================
     def _update(self):
         """Обновление состояния игровых объектов."""
-        if self.game_state != "PLAYING": return
+        # Обновляем только если игра идет
+        if self.game_state != "PLAYING":
+            return
 
-        # <<<--- PRINT 4 (РАСКОММЕНТИРОВАН) ---
-        print(f"--- Внутри _update (PLAYING). Уровень: {self.current_level_id} ---")
+        # Раскомментируй для проверки, что _update вызывается
+        # print(f"--- Внутри _update (PLAYING). Уровень: {self.current_level_id} ---")
 
+        # Проверяем наличие данных уровня
         if not self.current_level_data:
-             print("!!! Ошибка в _update: Нет данных текущего уровня!")
-             self.go_to_main_menu(); return
+            print("!!! Ошибка в _update: Нет данных текущего уровня!")
+            self.go_to_main_menu();
+            return
 
+        # Получаем текущее время (установлено в self.run)
         now = self.current_time_in_loop
-        # elapsed_time больше не нужен для победы/финальной волны
-        # level_duration больше не нужен для победы/финальной волны
 
+        # --- Запоминаем занятые ячейки ДО обновления (для освобождения) ---
         occupied_before_update = self.occupied_cells.copy()
 
-        # Обновление спрайтов
-        # ПРАВИЛЬНЫЙ БЛОК (if внутри цикла):
+        # --- Обновление Спрайтов ---
+        # Порядок важен: сначала генерируем ресурсы/снаряды, потом двигаем/атакуем
+
+        # 1. Подсолнухи -> создают Солнышки
         for sunflower in self.sunflowers:
-            new_sun = sunflower.update()  # Вызываем update для КАЖДОГО подсолнуха
-            if new_sun:  # Проверяем результат СРАЗУ ЖЕ для каждого подсолнуха
+            new_sun = sunflower.update()
+            if new_sun:
                 self.all_sprites.add(new_sun)
                 self.suns.add(new_sun)
+
+        # 2. Солнышки -> исчезают по таймеру
         self.suns.update()
 
+        # 3. Горохострелы -> создают Снаряды, если есть цель
         for shooter in self.peashooters:
             zombies_on_row = [z for z in self.zombies if z.row == shooter.row]
             zombies_ahead = [z for z in zombies_on_row if z.rect.left > shooter.rect.right]
             new_projectile = shooter.update(zombies_ahead)
-            if new_projectile: self.all_sprites.add(new_projectile); self.projectiles.add(new_projectile)
-        self.projectiles.update()
-        self.zombies.update(self.plants_group)
-        self.lawnmowers.update(self.zombies)
+            if new_projectile:
+                self.all_sprites.add(new_projectile)
+                self.projectiles.add(new_projectile)
 
-        # Освобождение ячеек
+        # 4. Снаряды -> летят
+        self.projectiles.update()
+
+        # 5. Зомби -> идут или едят (передаем группу растений для проверки)
+        self.zombies.update(self.plants_group)
+
+        # 6. Газонокосилки -> едут И УБИВАЮТ (обрабатываем результат с ОТЛАДКОЙ)
+        mower_kills_this_frame = 0
+        # <<<--- PRINT D ---
+        # print(f"GAME: Обновление косилок. Всего в группе: {len(self.lawnmowers)}")
+        for mower in self.lawnmowers:
+            # <<<--- PRINT E ---
+            # print(f"GAME: Вызов update для косилки на ряду {mower.row}")
+            killed_by_mower = mower.update(self.zombies)  # Передаем группу зомби
+            # <<<--- PRINT F ---
+            if killed_by_mower > 0:
+                # Если косилка убила кого-то, выводим сообщение
+                print(f"GAME: Косилка {mower.row} вернула killed_by_mower = {killed_by_mower}")
+            # Суммируем убийства всех косилок за этот кадр
+            mower_kills_this_frame += killed_by_mower
+
+        # Если косилки убили кого-то в этом кадре, обновляем общий счетчик
+        if mower_kills_this_frame > 0:
+            # <<<--- PRINT G ---
+            print(f"GAME: Всего убито косилками за кадр: {mower_kills_this_frame}. Обновляем счетчик...")
+            self.zombies_defeated_count += mower_kills_this_frame
+            # <<<--- PRINT H ---
+            print(f"GAME: Новый общий счетчик убитых: {self.zombies_defeated_count}/{self.target_zombies}")
+        # else:
+        # print("GAME: Косилки никого не убили в этом кадре.") # Отладка
+
+        # --- Освобождение Ячеек ---
         currently_occupied = {plant.grid_pos for plant in self.plants_group if plant.grid_pos}
         self.occupied_cells = currently_occupied
 
-        # Спавн зомби
-        spawn_rate = self.current_level_data.get("spawn_rate", 5.0)
+        # --- Спавн Зомби (с учетом средней волны) ---
+        base_spawn_rate = self.current_level_data.get("spawn_rate", 5.0)
         allowed_zombie_types = self.current_level_data.get("allowed_zombies", ["regular"])
-        # Логика финальной волны удалена
+        target_zombies_for_wave = int(self.target_zombies * settings.MID_WAVE_THRESHOLD_RATIO)
+        current_spawn_rate = base_spawn_rate
+        if not self.mid_wave_triggered and self.zombies_defeated_count >= target_zombies_for_wave:
+            print(f"!!! НАЧАЛАСЬ СРЕДНЯЯ ВОЛНА (достигнуто {self.zombies_defeated_count}/{self.target_zombies}) !!!")
+            self.mid_wave_triggered = True
+        if self.mid_wave_triggered:
+            try:
+                current_spawn_rate = settings.MID_WAVE_SPAWN_RATE
+            except AttributeError:
+                print("Предупреждение: MID_WAVE_SPAWN_RATE не найдена.")
 
-        if now - self.last_zombie_spawn_time >= spawn_rate:
-            if allowed_zombie_types:
-                # Спавним, только если текущее кол-во зомби на поле + убитые < цели
-                # Это предотвратит бесконечный спавн, если игрок не убивает зомби
-                # Можно сделать и проще: спавнить всегда, пока цель не достигнута
-                # if len(self.zombies) + self.zombies_defeated_count < self.target_zombies:
+        if self.target_zombies > 0 and self.zombies_defeated_count < self.target_zombies:
+            if now - self.last_zombie_spawn_time >= current_spawn_rate:
+                if allowed_zombie_types:
                     try:
                         chosen_type = random.choice(allowed_zombie_types)
                         spawn_row = random.randint(0, settings.GRID_ROWS - 1)
                         zombie_y_pos = settings.GRID_START_Y + spawn_row * settings.CELL_HEIGHT + settings.CELL_HEIGHT // 2
                         new_zombie = sprites.Zombie(zombie_y_pos, chosen_type)
-                        self.all_sprites.add(new_zombie); self.zombies.add(new_zombie)
+                        self.all_sprites.add(new_zombie);
+                        self.zombies.add(new_zombie)
                         self.last_zombie_spawn_time = now
-                    except Exception as e: print(f"ОШИБКА спавна: {e}")
+                    except Exception as e:
+                        print(f"ОШИБКА спавна: {e}")
 
-        # Проверка столкновений снарядов с зомби (С подсчетом убитых)
+        # --- Проверка столкновений снарядов с зомби (С подсчетом убитых и отладкой) ---
         try:
             collisions = pygame.sprite.groupcollide(self.projectiles, self.zombies, True, False)
-            for proj, hit_zombies in collisions.items():
-                for z in hit_zombies:
-                    if z.take_damage(settings.PROJECTILE_DAMAGE): # take_damage возвращает True при смерти
-                        self.zombies_defeated_count += 1
-                        print(f"Зомби побежден! Счет: {self.zombies_defeated_count}/{self.target_zombies}") # Отладка
-        except Exception as e: print(f"ОШИБКА столкн. снарядов: {e}")
+            if collisions:
+                # print(f"Обнаружены столкновения: {collisions}") # Отладка
+                for proj, hit_zombies_list in collisions.items():
+                    for z in hit_zombies_list:
+                        print(f"  Проверка объекта z: тип={type(z)}")  # Отладка типа
+                        if not hasattr(z, 'take_damage'):
+                            print(f"  !!! У объекта z НЕТ метода take_damage!")
+                            continue
+                        was_killed = z.take_damage(settings.PROJECTILE_DAMAGE)
+                        if was_killed:
+                            self.zombies_defeated_count += 1
+                            print(
+                                f"  !!! Зомби УБИТ снарядом! Новый счет: {self.zombies_defeated_count}/{self.target_zombies}")
 
-        # Проверка на проигрыш
+        except Exception as e:
+            print(f"ОШИБКА столкн. снарядов: {e}")
+            import traceback
+            traceback.print_exc()
+
+        # --- Проверка на проигрыш (зомби дошел до дома) ---
         try:
+            # Собираем зомби, чей левый край зашел за левую границу сетки
             zombies_at_end = [z for z in self.zombies if z.rect.left < settings.GRID_START_X]
-            if zombies_at_end:
-                for zombie in zombies_at_end:
-                    zombie_row = zombie.row; mower_activated = False
-                    for mower in self.lawnmowers:
-                        if mower.row == zombie_row and mower.state == "IDLE":
-                            mower.activate(); zombie.kill(); mower_activated = True; break
-                    if not mower_activated:
-                        self.game_state = "GAME_OVER"
-                        print(f"--- GAME OVER (Ур. {self.current_level_id}, Зомби {zombie_row} прорвался!) ---")
-                        break
-                if self.game_state == "GAME_OVER": return
-        except Exception as e: print(f"ОШИБКА проверки проигрыша: {e}")
 
-        # Проверка на победу (по количеству убитых зомби)
-        if self.zombies_defeated_count >= self.target_zombies:
+            if zombies_at_end:  # Если такие зомби есть
+                # Проверяем КАЖДОГО дошедшего зомби
+                for zombie in zombies_at_end:
+                    zombie_row = zombie.row  # Определяем ряд зомби
+                    mower_found_on_row = False
+                    mower_was_activated = False  # Флаг, что косилка БЫЛА активирована в этой итерации
+
+                    # Ищем косилку на этом ряду
+                    for mower in self.lawnmowers:
+                        if mower.row == zombie_row:
+                            mower_found_on_row = True  # Косилка (любая) на этом ряду есть
+                            # Если она еще не активна (IDLE), активируем ее
+                            if mower.state == "IDLE":
+                                mower.activate()
+                                mower_was_activated = True  # Отмечаем, что активировали сейчас
+                                # <<<--- НЕ УБИВАЕМ ЗОМБИ ЗДЕСЬ ---
+                                # zombie.kill() # Убрали kill() отсюда
+                                print(f"  Косилка {zombie_row} активирована зомби.")  # Отладка
+                            # Если косилка уже активна, просто игнорируем (она сама разберется)
+                            break  # Нашли косилку на этом ряду, дальше не ищем
+
+                    # Если мы прошли всех косилок И НЕ нашли косилку на этом ряду ВООБЩЕ,
+                    # ИЛИ нашли, но она была уже ACTIVE (т.е. mower_was_activated остался False),
+                    # то это проигрыш.
+                    # Мы не можем просто проверить !mower_found_on_row, т.к. косилка может быть уже ACTIVE
+                    if not mower_was_activated and not mower_found_on_row:
+                        # Если косилки на ряду нет СОВСЕМ, тогда точно проигрыш
+                        self.game_state = "GAME_OVER"
+                        print(
+                            f"--- GAME OVER (Ур. {self.current_level_id}, Зомби {zombie_row} прорвался! Косилки нет.) ---")
+                        break  # Выходим из цикла проверки зомби
+
+                    # --- Дополнительная проверка на случай, если косилка уже уехала ---
+                    # Если косилка НА РЯДУ ЕСТЬ (mower_found_on_row == True),
+                    # но она НЕ БЫЛА активирована СЕЙЧАС (mower_was_activated == False),
+                    # это значит, что косилка уже ACTIVE и едет.
+                    # Зомби все еще жив, но косилка его должна будет сбить в mower.update().
+                    # Однако, если зомби УСПЕЛ пройти МИМО УЖЕ ЕДУЩЕЙ косилки
+                    # (например, если скорость зомби >> скорости косилки), то это тоже проигрыш.
+                    # Эта проверка более сложная и для текущей игры, возможно, избыточна,
+                    # т.к. косилка активируется, когда зомби еще слева от нее.
+                    # Но для полноты картины:
+                    # if mower_found_on_row and not mower_was_activated:
+                    # (Здесь можно добавить проверку, не прошел ли зомби мимо активной косилки)
+                    # pass
+
+                # Если состояние изменилось на GAME_OVER, выходим из _update
+                if self.game_state == "GAME_OVER":
+                    return
+        except Exception as e:
+            print(f"ОШИБКА проверки проигрыша: {e}")
+            import traceback
+            traceback.print_exc()  # Выводим полный traceback
+
+        # --- Проверка на победу (по количеству убитых зомби) ---
+        if self.target_zombies > 0 and self.zombies_defeated_count >= self.target_zombies:
             self.game_state = "LEVEL_COMPLETE"
-            print(f"---------------- УРОВЕНЬ {self.current_level_id} ПРОЙДЕН! (Побеждено {self.zombies_defeated_count}) ----------------")
-            # return не нужен
+            print(
+                f"---------------- УРОВЕНЬ {self.current_level_id} ПРОЙДЕН! (Побеждено {self.zombies_defeated_count}) ----------------")
+
 
     # ===============================================
-    # --- Методы Отрисовки (С ОТЛАДКОЙ) ---
+    # --- Методы Отрисовки (С ИСПРАВЛЕНИЯМИ) ---
     # ===============================================
     def _draw_grid(self):
         for row in range(settings.GRID_ROWS):
@@ -299,124 +413,62 @@ class Game:
                 cell_rect = pygame.Rect(settings.GRID_START_X + col * settings.CELL_WIDTH, settings.GRID_START_Y + row * settings.CELL_HEIGHT, settings.CELL_WIDTH, settings.CELL_HEIGHT)
                 pygame.draw.rect(self.screen, settings.GRID_BG_COLOR, cell_rect); pygame.draw.rect(self.screen, settings.GRID_LINE_COLOR, cell_rect, 1)
 
-        # game.py -> class Game
-
     def _draw_shop(self):
-        """Рисует панель магазина."""
-        # --- Отрисовка фона и линии под магазином ---
-        shop_rect = pygame.Rect(0, 0, settings.SCREEN_WIDTH, settings.SHOP_HEIGHT)
-        pygame.draw.rect(self.screen, settings.LIGHT_BLUE, shop_rect)  # Фон магазина
-        pygame.draw.line(self.screen, settings.BLACK, (0, settings.SHOP_HEIGHT - 1),
-                         (settings.SCREEN_WIDTH, settings.SHOP_HEIGHT - 1), 2)  # Линия под магазином
+        """Рисует панель магазина. (ИСПРАВЛЕН ЦИКЛ)"""
+        shop_rect = pygame.Rect(0, 0, settings.SCREEN_WIDTH, settings.SHOP_HEIGHT); pygame.draw.rect(self.screen, settings.LIGHT_BLUE, shop_rect); pygame.draw.line(self.screen, settings.BLACK, (0, settings.SHOP_HEIGHT - 1), (settings.SCREEN_WIDTH, settings.SHOP_HEIGHT - 1), 2); sun_text = f"{self.sun_points}"; sun_surf = self.font.render(sun_text, True, settings.BLACK); icon_width = self.sun_icon_img.get_width() if self.sun_icon_img else 0; sun_rect = sun_surf.get_rect(topleft=(15 + icon_width + 5, 15));
+        if self.sun_icon_img: self.screen.blit(self.sun_icon_img, (10, 10)); self.screen.blit(sun_surf, sun_rect);
 
-        # --- Отображение счетчика солнышек (ЗЕ/Кофе) ---
-        sun_text = f"{self.sun_points}"  # Берем текущее значение
-        sun_surf = self.font.render(sun_text, True, settings.BLACK)  # Создаем поверхность с текстом
-        # Определяем ширину иконки (если она есть) для отступа текста
-        icon_width = self.sun_icon_img.get_width() if self.sun_icon_img else 0
-        # Рассчитываем позицию текста справа от иконки
-        sun_rect = sun_surf.get_rect(topleft=(15 + icon_width + 5, 15))
-        # Рисуем иконку (если она загрузилась)
-        if self.sun_icon_img:
-            self.screen.blit(self.sun_icon_img, (10, 10))
-        # Рисуем текст счетчика
-        self.screen.blit(sun_surf, sun_rect)
-
-        # --- Отрисовка элементов (кнопок) магазина ---
-        start_x = sun_rect.right + 30  # Начинаем рисовать кнопки справа от счетчика
-        item_y = 10  # Вертикальная позиция кнопок
-        padding = 15  # Пространство между кнопками
-        self.shop_item_rects.clear()  # Очищаем словарь Rect'ов перед перерисовкой
-
-        # Проходим по словарю self.plant_shop_items (который создается в __init__)
+        # --- Начало ИСПРАВЛЕННОГО Цикла ---
+        start_x = sun_rect.right + 30; item_y = 10; padding = 15; self.shop_item_rects.clear();
         for name, item in self.plant_shop_items.items():
-            # Определяем, может ли игрок позволить себе это растение
-            can_afford = self.sun_points >= item['cost']
-            # Устанавливаем цвета кнопки в зависимости от доступности
-            base_color = settings.WHITE if can_afford else settings.GREY
-            border_color = settings.BLACK
-            text_color = settings.BLACK if can_afford else settings.DARK_GREY
-
-            # Выделяем рамкой выбранный тип растения
-            if self.selected_plant_type == name:
-                border_color = settings.ORANGE  # Яркая рамка для выбранного
-
-            # Получаем изображение иконки для этого элемента
-            item_image = item.get("image")
-
-            # ВАЖНО: Проверяем, загрузилось ли изображение
-            if not item_image:
-                # Если картинки нет (например, ошибка загрузки в __init__),
-                # выводим предупреждение и пропускаем отрисовку этого элемента.
-                print(f"Предупреждение: Нет изображения для элемента магазина '{name}' в _draw_shop")
-                continue  # <<<--- Переходим к следующему элементу (name, item) в цикле for
-
+            can_afford = self.sun_points >= item['cost']; base_color = settings.WHITE if can_afford else settings.GREY; border_color = settings.BLACK; text_color = settings.BLACK if can_afford else settings.DARK_GREY;
+            if self.selected_plant_type == name: border_color = settings.ORANGE;
+            item_image = item.get("image");
+            if not item_image: print(f"Предупреждение: Нет изображения для '{name}' в _draw_shop"); continue; # <<<--- Пропуск итерации
             # --- Код ниже выполняется ТОЛЬКО если item_image существует ---
+            item_width = item_image.get_width() + 60; item_rect = pygame.Rect(start_x, item_y, item_width, settings.SHOP_HEIGHT - 20);
+            pygame.draw.rect(self.screen, base_color, item_rect, border_radius=5); pygame.draw.rect(self.screen, border_color, item_rect, 3, border_radius=5);
+            icon_rect = item_image.get_rect(center=(item_rect.left + 30, item_rect.centery)); self.screen.blit(item_image, icon_rect);
+            cost_surf = self.shop_font.render(str(item["cost"]), True, text_color); cost_rect = cost_surf.get_rect(center=(item_rect.right - 25, item_rect.centery)); self.screen.blit(cost_surf, cost_rect);
+            self.shop_item_rects[name] = item_rect; start_x += item_width + padding;
+        # --- Конец ИСПРАВЛЕННОГО Цикла ---
 
-            # Рассчитываем ширину кнопки (иконка + место для цены)
-            item_width = item_image.get_width() + 60
-            # Создаем Rect для кнопки
-            item_rect = pygame.Rect(start_x, item_y, item_width, settings.SHOP_HEIGHT - 20)
-
-            # Рисуем фон кнопки со скругленными углами
-            pygame.draw.rect(self.screen, base_color, item_rect, border_radius=5)
-            # Рисуем рамку кнопки со скругленными углами
-            pygame.draw.rect(self.screen, border_color, item_rect, 3, border_radius=5)
-
-            # Рисуем иконку растения по центру левой части кнопки
-            icon_rect = item_image.get_rect(center=(item_rect.left + 30, item_rect.centery))
-            self.screen.blit(item_image, icon_rect)
-
-            # Рисуем цену по центру правой части кнопки
-            cost_surf = self.shop_font.render(str(item["cost"]), True, text_color)
-            cost_rect = cost_surf.get_rect(center=(item_rect.right - 25, item_rect.centery))
-            self.screen.blit(cost_surf, cost_rect)
-
-            # Сохраняем Rect кнопки в словарь self.shop_item_rects
-            # Ключ - имя растения (name), значение - Rect кнопки (item_rect)
-            # Это используется в _handle_events для определения клика по кнопке
-            self.shop_item_rects[name] = item_rect
-
-            # Сдвигаем координату X для следующей кнопки
-            start_x += item_width + padding
-        # --- Конец цикла for ---
     def _draw_main_menu(self):
-        self.screen.fill(settings.DARK_GREEN); title_surf = self.menu_title_font.render("Студенты Против Злоключений", True, settings.WHITE); title_rect = title_surf.get_rect(center=(settings.SCREEN_WIDTH // 2, settings.SCREEN_HEIGHT // 4)); self.screen.blit(title_surf, title_rect); self.level_buttons.clear(); button_x = settings.SCREEN_WIDTH // 2 - settings.MENU_BUTTON_WIDTH // 2; button_start_y = title_rect.bottom + 50; button_spacing = settings.MENU_BUTTON_HEIGHT + 15; mouse_pos = pygame.mouse.get_pos();
-                # ИСПРАВЛЕННЫЙ ЦИКЛ для _draw_main_menu
+        """Рисует главный экран выбора уровня. (ИСПРАВЛЕН ЦИКЛ)"""
+        self.screen.fill(settings.DARK_GREEN); title_surf = self.menu_title_font.render("Студенты Против Злоключений", True, settings.WHITE); title_rect = title_surf.get_rect(center=(settings.SCREEN_WIDTH // 2, settings.SCREEN_HEIGHT // 4)); self.screen.blit(title_surf, title_rect);
+        self.level_buttons.clear(); button_x = settings.SCREEN_WIDTH // 2 - settings.MENU_BUTTON_WIDTH // 2; button_start_y = title_rect.bottom + 50; button_spacing = settings.MENU_BUTTON_HEIGHT + 15; mouse_pos = pygame.mouse.get_pos();
+
+        # --- Начало ИСПРАВЛЕННОГО Цикла ---
         for i, level_info in enumerate(levels.LEVEL_DATA):
-            # Пропускаем первый элемент (None) или если данных нет
-            if i == 0 or level_info is None:
-                continue
-
-            # Рассчитываем положение кнопки
-            button_y = button_start_y + (i - 1) * button_spacing
-            button_rect = pygame.Rect(button_x, button_y, settings.MENU_BUTTON_WIDTH, settings.MENU_BUTTON_HEIGHT)
-
-            # Определяем цвет кнопки в зависимости от наведения мыши
-            if button_rect.collidepoint(mouse_pos):
-                button_color = settings.MENU_BUTTON_HOVER_COLOR
-            else:
-                button_color = settings.MENU_BUTTON_COLOR
-
-            # Рисуем фон кнопки
-            pygame.draw.rect(self.screen, button_color, button_rect, border_radius=5)
-            # Рисуем рамку кнопки
-            pygame.draw.rect(self.screen, settings.WHITE, button_rect, 2, border_radius=5)
-
-            # Получаем имя уровня или стандартное название
-            level_name = level_info.get("name", f"Уровень {i}")
-            # Создаем поверхность с текстом
-            text_surf = self.menu_button_font.render(level_name, True, settings.MENU_BUTTON_TEXT_COLOR)
-            # Получаем Rect текста и центрируем его внутри кнопки
-            text_rect = text_surf.get_rect(center=button_rect.center)
+            if i == 0 or level_info is None: continue; # Пропускаем индекс 0
+            button_y = button_start_y + (i - 1) * button_spacing;
+            button_rect = pygame.Rect(button_x, button_y, settings.MENU_BUTTON_WIDTH, settings.MENU_BUTTON_HEIGHT);
+            # Определяем цвет кнопки
+            if button_rect.collidepoint(mouse_pos): button_color = settings.MENU_BUTTON_HOVER_COLOR;
+            else: button_color = settings.MENU_BUTTON_COLOR;
+            # Рисуем кнопку
+            pygame.draw.rect(self.screen, button_color, button_rect, border_radius=5);
+            pygame.draw.rect(self.screen, settings.WHITE, button_rect, 2, border_radius=5);
             # Рисуем текст
-            self.screen.blit(text_surf, text_rect)
+            level_name = level_info.get("name", f"Уровень {i}");
+            text_surf = self.menu_button_font.render(level_name, True, settings.MENU_BUTTON_TEXT_COLOR);
+            text_rect = text_surf.get_rect(center=button_rect.center);
+            self.screen.blit(text_surf, text_rect);
+            # Сохраняем rect
+            self.level_buttons[i] = button_rect;
+        # --- Конец ИСПРАВЛЕННОГО Цикла ---
 
-            # Сохраняем Rect кнопки для обработки кликов в _handle_events
-            self.level_buttons[i] = button_rect
-        # Конец цикла for
-
-    # _draw_timeline удален
+    def _draw_progress_bar(self): # Добавлен этот метод
+        if self.game_state != "PLAYING" or self.target_zombies <= 0: return
+        bar_width = settings.PROGRESS_BAR_WIDTH; bar_height = settings.PROGRESS_BAR_HEIGHT; margin = 10; bar_x = settings.SCREEN_WIDTH - bar_width - margin; bar_y = settings.SCREEN_HEIGHT - bar_height - margin;
+        progress = min(self.zombies_defeated_count / self.target_zombies, 1.0);
+        bg_rect = pygame.Rect(bar_x, bar_y, bar_width, bar_height); pygame.draw.rect(self.screen, settings.DARK_GREY, bg_rect);
+        progress_width = int(bar_width * progress); progress_rect = pygame.Rect(bar_x, bar_y, progress_width, bar_height); pygame.draw.rect(self.screen, settings.ORANGE, progress_rect);
+        pygame.draw.rect(self.screen, settings.BLACK, bg_rect, 2);
+        if not self.mid_wave_triggered:
+             wave_marker_ratio = settings.MID_WAVE_THRESHOLD_RATIO; wave_marker_x = bar_x + int(bar_width * wave_marker_ratio);
+             pygame.draw.line(self.screen, settings.RED, (wave_marker_x, bar_y), (wave_marker_x, bar_y + bar_height), 2);
+        progress_text = f"{self.zombies_defeated_count} / {self.target_zombies}"; text_surf = self.progress_font.render(progress_text, True, settings.WHITE); text_rect = text_surf.get_rect(center=(bar_x + bar_width // 2, bar_y + bar_height // 2)); self.screen.blit(text_surf, text_rect)
 
     def _draw_level_complete_screen(self):
         self.screen.fill(settings.DARK_GREEN); message = f"УРОВЕНЬ {self.current_level_id} ПРОЙДЕН!"; text_surf = self.end_game_font.render(message, True, settings.YELLOW); text_rect = text_surf.get_rect(center=(settings.SCREEN_WIDTH / 2, settings.SCREEN_HEIGHT / 2)); self.screen.blit(text_surf, text_rect); restart_surf = self.font.render("Кликните, чтобы вернуться в меню", True, settings.WHITE); restart_rect = restart_surf.get_rect(center=(settings.SCREEN_WIDTH / 2, settings.SCREEN_HEIGHT * 3 / 4)); self.screen.blit(restart_surf, restart_rect)
@@ -425,28 +477,28 @@ class Game:
         self.screen.fill(settings.BLACK); message = f"ИГРА ОКОНЧЕНА (Уровень {self.current_level_id})"; text_surf = self.end_game_font.render(message, True, settings.RED); text_rect = text_surf.get_rect(center=(settings.SCREEN_WIDTH / 2, settings.SCREEN_HEIGHT / 2)); self.screen.blit(text_surf, text_rect); restart_surf = self.font.render("Кликните, чтобы вернуться в меню", True, settings.WHITE); restart_rect = restart_surf.get_rect(center=(settings.SCREEN_WIDTH / 2, settings.SCREEN_HEIGHT * 3 / 4)); self.screen.blit(restart_surf, restart_rect)
 
 
-    # --- Основной Метод Отрисовки (С ОТЛАДКОЙ) ---
+    # --- Основной Метод Отрисовки (С ИСПРАВЛЕНИЯМИ И PROGRESS_BAR) ---
     def _draw(self):
         """Отрисовка всего на экране в зависимости от состояния игры."""
         if self.game_state == "MAIN_MENU":
             self._draw_main_menu()
         elif self.game_state == "PLAYING":
              # <<<--- PRINT 5 (РАСКОММЕНТИРОВАН) ---
-             print(f"--- Внутри _draw (PLAYING). Уровень: {self.current_level_id} ---")
+             #print(f"--- Внутри _draw (PLAYING). Уровень: {self.current_level_id} ---")
              if not self.current_level_data:
                  print("!!! Ошибка в _draw: Нет данных текущего уровня!")
-                 self.screen.fill(settings.RED) # Заливаем красным при ошибке
+                 self.screen.fill(settings.RED)
              else:
                  self.screen.fill(settings.GREY)
                  self._draw_grid()
-                 self.all_sprites.draw(self.screen) # Рисуем все спрайты
-                 # self._draw_timeline() # Убрали
+                 self.all_sprites.draw(self.screen)
+                 self._draw_progress_bar() # <<<--- Добавлен вызов прогресс-бара
                  self._draw_shop()
         elif self.game_state == "LEVEL_COMPLETE":
             self._draw_level_complete_screen()
         elif self.game_state == "GAME_OVER":
             self._draw_game_over_screen()
 
-        pygame.display.flip() # Обновляем экран один раз в конце
+        pygame.display.flip()
 
 # --- Конец Класса Game ---

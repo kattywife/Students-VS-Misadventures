@@ -2,8 +2,13 @@
 SCREEN_WIDTH = 800
 SCREEN_HEIGHT = 600
 FPS = 60
-GAME_DURATION = 120.0 # Секунд
 STARTING_SUN_POINTS = 150
+
+# <<<--- Настройки прогресс-бара и волн ---
+PROGRESS_BAR_WIDTH = 150
+PROGRESS_BAR_HEIGHT = 20
+MID_WAVE_THRESHOLD_RATIO = 0.6 # Порог начала волны (60% убитых зомби)
+MID_WAVE_SPAWN_RATE = 3.0 # Частота спавна во время волны (сек)
 
 # --- Цвета ---
 WHITE = (255, 255, 255)
@@ -38,7 +43,7 @@ GRID_BG_COLOR = (0, 100, 0)
 PEASHOOTER_SIZE = PLANT_SIZE
 PEASHOOTER_COST = 100
 PEASHOOTER_COOLDOWN = 1.5
-PEASHOOTER_HEALTH = 100 # <<<--- Убедись, что это значение осмысленное
+PEASHOOTER_HEALTH = 100
 
 # --- Параметры Подсолнуха (или его аналога - Кофе-машины) ---
 SUNFLOWER_SIZE = PLANT_SIZE # Размер спрайта генератора
@@ -72,10 +77,6 @@ MOWER_WIDTH = 45
 MOWER_HEIGHT = 45
 MOWER_SPEED = 4
 
-# --- Финальная волна ---
-FINAL_WAVE_START_TIME = GAME_DURATION - 15.0
-FINAL_WAVE_SPAWN_RATE = 1.5
-
 IMAGE_FOLDER = "assets/images" # Базовая папка для картинок
 
 PEASHOOTER_IMAGE_FILE = "peashooter.png"
@@ -85,10 +86,6 @@ SUN_IMAGE_FILE = "sun.png"
 SUN_ICON_FILE = "sun_icon.png"
 LAWNMOWER_IMAGE_FILE = "lawnmower.png"
 # Имена файлов для зомби берутся из ZOMBIE_TYPES['image']
-
-# settings.py
-
-# ... (все предыдущие константы: SCREEN_WIDTH, цвета, параметры персонажей и т.д.) ...
 
 # <<<--- НОВОЕ: Настройки Главного Меню ---
 MENU_TITLE_FONT_SIZE = 72

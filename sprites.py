@@ -193,22 +193,18 @@ class Zombie(pygame.sprite.Sprite):
                 except Exception as e:
                     print(f"ОШИБКА в Zombie.update() при движении: {e}")
 
-    # Метод take_damage остается почти таким же, но сбрасывает цель при смерти
-        # sprites.py -> class Zombie
-
-        def take_damage(self, amount):
-            """Получение урона, проверка на смерть и ВОЗВРАТ True при смерти."""
+    def take_damage(self, amount):  # Правильное имя и отступ
             try:
                 self.health -= amount
                 if self.health <= 0:
                     if self.eating_target:
                         self.eating_target = None
                     self.kill()
-                    return True  # <<<--- ДОБАВЛЕНО: Сигнализируем, что зомби убит
-                return False  # <<<--- ДОБАВЛЕНО: Зомби еще жив
+                    return True  # Есть return True
+                return False  # Есть return False
             except Exception as e:
                 print(f"ОШИБКА в Zombie.take_damage(): {e}")
-                return False  # В случае ошибки считаем, что не убит
+                return False  # Есть return False при ошибке
 
 # --- Класс Снаряда ---
 class Projectile(pygame.sprite.Sprite):
@@ -231,39 +227,45 @@ class Projectile(pygame.sprite.Sprite):
 # --- Класс Газонокосилки ---
 class Lawnmower(pygame.sprite.Sprite):
     """Газонокосилка - последняя линия обороны."""
-    def __init__(self, row):
+    def __init__(self, row): # Принимает номер ряда напрямую
         super().__init__()
-        self.row = row
-        self.image = load_image(settings.LAWNMOWER_IMAGE_FILE, (settings.MOWER_WIDTH, settings.MOWER_HEIGHT), settings.RED)
+        self.row = row # Сохраняем ряд
+        self.image = load_image(settings.LAWNMOWER_IMAGE_FILE, (settings.MOWER_WIDTH, settings.MOWER_HEIGHT), settings.RED) # Загружаем картинку
         self.rect = self.image.get_rect()
+        # Устанавливаем позицию косилки слева от сетки, по центру нужного ряда
         self.rect.centery = settings.GRID_START_Y + self.row * settings.CELL_HEIGHT + settings.CELL_HEIGHT // 2
-        self.rect.right = settings.GRID_START_X - 5
-        self.state = "IDLE"
-        self.speed = settings.MOWER_SPEED
+        self.rect.right = settings.GRID_START_X - 5 # Правый край чуть левее сетки
+        self.state = "IDLE" # Начальное состояние - ждет
+        self.speed = settings.MOWER_SPEED # Скорость движения
+
+        # Раскомментируй для отладки создания
         # print(f"Создана косилка на ряду {self.row} (Y={self.rect.centery})")
 
     def activate(self):
-        if self.state == "IDLE":
+        """Переводит косилку в активное состояние."""
+        if self.state == "IDLE": # Активируем только если она ждала
             self.state = "ACTIVE"
             print(f"!!! АКТИВАЦИЯ косилки на ряду {self.row}.")
+            # Здесь можно будет добавить звук активации
 
+    # Внутри класса Lawnmower, метод update
     def update(self, zombies_group):
+        killed_count = 0
         if self.state == "ACTIVE":
-            start_x = self.rect.x
             self.rect.x += self.speed
-            # print(f"Косилка {self.row}: Движение с {start_x} до {self.rect.x}")
-
             for zombie in zombies_group:
-                # print(f"  Проверка: Косилка({self.row}, rect:{self.rect}) vs Зомби({zombie.row}, rect:{zombie.rect})")
                 if zombie.row == self.row:
-                    # print(f"    Ряды совпали ({self.row}). Проверка столкновения...")
                     if self.rect.colliderect(zombie.rect):
-                        print(f"    СТОЛКНОВЕНИЕ! Косилка({self.row}) и Зомби({zombie.row}). Зомби удален.")
+                        # <<<--- PRINT A ---
+                        print(f"КОСИЛКА ({self.row}): Обнаружено столкновение с Зомби ({zombie.row})! Вызов zombie.kill().")
                         zombie.kill()
-                    # else:
-                        # print("    Столкновения rect'ов нет.")
-                # else:
-                    # print("    Ряды не совпадают.")
-
+                        killed_count += 1
+                        # <<<--- PRINT B ---
+                        print(f"КОСИЛКА ({self.row}): killed_count увеличен до {killed_count}.")
             if self.rect.left > settings.SCREEN_WIDTH:
                 self.kill()
+        # <<<--- PRINT C ---
+        # Выводим, только если killed_count > 0, чтобы не засорять консоль
+        if killed_count > 0:
+             print(f"КОСИЛКА ({self.row}): Метод update возвращает killed_count = {killed_count}.")
+        return killed_count
