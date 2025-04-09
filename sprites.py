@@ -194,17 +194,21 @@ class Zombie(pygame.sprite.Sprite):
                     print(f"ОШИБКА в Zombie.update() при движении: {e}")
 
     # Метод take_damage остается почти таким же, но сбрасывает цель при смерти
-    def take_damage(self, amount):
-        """Получение урона и проверка на смерть."""
-        try:
-            self.health -= amount
-            if self.health <= 0:
-                # Если зомби убили во время еды, он больше не должен мешать
-                if self.eating_target:
-                    self.eating_target = None # Сбрасываем цель на всякий случай
-                self.kill() # Удаляем зомби из всех групп
-        except Exception as e:
-            print(f"ОШИБКА в Zombie.take_damage(): {e}")
+        # sprites.py -> class Zombie
+
+        def take_damage(self, amount):
+            """Получение урона, проверка на смерть и ВОЗВРАТ True при смерти."""
+            try:
+                self.health -= amount
+                if self.health <= 0:
+                    if self.eating_target:
+                        self.eating_target = None
+                    self.kill()
+                    return True  # <<<--- ДОБАВЛЕНО: Сигнализируем, что зомби убит
+                return False  # <<<--- ДОБАВЛЕНО: Зомби еще жив
+            except Exception as e:
+                print(f"ОШИБКА в Zombie.take_damage(): {e}")
+                return False  # В случае ошибки считаем, что не убит
 
 # --- Класс Снаряда ---
 class Projectile(pygame.sprite.Sprite):

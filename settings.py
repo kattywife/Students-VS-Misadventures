@@ -2,7 +2,7 @@
 SCREEN_WIDTH = 800
 SCREEN_HEIGHT = 600
 FPS = 60
-GAME_DURATION = 60.0 # Секунд
+GAME_DURATION = 120.0 # Секунд
 STARTING_SUN_POINTS = 150
 
 # --- Цвета ---
@@ -40,12 +40,17 @@ PEASHOOTER_COST = 100
 PEASHOOTER_COOLDOWN = 1.5
 PEASHOOTER_HEALTH = 100 # <<<--- Убедись, что это значение осмысленное
 
-# --- Параметры Подсолнуха ---
-SUNFLOWER_SIZE = PLANT_SIZE
-SUNFLOWER_COST = 50
-SUNFLOWER_PRODUCTION_RATE = 8.0 # Секунд на производство
-SUNFLOWER_SUN_AMOUNT = 25
-SUNFLOWER_HEALTH = 80  # <<<--- Подсолнух менее прочный
+# --- Параметры Подсолнуха (или его аналога - Кофе-машины) ---
+SUNFLOWER_SIZE = PLANT_SIZE # Размер спрайта генератора
+SUNFLOWER_COST = 50         # Стоимость посадки генератора (в ЗЕ/Кофеине)
+SUNFLOWER_PRODUCTION_RATE = 5.0 # СЕКУНД между генерацией "солнышка" (Чашки Кофе)
+SUNFLOWER_SUN_AMOUNT = 50 # <<<--- ЭТО ЗНАЧЕНИЕ ОПРЕДЕЛЯЕТ ЦЕННОСТЬ СОЛНЫШКА
+SUNFLOWER_HEALTH = 80         # Здоровье генератора
+
+# --- Параметры Солнышка (или его аналога - Чашки Кофе) ---
+SUN_SIZE = 35               # Размер спрайта самого "солнышка"
+SUN_LIFETIME = 8.0          # СЕКУНД, сколько "солнышко" висит на экране перед исчезновением
+SUN_VALUE = SUNFLOWER_SUN_AMOUNT # <<<--- СКОЛЬКО ЗЕ/Кофеина дает одно собранное
 
 # --- Параметры Зомби ---
 ZOMBIE_SIZE = 50
@@ -81,3 +86,15 @@ SUN_ICON_FILE = "sun_icon.png"
 LAWNMOWER_IMAGE_FILE = "lawnmower.png"
 # Имена файлов для зомби берутся из ZOMBIE_TYPES['image']
 
+# settings.py
+
+# ... (все предыдущие константы: SCREEN_WIDTH, цвета, параметры персонажей и т.д.) ...
+
+# <<<--- НОВОЕ: Настройки Главного Меню ---
+MENU_TITLE_FONT_SIZE = 72
+MENU_BUTTON_FONT_SIZE = 40
+MENU_BUTTON_WIDTH = 200
+MENU_BUTTON_HEIGHT = 50
+MENU_BUTTON_COLOR = (0, 150, 0) # Зеленый
+MENU_BUTTON_HOVER_COLOR = (0, 200, 0) # Ярко-зеленый
+MENU_BUTTON_TEXT_COLOR = WHITE
