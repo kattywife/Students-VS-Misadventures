@@ -30,8 +30,11 @@ class Game:
         self.level_select_buttons = {}
         self.level_intro_button = None
         self.selected_defender = None
+        self.control_buttons = {}
 
         self.state = 'START_SCREEN'
+        self.level_clear_timer = 0
+        self.level_clear_duration = 3000
 
         self._setup_sprite_groups()
         self._load_assets()
@@ -45,6 +48,10 @@ class Game:
         load_sound('enemy_dead', 'enemy_dead.mp3')
         load_sound('hero_dead', 'hero_dead.mp3')
         load_sound('money', 'money.mp3')
+        load_sound('win', 'win.mp3')
+
+        if SOUNDS.get('win'):
+            self.level_clear_duration = SOUNDS['win'].get_length() * 1000
 
     def _setup_sprite_groups(self):
         self.all_sprites = pygame.sprite.Group()
@@ -80,6 +87,8 @@ class Game:
                     self._playing_loop()
                 elif self.state == 'PAUSED':
                     self._paused_loop()
+                elif self.state == 'LEVEL_CLEAR':
+                    self._level_clear_loop()
                 elif self.state == 'GAME_OVER':
                     self._game_over_loop()
                 elif self.state == 'LEVEL_VICTORY':
@@ -101,6 +110,8 @@ class Game:
 
             if self.state == 'PLAYING':
                 if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+                    if SOUNDS.get('button'): SOUNDS['button'].play()
+                    pygame.time.delay(100)
                     self.state = 'PAUSED'
                     pygame.mixer.pause()
                 if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
@@ -109,13 +120,14 @@ class Game:
     def _handle_playing_clicks(self, pos):
         if self.ui_manager.pause_button_rect.collidepoint(pos):
             if SOUNDS.get('button'): SOUNDS['button'].play()
+            pygame.time.delay(100)
             self.state = 'PAUSED'
             pygame.mixer.pause()
             return
 
         clicked_shop_item = self.ui_manager.handle_shop_click(pos)
         if clicked_shop_item:
-            if SOUNDS.get('button'): SOUNDS['button'].play()
+            if SOUNDS.get('purchase'): SOUNDS['purchase'].play()
             if self.selected_defender == clicked_shop_item:
                 self.selected_defender = None
             else:
@@ -170,11 +182,22 @@ class Game:
             CoffeeMachine(x, y, groups, self.all_sprites, self.coffee_beans)
 
     def _update(self):
+        if self.level_manager.is_complete():
+            if self.state != 'LEVEL_CLEAR':
+                pygame.mixer.stop()
+                if SOUNDS.get('win'): SOUNDS['win'].play()
+                self.level_clear_timer = pygame.time.get_ticks()
+                self.state = 'LEVEL_CLEAR'
+            return
+
+        # ----- ВОТ ИСПРАВЛЕНИЕ: Правильный порядок действий для счетчика -----
+        # 1. Запоминаем, сколько всего врагов на поле ДО всех действий
         enemies_before_update = len(self.enemies)
 
-        self.level_manager.update()
+        # 2. Обновляем все спрайты (атаки, движение, смерть от урона)
         self.all_sprites.update(self.defenders)
 
+        # 3. Проверяем столкновения и другие причины смерти
         for proj in list(self.projectiles):
             if proj.alive():
                 hit_list = pygame.sprite.spritecollide(proj, self.enemies, False)
@@ -185,7 +208,6 @@ class Game:
 
         for akadem in list(self.akadems):
             if akadem.is_active:
-                # Уничтожаем врагов, но НЕ считаем их здесь
                 pygame.sprite.spritecollide(akadem, self.enemies, True)
 
         for enemy in list(self.enemies):
@@ -195,23 +217,23 @@ class Game:
                     if akadem.rect.centery == enemy.rect.centery and not akadem.is_active:
                         akadem.activate()
                         enemy.kill()
-                        # НЕ считаем убитого здесь
                         enemy_cleared = True
                         break
                 if not enemy_cleared and enemy.alive():
+                    pygame.mixer.stop()
                     self.state = 'GAME_OVER'
                     return
 
-        # ----- ВОТ ИСПРАВЛЕНИЕ: Единственное место подсчета убитых врагов -----
+        # 4. Сравниваем количество врагов "до" и "после" всех действий битвы
         enemies_after_update = len(self.enemies)
         killed_this_frame = enemies_before_update - enemies_after_update
         if killed_this_frame > 0:
             for _ in range(killed_this_frame):
                 self.level_manager.enemy_killed()
-        # --------------------------------------------------------------------
 
-        if self.level_manager.is_complete():
-            self.state = 'LEVEL_VICTORY'
+        # 5. И только ПОСЛЕ всего этого спавним новых врагов на следующий кадр
+        self.level_manager.update()
+        # --------------------------------------------------------------------
 
     def _draw(self):
         self.screen.blit(self.background, (0, 0))
@@ -231,6 +253,16 @@ class Game:
         self._handle_events()
         self._update()
         self._draw()
+
+    def _level_clear_loop(self):
+        now = pygame.time.get_ticks()
+        if now - self.level_clear_timer > self.level_clear_duration:
+            self.state = 'LEVEL_VICTORY'
+            return
+
+        self._draw()
+        self.ui_manager.draw_level_clear_message()
+        pygame.display.flip()
 
     def _menu_loop_template(self, title, buttons_config, next_states):
         buttons = {}
@@ -282,8 +314,17 @@ class Game:
                         self._prepare_level(level_id)
                         return
 
+                for text, rect in self.control_buttons.items():
+                    if rect.collidepoint(event.pos):
+                        if SOUNDS.get('button'): SOUNDS['button'].play()
+                        pygame.time.delay(100)
+                        if text == "Выход":
+                            self.running = False
+                        elif text == "Настройки":
+                            print("Settings button clicked!")
+
         self.screen.blit(self.background, (0, 0))
-        self.level_select_buttons = self.ui_manager.draw_level_select(self.max_level_unlocked)
+        self.level_select_buttons, self.control_buttons = self.ui_manager.draw_main_menu(self.max_level_unlocked)
         pygame.display.flip()
 
     def _level_intro_loop(self):
@@ -318,7 +359,6 @@ class Game:
         )
 
     def _level_victory_loop(self):
-        pygame.mixer.stop()
         if self.current_level_id == self.max_level_unlocked and self.max_level_unlocked < len(LEVELS):
             self.max_level_unlocked += 1
 
