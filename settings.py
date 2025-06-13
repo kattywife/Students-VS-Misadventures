@@ -16,7 +16,8 @@ RED = (255, 0, 0)
 BLUE = (0, 0, 255)
 YELLOW = (255, 255, 0)
 BROWN = (139, 69, 19)
-PROGRESS_BLUE = (30, 144, 255) # <-- Новый цвет для "Учебного плана"
+PROGRESS_BLUE = (30, 144, 255)
+DESCRIPTION_PANEL_COLOR = (20, 20, 20, 220)
 
 # Цвета по умолчанию для резервной отрисовки
 DEFAULT_COLORS = {
@@ -57,16 +58,39 @@ SHOP_ITEM_PADDING = 20
 ASSETS_DIR = 'assets'
 IMAGES_DIR = f'{ASSETS_DIR}/images'
 
-# Характеристики защитников
+# Данные юнитов
 DEFENDERS_DATA = {
-    'programmer': {'cost': 100, 'health': 300, 'cooldown': 1.5, 'damage': 25},
-    'botanist': {'cost': 150, 'health': 300, 'cooldown': 2.5, 'damage': 50, 'radius': CELL_SIZE_W * 1.5},
-    'coffee_machine': {'cost': 50, 'health': 200, 'cooldown': 5, 'production': 25}
+    'programmer': {
+        'cost': 100, 'health': 300, 'cooldown': 1.5, 'damage': 25,
+        'description': "Пишет код быстрее, чем ты говоришь 'дедлайн'. Стреляет скобочками.",
+        'select_sound': 'programmer_select.mp3'
+    },
+    'botanist': {
+        'cost': 150, 'health': 300, 'cooldown': 2.5, 'damage': 50, 'radius': CELL_SIZE_W * 1.5,
+        'description': "Знает всё о матане и о том, как больно бить книгой. Атакует по области.",
+        'select_sound': 'botanist_select.mp3'
+    },
+    'coffee_machine': {
+        'cost': 50, 'health': 200, 'cooldown': 5, 'production': 25,
+        'description': "Источник жизни и энергии. Производит бесценные кофейные зернышки.",
+        'select_sound': 'coffee_machine_select.mp3'
+    }
 }
 
-# Характеристики врагов
 ENEMIES_DATA = {
-    'alarm_clock': {'health': 100, 'speed': 0.8, 'damage': 50, 'display_name': "Будильник (8:30)"},
-    'professor': {'health': 250, 'speed': 0.6, 'damage': 100, 'display_name': "Грозный Преподаватель"},
-    'calculus': {'health': 180, 'speed': 1, 'damage': 75, 'display_name': "Матанализ"}
+    'alarm_clock': {
+        'health': 100, 'speed': 0.8, 'damage': 50, 'display_name': "Будильник (8:30)",
+        'description': "Безжалостный и неотвратимый. Его звон - предвестник беды. Стандартный враг.",
+        'select_sound': 'alarm_clock_select.mp3'
+    },
+    'professor': {
+        'health': 250, 'speed': 0.6, 'damage': 100, 'display_name': "Грозный Преподаватель",
+        'description': "Крепкий и выносливый. Выдержит много критики и нанесет сокрушительный удар по самооценке.",
+        'select_sound': 'professor_select.mp3'
+    },
+    'calculus': {
+        'health': 180, 'speed': 1, 'damage': 75, 'display_name': "Матанализ",
+        'description': "Быстрый и непредсказуемый. Может легко 'перепрыгнуть' через простые аргументы и застать врасплох.",
+        'select_sound': 'calculus_select.mp3'
+    }
 }

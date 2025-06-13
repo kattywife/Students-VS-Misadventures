@@ -2,7 +2,7 @@
 
 LEVELS = {
     1: {
-        'name': "Курс 1: Введение в специальность",
+        'name': "Курс 1",
         'start_coffee': 150,
         # (тип врага, ряд)
         'enemies': [
@@ -12,7 +12,7 @@ LEVELS = {
         ]
     },
     2: {
-        'name': "Курс 2: Математический Ад",
+        'name': "Курс 2",
         'start_coffee': 200,
         'enemies': [
             ('alarm_clock', 2), ('calculus', 3), ('alarm_clock', 1),
@@ -21,7 +21,7 @@ LEVELS = {
         ]
     },
     3: {
-        'name': "Курс 3: Теория вероятностей",
+        'name': "Курс 3",
         'start_coffee': 250,
         'enemies': [
             ('calculus', 1), ('calculus', 3), ('professor', 2),
@@ -31,7 +31,7 @@ LEVELS = {
         ]
     },
     4: {
-        'name': "Курс 4: Сессия",
+        'name': "Курс 4",
         'start_coffee': 300,
         'enemies': [
             ('professor', 2), ('calculus', 1), ('calculus', 3),
