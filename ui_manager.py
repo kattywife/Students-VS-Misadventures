@@ -18,7 +18,13 @@ class UIManager:
         self.shop_items = ['programmer', 'botanist', 'coffee_machine']
         self.shop_rects = {}
         self.shop_panel_surf = pygame.Surface((SCREEN_WIDTH, SHOP_PANEL_HEIGHT), pygame.SRCALPHA)
-        self.pause_button_rect = pygame.Rect(SCREEN_WIDTH - 90, (SHOP_PANEL_HEIGHT - 80) / 2, 80, 80)
+
+        # ----- ВОТ ИСПРАВЛЕНИЕ: Сдвигаем кнопку паузы левее -----
+        button_size = 80
+        # Раньше отступ был 90 от края (кнопка 80 + паддинг 10). Сделаем 180.
+        self.pause_button_rect = pygame.Rect(SCREEN_WIDTH - 130, (SHOP_PANEL_HEIGHT - 80) / 2, 80, 80)
+        # --------------------------------------------------------
+
         self._create_shop()
 
     def _create_shop(self):
@@ -240,10 +246,8 @@ class UIManager:
         lines.append(font.render(current_line, True, color))
         return lines
 
-    # ----- ВОТ ИСПРАВЛЕНИЕ: Возвращаем удаленный метод -----
     def handle_shop_click(self, pos):
         for name, rect in self.shop_rects.items():
             if rect.collidepoint(pos):
                 return name
         return None
-    # ----------------------------------------------------
