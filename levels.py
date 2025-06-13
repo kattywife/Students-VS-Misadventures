@@ -1,30 +1,56 @@
 # levels.py
 
-LEVEL_DATA = [
-    None,
-    {
-        "id": 1, "name": "Уровень 1: Первые шаги", "starting_sun": 150,
-        "allowed_zombies": ["alarm_clock"], # <<<--- Изменено
-        "spawn_rate": 7.0, "zombies_to_defeat": 10
+LEVELS = {
+    1: {
+        'name': "Курс 1: Введение в специальность",
+        'start_coffee': 150,
+        # (тип врага, ряд)
+        'enemies': [
+            ('alarm_clock', 2), ('alarm_clock', 1), ('alarm_clock', 3),
+            ('alarm_clock', 2), ('professor', 2), ('alarm_clock', 0),
+            ('alarm_clock', 4),
+        ]
     },
-    {
-        "id": 2, "name": "Уровень 2: Шустрые лабы", "starting_sun": 125,
-        "allowed_zombies": ["alarm_clock", "matan"], # <<<--- Изменено
-        "spawn_rate": 6.0, "zombies_to_defeat": 15
+    2: {
+        'name': "Курс 2: Математический Ад",
+        'start_coffee': 200,
+        'enemies': [
+            ('alarm_clock', 2), ('calculus', 3), ('alarm_clock', 1),
+            ('professor', 2), ('calculus', 2), ('alarm_clock', 0),
+            ('alarm_clock', 4), ('calculus', 1), ('professor', 3),
+        ]
     },
-    {
-        "id": 3, "name": "Уровень 3: Натиск Матана", "starting_sun": 150,
-        "allowed_zombies": ["alarm_clock", "matan", "matan"], # <<<--- Изменено
-        "spawn_rate": 5.0, "zombies_to_defeat": 20
+    3: {
+        'name': "Курс 3: Теория вероятностей",
+        'start_coffee': 250,
+        'enemies': [
+            ('calculus', 1), ('calculus', 3), ('professor', 2),
+            ('alarm_clock', 0), ('alarm_clock', 4), ('calculus', 2),
+            ('professor', 1), ('professor', 3), ('alarm_clock', 1),
+            ('alarm_clock', 2), ('alarm_clock', 3),
+        ]
     },
-    {
-        "id": 4, "name": "Уровень 4: Дедлайны горят", "starting_sun": 100,
-        "allowed_zombies": ["matan", "professor"], # <<<--- Изменено
-        "spawn_rate": 4.5, "zombies_to_defeat": 25
+    4: {
+        'name': "Курс 4: Сессия",
+        'start_coffee': 300,
+        'enemies': [
+            ('professor', 2), ('calculus', 1), ('calculus', 3),
+            ('professor', 0), ('professor', 4), ('alarm_clock', 0),
+            ('alarm_clock', 1), ('alarm_clock', 2), ('alarm_clock', 3),
+            ('alarm_clock', 4), ('calculus', 2), ('professor', 1),
+            ('professor', 3), ('professor', 2)
+        ]
     },
-    {
-        "id": 5, "name": "Уровень 5: Выпускной", "starting_sun": 150,
-        "allowed_zombies": ["alarm_clock", "matan", "professor"], # <<<--- Изменено
-        "spawn_rate": 4.0, "zombies_to_defeat": 30
-    },
-]
+    5: {
+        'name': "Защита Диплома",
+        'start_coffee': 500,
+        'enemies': [
+            ('calculus', 0), ('calculus', 1), ('calculus', 2),
+            ('calculus', 3), ('calculus', 4), ('professor', 0),
+            ('professor', 1), ('professor', 2), ('professor', 3),
+            ('professor', 4), ('alarm_clock', 2), ('calculus', 1),
+            ('calculus', 3), ('professor', 2), ('alarm_clock', 0),
+            ('alarm_clock', 4), ('professor', 0), ('professor', 4),
+        ]
+    }
+}

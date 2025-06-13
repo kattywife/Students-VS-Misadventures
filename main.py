@@ -1,24 +1,6 @@
 # main.py
+from game_logic import Game
 
-import pygame
-import sys
-# <<<--- Импортируем наш основной класс игры ---
-from game import Game
-
-# Эта конструкция гарантирует, что код ниже выполнится,
-# только если мы запустим именно этот файл (main.py)
-if __name__ == "__main__":
-    # Создаем экземпляр нашей игры
-    # Вся инициализация (pygame.init(), экран, ресурсы и т.д.) происходит внутри Game.__init__()
-    game_instance = Game()
-
-    # Запускаем основной цикл игры, который находится внутри метода run() класса Game
-    # Этот метод будет работать, пока self.running не станет False
-    game_instance.run()
-
-    # Код ниже не обязателен, так как game_instance.run() уже вызывает
-    # pygame.quit() и sys.exit() при завершении цикла.
-    # Но можно оставить для ясности.
-    # print("Выход из main.py")
-    # pygame.quit()
-    # sys.exit()
+if __name__ == '__main__':
+    game = Game()
+    game.run()
