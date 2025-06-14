@@ -42,6 +42,10 @@ class PrepManager:
             self.selected_card_info = None
             return  # Важно! Прерываем дальнейшую обработку клика.
 
+        # Если карточка открыта, никакой другой клик не должен ничего делать, кроме закрытия.
+        if self.selected_card_info:
+            return
+
         # 2. Клик по кнопке улучшения героя в команде.
         for hero_type, rect in self.ui_manager.upgrade_buttons.items():
             if rect.collidepoint(pos):
@@ -49,6 +53,7 @@ class PrepManager:
                 return
 
         # 3. Клик по любой карточке (в выборе, в команде, в арсенале) для просмотра информации.
+        # Этот блок теперь будет срабатывать, только если карточка с описанием закрыта.
         all_visible_cards = {
             **self.ui_manager.selection_cards_rects,
             **self.ui_manager.team_card_rects,
@@ -56,15 +61,11 @@ class PrepManager:
         }
         for card_type, rect in all_visible_cards.items():
             if rect.collidepoint(pos):
-                # Если мы кликнули на ту же карточку, что уже открыта - закрываем ее.
-                if self.selected_card_info and self.selected_card_info['type'] == card_type:
-                    if SOUNDS.get('cards'): SOUNDS['cards'].play()
-                    self.selected_card_info = None
-                else:  # Иначе открываем новую
-                    self.show_card_info(card_type)
-                return  # Завершаем обработку
+                self.show_card_info(card_type)
+                return
 
         # 4. Если ничего из вышеперечисленного не сработало, значит это клик, чтобы "взять" карточку.
+        # Этот блок тоже сработает, только если описание закрыто.
         for card_type, rect in self.ui_manager.selection_cards_rects.items():
             if rect.collidepoint(pos):
                 if SOUNDS.get('cards'): SOUNDS['cards'].play()
@@ -122,12 +123,15 @@ class PrepManager:
         }
 
     def draw(self, surface):
-        return self.ui_manager.draw_preparation_screen(
+        # Этот метод возвращает два значения, которые game_manager будет использовать
+        start_button_rect, close_button_rect = self.ui_manager.draw_preparation_screen(
             surface, self.stipend, self.team, self.upgraded_heroes, self.neuro_mowers,
             self.all_defenders, self.all_neuro_mowers,
             self.selected_card, pygame.mouse.get_pos() if self.dragging else None,
             self.selected_card_info
         )
+        self.close_card_button_rect = close_button_rect  # Сохраняем рект крестика для обработки кликов
+        return start_button_rect
 
     def is_ready(self):
         return len(self.team) > 0

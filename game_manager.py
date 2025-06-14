@@ -188,7 +188,7 @@ class Game:
                         self._start_intro()
                         return
 
-        self.prep_start_button, _ = self.prep_manager.draw(self.screen)
+        self.prep_start_button = self.prep_manager.draw(self.screen)
 
     def _level_intro_loop(self):
         for event in pygame.event.get():
