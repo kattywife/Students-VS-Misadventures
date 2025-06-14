@@ -29,7 +29,6 @@ def load_sound(name, filename):
     """
     Загружает звук. Если файл не найден, игра не упадет.
     """
-    # Рекомендуется использовать имена файлов без пробелов, например 'button_press.mp3'
     path = os.path.join(ASSETS_DIR, 'sounds', filename)
     try:
         sound = pygame.mixer.Sound(path)

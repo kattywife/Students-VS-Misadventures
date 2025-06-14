@@ -41,9 +41,8 @@ DEFAULT_COLORS = {
     'integral': (100, 100, 100),
 
     'alarm_clock': (169, 169, 169),
-    'professor': (112, 128, 144),
+    'professor': (112, 128, 144),  # Ключ для "Душный препод"
     'calculus': (70, 130, 180),
-    'stuffy_prof': (80, 80, 80),
     'math_teacher': (210, 105, 30),
     'addict': (0, 100, 0),
     'thief': (139, 0, 0),
@@ -51,6 +50,11 @@ DEFAULT_COLORS = {
     'chat_gpt': (0, 168, 150),
     'deepseek': (20, 20, 40),
     'gemini': (106, 90, 205),
+
+    'epidemic': (152, 251, 152),
+    'big_party': (255, 20, 147),
+    'colloquium': (255, 69, 0),
+    'internet_down': (75, 0, 130),
 
     'background': (48, 124, 55),
     'shop_panel': (54, 45, 33),
@@ -84,42 +88,42 @@ IMAGES_DIR = f'{ASSETS_DIR}/images'
 # ЗАЩИТНИКИ
 DEFENDERS_DATA = {
     'programmer': {
-        'cost': 100, 'health': 300, 'cooldown': 1.5, 'damage': 25, 'is_animate': True,
+        'cost': 100, 'health': 300, 'cooldown': 1.5, 'damage': 25,
         'display_name': 'Мальчик-джун',
         'description': "Урон: {damage}\nЗдоровье: {health}\nПерезарядка: {cooldown} сек\nОсобенность: стреляет быстрыми, но слабыми снарядами.",
         'select_sound': 'programmer_select.mp3',
         'upgrade': {'damage': 5, 'cost': 15}
     },
     'botanist': {
-        'cost': 150, 'health': 300, 'cooldown': 2.5, 'damage': 50, 'radius': CELL_SIZE_W * 1.5, 'is_animate': True,
+        'cost': 150, 'health': 300, 'cooldown': 2.5, 'damage': 50, 'radius': CELL_SIZE_W * 1.5,
         'display_name': 'Девочка-ботан',
         'description': "Урон: {damage}\nЗдоровье: {health}\nПерезарядка: {cooldown} сек\nОсобенность: атакует по области самого сильного врага.",
         'select_sound': 'botanist_select.mp3',
         'upgrade': {'damage': 10, 'cost': 25}
     },
     'coffee_machine': {
-        'cost': 50, 'health': 200, 'cooldown': 5, 'production': 25, 'is_animate': False,
+        'cost': 50, 'health': 200, 'cooldown': 5, 'production': 25,
         'display_name': 'Кофемашина',
         'description': "Здоровье: {health}\nПерезарядка: {cooldown} сек\nОсобенность: производит кофейные зернышки.",
         'select_sound': 'coffee_machine_select.mp3',
         'upgrade': {'cooldown': -0.5, 'cost': 20}
     },
     'activist': {
-        'cost': 75, 'health': 400, 'cooldown': 10, 'radius': CELL_SIZE_W * 2, 'buff': 1.5, 'is_animate': True,
+        'cost': 75, 'health': 400, 'cooldown': 10, 'radius': CELL_SIZE_W * 2, 'buff': 1.5,
         'display_name': 'Активист с рупором',
         'description': "Здоровье: {health}\nПерезарядка: {cooldown} сек\nОсобенность: не атакует, но усиливает урон союзников в радиусе в {buff} раза.",
         'select_sound': 'activist_select.mp3',
         'upgrade': {'radius': 20, 'cost': 30}
     },
     'guitarist': {
-        'cost': 175, 'health': 300, 'cooldown': 4, 'damage': 20, 'is_animate': True,
+        'cost': 175, 'health': 300, 'cooldown': 4, 'damage': 20,
         'display_name': 'Гитарист',
         'description': "Урон: {damage}\nЗдоровье: {health}\nПерезарядка: {cooldown} сек\nОсобенность: атакует звуковой волной всех врагов на линии.",
         'select_sound': 'guitarist_select.mp3',
         'upgrade': {'damage': 5, 'cost': 20}
     },
     'medic': {
-        'cost': 50, 'health': 250, 'cooldown': 20, 'heal_amount': 150, 'radius': CELL_SIZE_W * 4, 'is_animate': True,
+        'cost': 50, 'health': 250, 'cooldown': 20, 'heal_amount': 150, 'radius': CELL_SIZE_W * 4,
         'display_name': 'Студент-медик',
         'description': "Лечение: {heal_amount}\nЗдоровье: {health}\nПерезарядка: {cooldown} сек\nОсобенность: лечит самого раненого союзника и исчезает.",
         'select_sound': 'medic_select.mp3',
@@ -127,7 +131,6 @@ DEFENDERS_DATA = {
     },
     'artist': {
         'cost': 125, 'health': 300, 'cooldown': 2, 'damage': 10, 'slow_duration': 2000, 'slow_factor': 0.5,
-        'is_animate': True,
         'display_name': 'Художница',
         'description': "Урон: {damage}\nЗдоровье: {health}\nПерезарядка: {cooldown} сек\nОсобенность: снаряды замедляют врагов.",
         'select_sound': 'artist_select.mp3',
@@ -138,26 +141,21 @@ DEFENDERS_DATA = {
 # ВРАГИ
 ENEMIES_DATA = {
     'alarm_clock': {'health': 100, 'speed': 0.8, 'damage': 50, 'display_name': "Первая пара (8:30)",
-                    'description': "Стандартный враг, просто идет вперед.", 'select_sound': 'alarm_clock_select.mp3'},
-    'calculus': {'health': 180, 'speed': 1, 'damage': 15, 'cooldown': 3, 'display_name': "Матанализ",
-                 'description': "Кидается интегралами и один раз перепрыгивает защитника.",
-                 'select_sound': 'calculus_select.mp3'},
-    'stuffy_prof': {'health': 350, 'speed': 0.5, 'radius': CELL_SIZE_W * 1.5, 'debuff': 0.5,
+                    'description': "Стандартный враг, просто идет вперед."},
+    'calculus': {'health': 180, 'speed': 0.8, 'damage': 15, 'cooldown': 3, 'display_name': "Матанализ",
+                 'description': "Стреляет интегралами с безопасного расстояния."},
+    'professor': {'health': 350, 'speed': 0.5, 'radius': CELL_SIZE_W * 1.5, 'debuff': 0.5, 'damage': 50,
                     'display_name': "Душный препод",
-                    'description': "Не атакует, но вгоняет в тоску, ослабляя урон героев рядом.",
-                    'select_sound': 'stuffy_prof_select.mp3'},
+                    'description': "Создает ауру, ослабляющую урон героев. Сам тоже может покусать."},
     'math_teacher': {'health': 150, 'speed': 1.5, 'damage': 80, 'display_name': "Злая математичка",
-                     'description': "Быстрый и опасный враг, может перепрыгнуть через защиту.",
-                     'select_sound': 'math_teacher_select.mp3'},
-    'addict': {'health': 120, 'speed': 2.5, 'display_name': "Наркоман со шприцом",
-               'description': "Очень быстрый, меняет линии. Мгновенно утаскивает любого героя, кроме кофемашин.",
-               'select_sound': 'addict_select.mp3'},
-    'thief': {'health': 120, 'speed': 2.5, 'display_name': "Вор",
-              'description': "Очень быстрый, меняет линии. Его цель - ваши кофемашины.",
-              'select_sound': 'thief_select.mp3'}
+                     'description': "Быстрый враг, который может один раз перепрыгнуть защитника."},
+    'addict': {'health': 120, 'speed': 2.5, 'damage': 9999, 'display_name': "Наркоман со шприцом",
+               'description': "Очень быстрый, меняет линии. Мгновенно уничтожает любого героя при контакте."},
+    'thief': {'health': 120, 'speed': 2.5, 'damage': 9999, 'display_name': "Вор",
+              'description': "Очень быстрый, меняет линии. Его цель - украсть ваши кофемашины."}
 }
 
-# НЕЙРОСЕТИ (БЫВШИЕ АКАДЕМЫ)
+# НЕЙРОСЕТИ
 NEURO_MOWERS_DATA = {
     'chat_gpt': {'cost': 10, 'display_name': 'ChatGPT',
                  'description': 'Стандартная защита. При контакте уничтожает всех врагов на линии.'},
@@ -165,4 +163,16 @@ NEURO_MOWERS_DATA = {
                  'description': 'При контакте находит и уничтожает 3 самых близких к базе врага.'},
     'gemini': {'cost': 40, 'display_name': 'Gemini',
                'description': 'При контакте находит и уничтожает 4 самых сильных врага на поле.'}
+}
+
+# НАПАСТИ (СТИХИИ)
+CALAMITIES_DATA = { # <-- ИЗМЕНЕНИЕ: Описания обновлены
+    'epidemic': {'display_name': 'Эпидемия гриппа',
+                 'description': 'Внезапно! Все ваши герои на поле заболевают. Их здоровье и урон падают в 2 раза до конца боя.'},
+    'big_party': {'display_name': 'Великая туса',
+                  'description': 'Зов вечеринки! 80% ваших героев случайным образом решают, что с них хватит, и покидают поле боя.'},
+    'colloquium': {'display_name': 'Внезапный коллоквиум',
+                   'description': 'Неожиданно! Все враги на поле получают прилив уверенности. Их атаки становятся в 1.5 раза сильнее до конца боя.'},
+    'internet_down': {'display_name': 'Отключение интернета',
+                      'description': 'Беда! Все враги на поле теряют доступ к ГДЗ и звереют. Их максимальное и текущее здоровье удваивается.'}
 }
