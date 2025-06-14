@@ -23,7 +23,7 @@ class LevelManager:
         self.enemies_killed = 0
         self.enemies_spawned = 0
 
-        self.spawn_cooldown = 5000  # ms
+        self.spawn_cooldown = 5000
         self.last_spawn_time = 0
         self.final_wave_threshold = 0.6
         self.in_final_wave = False
@@ -61,11 +61,10 @@ class LevelManager:
 
         now = pygame.time.get_ticks()
 
-        # Ускорение спавна для финальной волны
         if not self.in_final_wave and self.total_enemies_in_level > 0 and (
                 self.enemies_spawned / self.total_enemies_in_level) >= self.final_wave_threshold:
             self.in_final_wave = True
-            self.spawn_cooldown = 2000  # Ускоряем спавн
+            self.spawn_cooldown = 2000
 
         if now - self.last_spawn_time > self.spawn_cooldown:
             self.last_spawn_time = now
@@ -75,7 +74,6 @@ class LevelManager:
 
     def spawn_enemy(self, enemy_type, row):
         groups = (self.enemy_group, self.all_sprites_group)
-        args = (row, groups, self.calamities)
 
         enemy_map = {
             'calculus': Calculus,
@@ -85,13 +83,17 @@ class LevelManager:
             'thief': Thief
         }
 
-        enemy_class = enemy_map.get(enemy_type, Enemy)
+        # Получаем конструктор специализированного класса, если он есть
+        enemy_class = enemy_map.get(enemy_type)
 
-        # Для базового класса Enemy нужно передать и тип врага
-        if enemy_class is Enemy:
-            enemy_class(row, groups, enemy_type, self.calamities)
+        if enemy_class:
+            # Для классов вроде Calculus, Addict и т.д.
+            # Их конструктор принимает только row и groups
+            enemy_class(row, groups)
         else:
-            enemy_class(*args)
+            # Для базовых врагов, не входящих в карту (например, 'alarm_clock')
+            # Используем общий класс Enemy, которому нужен enemy_type для данных
+            Enemy(row, groups, enemy_type)
 
     def is_complete(self):
         all_spawned = len(self.enemy_spawn_list) == 0

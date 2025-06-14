@@ -1,9 +1,9 @@
 # sprites.py
 
 import pygame
+import random
 from settings import *
 from assets import load_image, SOUNDS
-import random
 
 
 class BaseSprite(pygame.sprite.Sprite):
@@ -11,24 +11,26 @@ class BaseSprite(pygame.sprite.Sprite):
         super().__init__(*groups)
         self.last_update = pygame.time.get_ticks()
 
+    def draw(self, surface):
+        surface.blit(self.image, self.rect)
+
 
 class Defender(BaseSprite):
     def __init__(self, x, y, groups, data):
         super().__init__(groups)
         self.data = data
-        self.health = self.data['health']
         self.max_health = self.data['health']
+        self.health = self.max_health
         self.cost = self.data['cost']
-        self.image = load_image(f"{self.data['type']}.png", DEFAULT_COLORS[self.data['type']],
-                                (CELL_SIZE_W - 10, CELL_SIZE_H - 10))
+        self.original_image = load_image(f"{self.data['type']}.png", DEFAULT_COLORS[self.data['type']],
+                                         (CELL_SIZE_W - 10, CELL_SIZE_H - 10))
+        self.image = self.original_image.copy()
         self.rect = self.image.get_rect(center=(x, y))
         self.is_animate = self.data['type'] != 'coffee_machine'
 
         self.is_being_eaten = False
         self.scream_channel = None
         self.is_upgraded = False
-
-        # Множители от баффов/дебаффов/напастей
         self.buff_multiplier = 1.0
         self.debuff_multiplier = 1.0
         self.calamity_damage_multiplier = 1.0
@@ -36,19 +38,26 @@ class Defender(BaseSprite):
     def get_final_damage(self, base_damage):
         return base_damage * self.buff_multiplier * self.debuff_multiplier * self.calamity_damage_multiplier
 
+    def apply_calamity_effect(self, calamity_type):
+        if calamity_type == 'epidemic':
+            self.calamity_damage_multiplier /= 2
+            self.health /= 2
+
+    def revert_calamity_effect(self, calamity_type):
+        if calamity_type == 'epidemic':
+            self.calamity_damage_multiplier *= 2
+
     def update(self, *args, **kwargs):
         if self.is_animate:
             self.manage_scream_sound()
         if self.health <= 0:
-            if self.is_animate and SOUNDS.get('hero_dead'):
-                SOUNDS['hero_dead'].play()
+            if self.is_animate and SOUNDS.get('hero_dead'): SOUNDS['hero_dead'].play()
             self.stop_scream()
             self.kill()
 
     def manage_scream_sound(self):
         scream_sound = SOUNDS.get('scream')
         if not scream_sound: return
-
         if self.is_being_eaten and not (self.scream_channel and self.scream_channel.get_busy()):
             self.scream_channel = pygame.mixer.find_channel()
             if self.scream_channel: self.scream_channel.play(scream_sound, -1)
@@ -105,12 +114,9 @@ class BotanistGirl(Defender):
                 self.attack(target)
 
     def find_strongest_enemy_in_range(self):
-        enemies_in_range = [
-            e for e in self.enemies_group
-            if pygame.math.Vector2(self.rect.center).distance_to(e.rect.center) < self.attack_radius
-        ]
-        if not enemies_in_range:
-            return None
+        enemies_in_range = [e for e in self.enemies_group if
+                            pygame.math.Vector2(self.rect.center).distance_to(e.rect.center) < self.attack_radius]
+        if not enemies_in_range: return None
         return max(enemies_in_range, key=lambda e: e.health)
 
     def attack(self, target):
@@ -206,8 +212,6 @@ class Artist(Defender):
             PaintSplat(self.rect.right, self.rect.centery, (self.all_sprites, self.projectile_group), damage, self)
 
 
-# --- СНАРЯДЫ И ЭФФЕКТЫ ---
-
 class Bracket(BaseSprite):
     def __init__(self, x, y, groups, damage):
         super().__init__(groups)
@@ -266,10 +270,8 @@ class Integral(Bracket):
     def __init__(self, x, y, groups, damage):
         super().__init__(x, y, groups, damage)
         self.image = load_image('integral.png', DEFAULT_COLORS['integral'], (30, 30))
-        self.speed = -5  # летит влево
+        self.speed = -5
 
-
-# --- РЕСУРСЫ ---
 
 class CoffeeBean(BaseSprite):
     def __init__(self, x, y, groups, value):
@@ -285,39 +287,34 @@ class CoffeeBean(BaseSprite):
             self.kill()
 
 
-# --- ВРАГИ ---
-
 class Enemy(BaseSprite):
-    def __init__(self, row, groups, enemy_type, active_calamities=[]):
+    def __init__(self, row, groups, enemy_type):
         super().__init__(groups)
         self.data = ENEMIES_DATA[enemy_type]
         self.enemy_type = enemy_type
-
-        # Применяем эффекты напастей
-        self.health = self.data['health'] * (2 if 'internet_down' in active_calamities else 1)
-        self.damage_multiplier = 1.5 if 'colloquium' in active_calamities else 1.0
-
+        self.max_health = self.data['health']
+        self.health = self.max_health
         self.speed = self.data['speed']
         self.original_speed = self.data['speed']
         self.damage = self.data['damage']
-
+        self.damage_multiplier = 1.0
         self.original_image = load_image(f'{enemy_type}.png', DEFAULT_COLORS[enemy_type],
                                          (CELL_SIZE_W - 20, CELL_SIZE_H - 10))
         self.image = self.original_image.copy()
         y = GRID_START_Y + row * CELL_SIZE_H + CELL_SIZE_H / 2
         self.rect = self.image.get_rect(midleft=(SCREEN_WIDTH + random.randint(0, 100), y))
+        self.attack_cooldown = self.data['cooldown'] * 1000 if self.data['cooldown'] else 1000
 
         self.is_attacking = False
         self.is_hit = False
         self.hit_timer = 0
         self.hit_duration = 100
-        self.attack_cooldown = 1000
         self.last_attack_time = 0
         self.eating_channel = None
         self.current_target = None
-
         self.slow_timer = 0
         self.is_slowed = False
+        self.active_calamity_color = None
 
     def get_hit(self, damage):
         self.health -= damage
@@ -325,11 +322,28 @@ class Enemy(BaseSprite):
         self.hit_timer = pygame.time.get_ticks()
         if SOUNDS.get('damage'): SOUNDS['damage'].play()
 
-    def slow_down(self, factor, duration):
-        if not self.is_slowed:
-            self.speed *= factor
-            self.is_slowed = True
-        self.slow_timer = pygame.time.get_ticks() + duration
+    def apply_calamity_effect(self, calamity_type):
+        if calamity_type == 'colloquium':
+            self.damage_multiplier *= 1.5
+        elif calamity_type == 'internet_down':
+            ratio = self.health / self.max_health if self.max_health > 0 else 1
+            self.max_health *= 2
+            self.health = self.max_health * ratio
+        self.active_calamity_color = DEFAULT_COLORS.get(calamity_type)
+
+    def revert_calamity_effect(self, calamity_type):
+        if calamity_type == 'colloquium':
+            self.damage_multiplier /= 1.5
+        elif calamity_type == 'internet_down':
+            ratio = self.health / self.max_health if self.max_health > 0 else 1
+            self.max_health /= 2
+            self.health = max(1, self.max_health * ratio)
+        self.active_calamity_color = None
+
+    def draw(self, surface):
+        surface.blit(self.image, self.rect)
+        if self.active_calamity_color:
+            pygame.draw.rect(surface, self.active_calamity_color, self.rect, 4, border_radius=5)
 
     def manage_hit_flash(self):
         if self.is_hit:
@@ -343,18 +357,16 @@ class Enemy(BaseSprite):
         else:
             self.image = self.original_image
 
-    def update(self, defenders_group, all_sprites, projectiles):
+    def update(self, defenders_group, *args, **kwargs):
         self.manage_hit_flash()
         if self.health <= 0:
             self.kill()
             return
-
         if self.is_slowed and pygame.time.get_ticks() > self.slow_timer:
             self.speed = self.original_speed
             self.is_slowed = False
 
         target_found = self.find_and_attack_target(defenders_group)
-
         if not target_found:
             if self.is_attacking:
                 self.is_attacking = False
@@ -367,19 +379,16 @@ class Enemy(BaseSprite):
     def find_and_attack_target(self, defenders_group):
         collided_defenders = [d for d in defenders_group if
                               self.rect.colliderect(d.rect) and d.rect.centery == self.rect.centery]
-
         if not collided_defenders:
             return False
 
         target = collided_defenders[0]
         self.is_attacking = True
-
         if self.current_target != target:
-            if self.current_target: self.current_target.is_being_eaten = False
+            if self.current_target:
+                self.current_target.is_being_eaten = False
             self.current_target = target
-
         self.current_target.is_being_eaten = True
-
         now = pygame.time.get_ticks()
         if now - self.last_attack_time > self.attack_cooldown:
             self.play_eating_sound()
@@ -389,54 +398,70 @@ class Enemy(BaseSprite):
 
     def kill(self):
         if self.alive():
-            if SOUNDS.get('enemy_dead'): SOUNDS['enemy_dead'].play()
+            if SOUNDS.get('enemy_dead'):
+                SOUNDS['enemy_dead'].play()
             self.stop_eating_sound()
-            if self.current_target: self.current_target.is_being_eaten = False
+            if self.current_target:
+                self.current_target.is_being_eaten = False
             super().kill()
 
     def play_eating_sound(self):
         eating_sound = SOUNDS.get('eating')
         if eating_sound and not (self.eating_channel and self.eating_channel.get_busy()):
             self.eating_channel = pygame.mixer.find_channel()
-            if self.eating_channel: self.eating_channel.play(eating_sound)
+            if self.eating_channel:
+                self.eating_channel.play(eating_sound)
 
     def stop_eating_sound(self):
         if self.eating_channel:
             self.eating_channel.stop()
             self.eating_channel = None
 
+    def slow_down(self, factor, duration):
+        if not self.is_slowed:
+            self.speed *= factor
+            self.is_slowed = True
+        self.slow_timer = pygame.time.get_ticks() + duration
+
 
 class Calculus(Enemy):
-    def __init__(self, row, groups, active_calamities=[]):
-        super().__init__(row, groups, 'calculus', active_calamities)
-        self.attack_cooldown = self.data['cooldown'] * 1000
+    def __init__(self, row, groups):
+        super().__init__(row, groups, 'calculus')
         self.last_shot = pygame.time.get_ticks()
         self.is_shooting = False
 
-    def update(self, defenders_group, all_sprites, projectiles):
-        self.manage_hit_flash()
-        if self.health <= 0:
-            self.kill()
-            return
+    def update(self, defenders_group, all_sprites, projectiles, *args, **kwargs):
+        self.find_and_attack_target(defenders_group)
+        # Для Calculus вызываем super().update() только если он не стреляет
+        if not self.is_shooting:
+            super().update(defenders_group, *args, **kwargs)
 
-        self.is_shooting = any(d.rect.centery == self.rect.centery for d in defenders_group)
-
-        if self.is_shooting:
+        if self.alive() and self.is_shooting:
             now = pygame.time.get_ticks()
             if now - self.last_shot > self.attack_cooldown:
                 self.last_shot = now
                 damage = self.damage * self.damage_multiplier
                 Integral(self.rect.left, self.rect.centery, (all_sprites, projectiles), damage)
-        else:
-            self.rect.x -= self.speed
+
+    def find_and_attack_target(self, defenders_group):
+        self.is_shooting = any(
+            d.rect.centery == self.rect.centery and d.rect.left > self.rect.right for d in defenders_group)
+        if self.is_shooting:
+            return True
+        return False
+
+
+class StuffyProf(Enemy):
+    def __init__(self, row, groups):
+        super().__init__(row, groups, 'professor')
 
 
 class MathTeacher(Enemy):
-    def __init__(self, row, groups, active_calamities=[]):
-        super().__init__(row, groups, 'math_teacher', active_calamities)
+    def __init__(self, row, groups):
+        super().__init__(row, groups, 'math_teacher')
         self.has_jumped = False
 
-    def update(self, defenders_group, all_sprites, projectiles):
+    def update(self, defenders_group, *args, **kwargs):
         if not self.has_jumped:
             for defender in defenders_group:
                 if defender.alive() and pygame.sprite.collide_rect(self,
@@ -445,49 +470,91 @@ class MathTeacher(Enemy):
                         self.rect.x = defender.rect.left - self.rect.width - 5
                         self.has_jumped = True
                         break
-        super().update(defenders_group, all_sprites, projectiles)
+        super().update(defenders_group, *args, **kwargs)
 
 
 class Addict(Enemy):
-    def __init__(self, row, groups, active_calamities=[]):
-        super().__init__(row, groups, 'addict', active_calamities)
-        self.change_lane_cooldown = 3000
-        self.last_lane_change = pygame.time.get_ticks()
+    def __init__(self, row, groups):
+        super().__init__(row, groups, 'addict')
+        self.state = 'SEEKING'
+        self.target_defender = None
+        self.victim = None
 
-    def update(self, defenders_group, all_sprites, projectiles):
-        super().update(defenders_group, all_sprites, projectiles)
-        now = pygame.time.get_ticks()
-        if now - self.last_lane_change > self.change_lane_cooldown and not self.is_attacking:
-            self.last_lane_change = now
-            new_row = random.randint(0, GRID_ROWS - 1)
-            self.rect.centery = GRID_START_Y + new_row * CELL_SIZE_H + CELL_SIZE_H / 2
+    def find_strongest_defender(self, defenders_group):
+        living_defenders = [d for d in defenders_group if d.alive() and not isinstance(d, CoffeeMachine)]
+        if not living_defenders:
+            return None
+        return max(living_defenders, key=lambda d: d.max_health)
+
+    def update(self, defenders_group, *args, **kwargs):
+        self.manage_hit_flash()
+        if self.health <= 0:
+            self.kill()
+            return
+
+        if self.state == 'SEEKING':
+            self.target_defender = self.find_strongest_defender(defenders_group)
+            if self.target_defender:
+                self.state = 'CHASING'
+            else:
+                self.rect.x -= self.speed
+
+        elif self.state == 'CHASING':
+            if not self.target_defender or not self.target_defender.alive():
+                self.state = 'SEEKING'
+                return
+
+            if self.rect.centery < self.target_defender.rect.centery - 5:
+                self.rect.y += self.speed
+            elif self.rect.centery > self.target_defender.rect.centery + 5:
+                self.rect.y -= self.speed
+
+            self.rect.x -= self.speed
+
+            if self.rect.colliderect(self.target_defender.rect):
+                self.victim = self.target_defender
+                self.state = 'GRABBING'
+                self.victim.is_being_eaten = True
+
+        elif self.state == 'GRABBING':
+            self.victim.rect.center = self.rect.center
+            self.state = 'ESCAPING'
+
+        elif self.state == 'ESCAPING':
+            self.rect.x += self.speed * 2
+            self.victim.rect.center = self.rect.center
+            if self.rect.left > SCREEN_WIDTH:
+                self.victim.kill()
+                self.kill()
+
+    def kill(self):
+        if self.victim:
+            self.victim.is_being_eaten = False
+        super().kill()
 
 
 class Thief(Addict):
-    def __init__(self, row, groups, active_calamities=[]):
-        super().__init__(row, groups, 'thief', active_calamities)
+    def __init__(self, row, groups):
+        super().__init__(row, groups)
+        self.enemy_type = 'thief'
 
     def find_and_attack_target(self, defenders_group):
         coffee_machines = [d for d in defenders_group if isinstance(d, CoffeeMachine)]
         if not coffee_machines:
-            return super().find_and_attack_target(defenders_group)
+            return super(Thief, self).find_and_attack_target(defenders_group)
 
-        # Двигаться к ближайшей кофемашине
         closest_machine = min(coffee_machines, key=lambda m: abs(m.rect.centery - self.rect.centery) * 100 + abs(
             m.rect.centerx - self.rect.centerx))
 
-        # Если вор на одной линии с машиной
         if abs(self.rect.centery - closest_machine.rect.centery) < 10:
-            return super().find_and_attack_target([closest_machine])
-        else:  # Двигаться к линии с машиной
+            return super(Thief, self).find_and_attack_target([closest_machine])
+        else:
             if self.rect.centery < closest_machine.rect.centery:
                 self.rect.y += self.speed / 2
             else:
                 self.rect.y -= self.speed / 2
         return False
 
-
-# --- НЕЙРОСЕТИ ---
 
 class NeuroMower(BaseSprite):
     def __init__(self, row, groups, mower_type):
@@ -505,13 +572,10 @@ class NeuroMower(BaseSprite):
         self.is_active = True
 
         if self.mower_type == 'deepseek':
-            closest_enemies = sorted(list(enemies_group), key=lambda e: e.rect.left)[:3]
-            for enemy in closest_enemies:
+            for enemy in sorted(list(enemies_group), key=lambda e: e.rect.left)[:3]:
                 enemy.kill()
-
         elif self.mower_type == 'gemini':
-            strongest_enemies = sorted(list(enemies_group), key=lambda e: e.health, reverse=True)[:4]
-            for enemy in strongest_enemies:
+            for enemy in sorted(list(enemies_group), key=lambda e: e.health, reverse=True)[:4]:
                 enemy.kill()
 
     def update(self, *args, **kwargs):
@@ -520,15 +584,9 @@ class NeuroMower(BaseSprite):
             if self.rect.left > SCREEN_WIDTH:
                 self.kill()
 
-            # Уничтожение врагов на линии для ChatGPT
             enemies_on_line = kwargs.get('enemies_group')
             if enemies_on_line:
                 pygame.sprite.spritecollide(self, enemies_on_line, True)
 
         elif self.is_active and self.mower_type != 'chat_gpt':
-            self.kill()  # DeepSeek и Gemini исчезают после срабатывания
-
-
-class StuffyProf(Enemy):
-    def __init__(self, row, groups, active_calamities=[]):
-        super().__init__(row, groups, 'professor', active_calamities)
+            self.kill()

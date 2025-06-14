@@ -7,6 +7,9 @@ SCREEN_HEIGHT = 720
 FPS = 60
 TITLE = "Студенты против Злоключений"
 
+# <-- ИЗМЕНЕНИЕ: Максимальный размер команды теперь 6
+MAX_TEAM_SIZE = 6
+
 # Цвета
 BLACK = (0, 0, 0); WHITE = (255, 255, 255); GREY = (128, 128, 128); DARK_GREY = (50, 50, 50)
 GREEN = (0, 255, 0); RED = (255, 0, 0); BLUE = (0, 0, 255); YELLOW = (255, 255, 0)
@@ -23,12 +26,12 @@ DEFAULT_COLORS = {
     'alarm_clock': (169, 169, 169), 'professor': (112, 128, 144), 'calculus': (70, 130, 180),
     'math_teacher': (210, 105, 30), 'addict': (0, 100, 0), 'thief': (139, 0, 0),
     'chat_gpt': (0, 168, 150), 'deepseek': (20, 20, 40), 'gemini': (106, 90, 205),
-    'epidemic': (152, 251, 152), 'big_party': (255, 20, 147), 'colloquium': (255, 69, 0), 'internet_down': (75, 0, 130),
+    'epidemic': (152, 251, 152, 100), 'big_party': (255, 20, 147, 100), 'colloquium': (255, 69, 0, 100), 'internet_down': (75, 0, 130, 100),
     'background': (48, 124, 55), 'shop_panel': (54, 45, 33), 'shop_card': (87, 72, 54),
     'shop_border': (34, 28, 21), 'button': (100, 100, 100), 'pause_button': (200, 200, 200)
 }
 
-# ... (Игровое поле и пути без изменений)
+# Игровое поле и пути
 GRID_ROWS = 5; GRID_COLS = 9; CELL_SIZE_W = 110; CELL_SIZE_H = 110; GRID_START_X = 150
 GRID_START_Y = 150; GRID_WIDTH = GRID_COLS * CELL_SIZE_W; GRID_HEIGHT = GRID_ROWS * CELL_SIZE_H
 SHOP_PANEL_HEIGHT = 140; SHOP_CARD_SIZE = 100; SHOP_ITEM_PADDING = 20
@@ -36,51 +39,23 @@ ASSETS_DIR = 'assets'; IMAGES_DIR = f'{ASSETS_DIR}/images'
 
 # ЗАЩИТНИКИ
 DEFENDERS_DATA = {
-    'programmer': {
-        'cost': 100, 'health': 300, 'damage': 25, 'cooldown': 1.5, 'display_name': 'Мальчик-джун',
-        'description': "Стреляет быстрыми, но слабыми снарядами.", 'upgrade': {'damage': 5, 'cost': 15}
-    },
-    'botanist': {
-        'cost': 150, 'health': 300, 'damage': 50, 'cooldown': 2.5, 'radius': CELL_SIZE_W * 1.5, 'display_name': 'Девочка-ботан',
-        'description': "Атакует по области самого сильного врага.", 'upgrade': {'damage': 10, 'cost': 25}
-    },
-    'coffee_machine': {
-        'cost': 50, 'health': 200, 'damage': 0, 'cooldown': 5, 'production': 25, 'display_name': 'Кофемашина',
-        'description': "Производит кофейные зернышки.", 'upgrade': {'cooldown': -0.5, 'cost': 20}
-    },
-    'activist': {
-        'cost': 75, 'health': 400, 'damage': 0, 'cooldown': None, 'radius': CELL_SIZE_W * 2, 'buff': 1.5, 'display_name': 'Активист с рупором',
-        'description': "Не атакует, но усиливает урон союзников в радиусе в {buff} раза.", 'upgrade': {'radius': 20, 'cost': 30}
-    },
-    'guitarist': {
-        'cost': 175, 'health': 300, 'damage': 20, 'cooldown': 4, 'display_name': 'Гитарист',
-        'description': "Атакует звуковой волной всех врагов на линии.", 'upgrade': {'damage': 5, 'cost': 20}
-    },
-    'medic': {
-        'cost': 50, 'health': 250, 'damage': 0, 'cooldown': None, 'heal_amount': 150, 'radius': CELL_SIZE_W * 4, 'display_name': 'Студент-медик',
-        'description': "Лечит самого раненого союзника и исчезает.", 'upgrade': {'heal_amount': 50, 'cost': 25}
-    },
-    'artist': {
-        'cost': 125, 'health': 300, 'damage': 10, 'cooldown': 2, 'slow_duration': 2000, 'slow_factor': 0.5, 'display_name': 'Художница',
-        'description': "Снаряды замедляют врагов.", 'upgrade': {'slow_duration': 500, 'cost': 15}
-    }
+    'programmer': {'cost': 100, 'health': 300, 'damage': 25, 'cooldown': 1.5, 'display_name': 'Мальчик-джун','description': "Стреляет быстрыми, но слабыми снарядами.", 'upgrade': {'damage': 5, 'cost': 15}},
+    'botanist': {'cost': 150, 'health': 300, 'damage': 50, 'cooldown': 2.5, 'radius': CELL_SIZE_W * 1.5, 'display_name': 'Девочка-ботан','description': "Атакует по области самого сильного врага.", 'upgrade': {'damage': 10, 'cost': 25}},
+    'coffee_machine': {'cost': 50, 'health': 200, 'damage': 0, 'cooldown': 5, 'production': 25, 'display_name': 'Кофемашина','description': "Производит кофейные зернышки.", 'upgrade': {'cooldown': -0.5, 'cost': 20}},
+    'activist': {'cost': 75, 'health': 400, 'damage': 0, 'cooldown': None, 'radius': CELL_SIZE_W * 2, 'buff': 1.5, 'display_name': 'Активист с рупором','description': "Не атакует, но усиливает урон союзников в радиусе в {buff} раза.", 'upgrade': {'radius': 20, 'cost': 30}},
+    'guitarist': {'cost': 175, 'health': 300, 'damage': 20, 'cooldown': 4, 'display_name': 'Гитарист','description': "Атакует звуковой волной всех врагов на линии.", 'upgrade': {'damage': 5, 'cost': 20}},
+    'medic': {'cost': 50, 'health': 250, 'damage': 0, 'cooldown': None, 'heal_amount': 150, 'radius': CELL_SIZE_W * 4, 'display_name': 'Студент-медик','description': "Лечит самого раненого союзника и исчезает.", 'upgrade': {'heal_amount': 50, 'cost': 25}},
+    'artist': {'cost': 125, 'health': 300, 'damage': 10, 'cooldown': 2, 'slow_duration': 2000, 'slow_factor': 0.5, 'display_name': 'Художница','description': "Снаряды замедляют врагов.", 'upgrade': {'slow_duration': 500, 'cost': 15}}
 }
 
 # ВРАГИ
 ENEMIES_DATA = {
-    'alarm_clock': {'health': 100, 'speed': 0.8, 'damage': 50, 'cooldown': 1.0, 'display_name': "Первая пара (8:30)",
-                    'description': "Стандартный враг, просто идет вперед и кусается."},
-    'calculus': {'health': 180, 'speed': 0.8, 'damage': 15, 'cooldown': 3.0, 'display_name': "Матанализ",
-                 'description': "Стреляет интегралами с безопасного расстояния."},
-    'professor': {'health': 350, 'speed': 0.5, 'damage': 50, 'cooldown': 1.0, 'radius': CELL_SIZE_W * 1.5, 'debuff': 0.5,
-                    'display_name': "Душный препод",
-                    'description': "Ослабляет урон героев. Сам тоже может покусать."},
-    'math_teacher': {'health': 150, 'speed': 1.5, 'damage': 80, 'cooldown': 1.0, 'display_name': "Злая математичка",
-                     'description': "Быстрый враг, который может один раз перепрыгнуть защитника."},
-    'addict': {'health': 120, 'speed': 2.5, 'damage': 9999, 'cooldown': 0.5, 'display_name': "Наркоман со шприцом",
-               'description': "Очень быстрый, меняет линии. Мгновенно уничтожает героя."},
-    'thief': {'health': 120, 'speed': 2.5, 'damage': 9999, 'cooldown': 0.5, 'display_name': "Вор",
-              'description': "Очень быстрый, меняет линии. Его цель - кофемашины."}
+    'alarm_clock': {'health': 100, 'speed': 0.8, 'damage': 50, 'cooldown': 1.0, 'display_name': "Первая пара (8:30)",'description': "Стандартный враг, просто идет вперед и кусается."},
+    'calculus': {'health': 180, 'speed': 0.8, 'damage': 15, 'cooldown': 3.0, 'display_name': "Матанализ",'description': "Стреляет интегралами с безопасного расстояния."},
+    'professor': {'health': 350, 'speed': 0.5, 'damage': 50, 'cooldown': 1.0, 'radius': CELL_SIZE_W * 1.5, 'debuff': 0.5,'display_name': "Душный препод",'description': "Ослабляет урон героев. Сам тоже может покусать."},
+    'math_teacher': {'health': 150, 'speed': 1.5, 'damage': 80, 'cooldown': 1.0, 'display_name': "Злая математичка",'description': "Быстрый враг, который может один раз перепрыгнуть защитника."},
+    'addict': {'health': 120, 'speed': 2.5, 'damage': 9999, 'cooldown': 0.5, 'display_name': "Наркоман со шприцом",'description': "Очень быстрый. Охотится за сильнейшим героем, чтобы утащить его с поля."},
+    'thief': {'health': 120, 'speed': 2.5, 'damage': 9999, 'cooldown': 0.5, 'display_name': "Вор",'description': "Очень быстрый, меняет линии. Его цель - кофемашины."}
 }
 
 # НЕЙРОСЕТИ
@@ -90,10 +65,10 @@ NEURO_MOWERS_DATA = {
     'gemini': {'cost': 40, 'display_name': 'Gemini', 'description': 'При контакте находит и уничтожает 4 самых сильных врага на поле.'}
 }
 
-# НАПАСТИ (СТИХИИ)
+# НАПАСТИ
 CALAMITIES_DATA = {
-    'epidemic': {'display_name': 'Эпидемия гриппа', 'description': 'Внезапно! Все ваши герои на поле заболевают. Их здоровье и урон падают в 2 раза до конца боя.'},
+    'epidemic': {'display_name': 'Эпидемия гриппа', 'description': 'Все ваши герои на поле заболевают! Их здоровье и урон временно падают в 2 раза.'},
     'big_party': {'display_name': 'Великая туса', 'description': 'Зов вечеринки! 80% ваших героев случайным образом решают, что с них хватит, и покидают поле боя.'},
-    'colloquium': {'display_name': 'Внезапный коллоквиум', 'description': 'Неожиданно! Все враги на поле получают прилив уверенности. Их атаки становятся в 1.5 раза сильнее до конца боя.'},
-    'internet_down': {'display_name': 'Отключение интернета', 'description': 'Студенты теряют доступ к ГДЗ. Учёба становится в 2 раза сложнее, и все враги на поле наносят двойной урон.'}
+    'colloquium': {'display_name': 'Внезапный коллоквиум', 'description': 'Все враги на поле получают прилив уверенности! Их атаки временно становятся в 1.5 раза сильнее.'},
+    'internet_down': {'display_name': 'Отключение интернета', 'description': 'Враги не могут списать и звереют! Их здоровье временно удваивается.'}
 }

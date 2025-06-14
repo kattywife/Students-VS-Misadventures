@@ -4,12 +4,13 @@ LEVELS = {
     1: {
         'name': "Курс 1: Введение",
         'start_coffee': 150,
-        'neuro_slots': 2, # <-- ИЗМЕНЕНИЕ: Количество слотов для нейросетей
-        'calamities': [], # На первом уровне без напастей
-        'enemies': [
-            ('alarm_clock', 2), ('alarm_clock', 1), ('alarm_clock', 3),
-            ('alarm_clock', 2), ('alarm_clock', 0), ('alarm_clock', 4),
-            ('alarm_clock', 1), ('alarm_clock', 3),
+        'neuro_slots': 2,
+        'calamities': ['colloquium'], # <-- Добавлена напасть
+        'enemies': [ # <-- Добавлены новые враги
+            ('alarm_clock', 2), ('alarm_clock', 1),
+            ('calculus', 3), ('alarm_clock', 2),
+            ('professor', 0), ('alarm_clock', 4),
+            ('calculus', 1), ('alarm_clock', 3),
         ]
     },
     2: {

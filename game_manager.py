@@ -14,69 +14,65 @@ from battle_manager import BattleManager
 
 class Game:
     def __init__(self):
-        pygame.mixer.pre_init(44100, -16, 2, 512)
-        pygame.init()
-        pygame.mixer.init()
+        pygame.mixer.pre_init(44100, -16, 2, 512);
+        pygame.init();
+        pygame.mixer.init();
         pygame.mixer.set_num_channels(32)
-
-        self.screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
+        self.screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT));
         pygame.display.set_caption(TITLE)
-        self.clock = pygame.time.Clock()
+        self.clock = pygame.time.Clock();
         self.running = True
-
         self.ui_manager = UIManager(self.screen)
         self.background = load_image('background.png', DEFAULT_COLORS['background'], (SCREEN_WIDTH, SCREEN_HEIGHT))
-
-        self.max_level_unlocked = 1
-        self.current_level_id = 1
+        self.max_level_unlocked = 1;
+        self.current_level_id = 1;
         self.stipend = 150
-
-        self.prep_manager = None
+        self.prep_manager = None;
         self.battle_manager = None
 
-        self.level_select_buttons = {}
-        self.control_buttons = {}
+        self.level_select_buttons = {};
+        self.control_buttons = {};
         self.prep_start_button = None
-
-        self.pause_menu_buttons = {
-            "Продолжить": pygame.Rect(0, 0, 300, 80),
-            "Главное меню": pygame.Rect(0, 0, 400, 80)
-        }
-        self.pause_menu_buttons["Продолжить"].center = (SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2)
+        self.pause_menu_buttons = {"Продолжить": pygame.Rect(0, 0, 300, 80), "Главное меню": pygame.Rect(0, 0, 400, 80)}
+        self.pause_menu_buttons["Продолжить"].center = (SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2);
         self.pause_menu_buttons["Главное меню"].center = (SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2 + 100)
 
         self.state = 'START_SCREEN'
-        self.level_clear_timer = 0
-        self.victory_initial_delay = 300
-        self.victory_sound_played = False
+        self.level_clear_timer = 0;
+        self.victory_initial_delay = 300;
+        self.victory_sound_played = False;
         self.level_clear_duration = 3000
 
+        self.placed_neuro_mowers = {}
+        self.dragged_mower = None
         self._load_assets()
 
     def _load_assets(self):
         load_sound('button', 'pressing a button.mp3');
-        load_sound('purchase', 'purchase and landing of the hero.mp3')
+        load_sound('purchase', 'purchase and landing of the hero.mp3');
         load_sound('taking', 'taking.mp3');
         load_sound('cards', 'cards.mp3');
-        load_sound('damage', 'damage.mp3')
+        load_sound('damage', 'damage.mp3');
         load_sound('eating', 'eating.mp3');
         load_sound('scream', 'scream.mp3');
-        load_sound('enemy_dead', 'enemy_dead.mp3')
+        load_sound('enemy_dead', 'enemy_dead.mp3');
         load_sound('hero_dead', 'hero_dead.mp3');
         load_sound('money', 'money.mp3');
         load_sound('win', 'win.mp3')
+        load_sound('misfortune', 'misfortune.mp3')
         if SOUNDS.get('win'): self.level_clear_duration = SOUNDS['win'].get_length() * 1000
 
     def run(self):
         while self.running:
             self.dt = self.clock.tick(FPS) / 1000.0
-
             if self.state == 'START_SCREEN':
                 self._start_screen_loop()
             elif self.state == 'MAIN_MENU':
                 self._main_menu_loop()
             elif self.state == 'PREPARATION':
                 self._preparation_loop()
+            elif self.state == 'NEURO_PLACEMENT':
+                self._neuro_placement_loop()
             elif self.state == 'PLAYING':
                 self._playing_loop()
             elif self.state == 'PAUSED':
@@ -89,31 +85,35 @@ class Game:
                 self._level_victory_loop()
             elif self.state == 'GAME_VICTORY':
                 self._game_victory_loop()
-
             pygame.display.flip()
 
     def _prepare_level(self, level_id):
         self.current_level_id = level_id
         self.prep_manager = PrepManager(self.ui_manager, self.stipend, self.current_level_id)
         self.state = 'PREPARATION'
+        self.placed_neuro_mowers.clear()
+        self.dragged_mower = None
+
+    def _start_neuro_placement(self):
+        if self.prep_manager.is_ready():
+            self.state = 'NEURO_PLACEMENT'
 
     def _start_battle(self):
         self.stipend = self.prep_manager.stipend
-
-        all_sprites = pygame.sprite.Group()
-        defenders = pygame.sprite.Group()
+        all_sprites = pygame.sprite.Group();
+        defenders = pygame.sprite.Group();
         enemies = pygame.sprite.Group()
-        projectiles = pygame.sprite.Group()
-        coffee_beans = pygame.sprite.Group()
+        projectiles = pygame.sprite.Group();
+        coffee_beans = pygame.sprite.Group();
         neuro_mowers = pygame.sprite.Group()
-
         level_manager = LevelManager(self.current_level_id, enemies, all_sprites)
+
+        final_mower_placement = {row: info['type'] for row, info in self.placed_neuro_mowers.items()}
 
         self.battle_manager = BattleManager(all_sprites, defenders, enemies, projectiles, coffee_beans, neuro_mowers,
                                             self.ui_manager, level_manager,
                                             self.prep_manager.team, self.prep_manager.upgraded_heroes,
-                                            self.prep_manager.neuro_mowers)
-
+                                            final_mower_placement)
         self.battle_manager.start()
         self.state = 'PLAYING'
 
@@ -168,10 +168,72 @@ class Game:
                 if self.prep_start_button and self.prep_start_button.collidepoint(event.pos):
                     if self.prep_manager.is_ready():
                         if SOUNDS.get('button'): SOUNDS['button'].play()
-                        self._start_battle()
+                        self._start_neuro_placement()
                         return
         self.prep_start_button = self.prep_manager.draw(self.screen)
 
+    def _neuro_placement_loop(self):
+        # Этот вызов теперь будет отрисовывать новый интерфейс
+        unplaced_rects, start_rect = self.ui_manager.draw_neuro_placement_screen(self.screen,
+                                                                                 self.prep_manager.purchased_mowers,
+                                                                                 self.placed_neuro_mowers,
+                                                                                 self.dragged_mower)
+
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT: self.running = False
+            if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                # Логика начала перетаскивания (остается прежней)
+                if self.dragged_mower is None:
+                    # С неразмещенных карточек
+                    for index, rect in unplaced_rects.items():
+                        if rect.collidepoint(event.pos):
+                            if SOUNDS.get('purchase'): SOUNDS['purchase'].play()
+                            self.dragged_mower = {'type': self.prep_manager.purchased_mowers[index],
+                                                  'original_index': index, 'pos': event.pos}
+                            return
+                    # С уже размещенных ячеек
+                    for row, info in list(self.placed_neuro_mowers.items()):
+                        placement_zone_width = CELL_SIZE_W + 20
+                        placement_zone_x = GRID_START_X - placement_zone_width
+                        mower_rect = pygame.Rect(0, 0, CELL_SIZE_W, CELL_SIZE_H)
+                        mower_rect.center = (
+                        placement_zone_x + placement_zone_width / 2, GRID_START_Y + row * CELL_SIZE_H + CELL_SIZE_H / 2)
+
+                        if mower_rect.collidepoint(event.pos):
+                            if SOUNDS.get('purchase'): SOUNDS['purchase'].play()
+                            self.dragged_mower = self.placed_neuro_mowers.pop(row)
+                            self.dragged_mower['pos'] = event.pos
+                            return
+
+                # Логика кнопки "В Бой!" (остается прежней)
+                if start_rect.collidepoint(event.pos) and len(self.prep_manager.purchased_mowers) == len(
+                        self.placed_neuro_mowers):
+                    if SOUNDS.get('button'): SOUNDS['button'].play()
+                    self._start_battle()
+                    return
+
+            if event.type == pygame.MOUSEMOTION:
+                if self.dragged_mower: self.dragged_mower['pos'] = event.pos
+
+            if event.type == pygame.MOUSEBUTTONUP and event.button == 1:
+                if self.dragged_mower:
+                    pos = event.pos
+
+                    # --- ИЗМЕНЕНИЕ ЛОГИКИ РАЗМЕЩЕНИЯ ---
+                    # Определяем прямоугольник для зоны размещения слева от поля
+                    placement_area_rect = pygame.Rect(GRID_START_X - CELL_SIZE_W - 20, GRID_START_Y,
+                                                      CELL_SIZE_W + 20, GRID_ROWS * CELL_SIZE_H)
+
+                    # Проверяем, бросили ли карточку в эту зону
+                    if placement_area_rect.collidepoint(pos):
+                        row = (pos[1] - GRID_START_Y) // CELL_SIZE_H
+                        if 0 <= row < GRID_ROWS and row not in self.placed_neuro_mowers:
+                            if SOUNDS.get('purchase'): SOUNDS['purchase'].play()
+                            self.placed_neuro_mowers[row] = {'type': self.dragged_mower['type'],
+                                                             'original_index': self.dragged_mower['original_index']}
+
+                    # Вне зависимости от того, куда бросили, отпускаем карточку
+                    self.dragged_mower = None
     def _playing_loop(self):
         for event in pygame.event.get():
             if event.type == pygame.QUIT: self.running = False
