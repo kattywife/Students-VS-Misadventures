@@ -34,7 +34,7 @@ class PrepManager:
             self.handle_click(event.pos)
 
     def randomize_team(self):
-        if SOUNDS.get('cards'): SOUNDS['cards'].play()
+        if SOUNDS.get('taking'): SOUNDS['taking'].play()
         self.team.clear();
         self.upgraded_heroes.clear()
         available_heroes = self.all_defenders.copy();
@@ -42,7 +42,7 @@ class PrepManager:
         self.team = available_heroes[:self.team_slots]
 
     def randomize_neuro(self):
-        if SOUNDS.get('cards'): SOUNDS['cards'].play()
+        if SOUNDS.get('taking'): SOUNDS['taking'].play()
         # Возвращаем стоимость старых нейросетей
         for mower_type in self.purchased_mowers:
             self.stipend += NEURO_MOWERS_DATA[mower_type]['cost']
@@ -65,30 +65,35 @@ class PrepManager:
                 break  # Заканчиваем, если деньги кончились
 
     def handle_click(self, pos):
+        # Обработка кнопок внутри открытой информационной панели
         if self.selected_card_info:
             if 'close' in self.info_panel_buttons and self.info_panel_buttons['close'].collidepoint(pos):
                 if SOUNDS.get('cards'): SOUNDS['cards'].play(); self.selected_card_info = None; return
             if 'take' in self.info_panel_buttons and self.info_panel_buttons['take'].collidepoint(pos):
-                self.try_take_card(self.selected_card_info['type']);
-                self.selected_card_info = None;
-                return
+                self.try_take_card(self.selected_card_info['type']); self.selected_card_info = None; return
+            if 'upgrade' in self.info_panel_buttons and self.info_panel_buttons['upgrade'].collidepoint(pos):
+                self.try_upgrade_hero(self.selected_card_info['type']); return
+            # Не закрывать панель при клике на нее саму
             if self.ui_manager.desc_panel_rect and self.ui_manager.desc_panel_rect.collidepoint(pos): return
 
+        # Кнопки случайной генерации
         if 'team' in self.random_buttons_rects and self.random_buttons_rects['team'].collidepoint(pos):
-            self.randomize_team();
-            return
-
+            self.randomize_team(); return
         if 'neuro' in self.random_buttons_rects and self.random_buttons_rects['neuro'].collidepoint(pos):
-            self.randomize_neuro();
-            return
+            self.randomize_neuro(); return
 
-        for hero_type, rect in self.ui_manager.upgrade_buttons.items():
-            if rect.collidepoint(pos): self.try_upgrade_hero(hero_type); return
-
-        all_clickable_cards = {**self.ui_manager.selection_cards_rects, **self.ui_manager.team_card_rects,
-                               **self.ui_manager.plan_cards_rects}
-        for card_type, rect in all_clickable_cards.items():
-            if rect.collidepoint(pos): self.show_card_info(card_type); return
+        # Обработка кликов по карточкам (ИЗМЕНЕНИЕ 1)
+        # Проверяем клики по всем группам карточек, чтобы избежать бага с перезаписью
+        all_card_groups = [
+            self.ui_manager.selection_cards_rects,
+            self.ui_manager.team_card_rects,
+            self.ui_manager.plan_cards_rects
+        ]
+        for group in all_card_groups:
+            for card_type, rect in group.items():
+                if rect.collidepoint(pos):
+                    self.show_card_info(card_type)
+                    return
 
     def try_take_card(self, card_type):
         if card_type in self.all_defenders:

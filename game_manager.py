@@ -238,20 +238,15 @@ class Game:
         for event in pygame.event.get():
             if event.type == pygame.QUIT: self.running = False
             action = self.battle_manager.handle_event(event)
+            # <-- НАЧАЛО ИЗМЕНЕНИЯ
             if action == 'PAUSE':
-                if SOUNDS.get('button'): SOUNDS['button'].play(); pygame.mixer.pause(); self.state = 'PAUSED'
+                if SOUNDS.get('button'): SOUNDS['button'].play()
+                pygame.time.delay(100) # Даем звуку время проиграться
+                pygame.mixer.pause()
+                self.state = 'PAUSED'
+            # КОНЕЦ ИЗМЕНЕНИЯ -->
         self.battle_manager.update()
         self.battle_manager.draw(self.screen)
-        if self.battle_manager.level_manager.is_complete():
-            self.stipend += 150
-            if self.current_level_id == self.max_level_unlocked and self.max_level_unlocked < len(LEVELS):
-                self.max_level_unlocked += 1
-            self.state = 'LEVEL_CLEAR'
-            self.level_clear_timer = pygame.time.get_ticks();
-            self.victory_sound_played = False
-        elif self.battle_manager.is_game_over:
-            self.state = 'GAME_OVER'
-
     def _paused_loop(self):
         for event in pygame.event.get():
             if event.type == pygame.QUIT: self.running = False
