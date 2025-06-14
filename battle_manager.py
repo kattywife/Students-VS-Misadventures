@@ -31,19 +31,16 @@ class BattleManager:
         self.ui_manager.create_battle_shop(self.team_data)
         self.place_neuro_mowers()
 
-        # <-- ИЗМЕНЕНИЕ: Новая система напастей
         self.pending_calamities = self.level_manager.calamities.copy()
         random.shuffle(self.pending_calamities)
-        self.calamity_triggers = [0.3, 0.7]  # Сработают на 30% и 70% спавна врагов
+        self.calamity_triggers = [0.3, 0.7]
         self.calamity_notification = None
         self.calamity_notification_timer = 0
-        self.notification_duration = 3000  # 3 секунды
+        self.notification_duration = 3000
 
     def start(self):
-        # Эффекты напастей теперь не применяются в начале
         self.level_manager.start()
 
-    # ... (методы place_neuro_mowers, handle_event, handle_click, _get_grid_cell, _is_cell_occupied, _place_defender без изменений)
     def place_neuro_mowers(self):
         for row, mower_type in self.placed_mowers_data.items():
             NeuroMower(row, (self.all_sprites, self.neuro_mowers), mower_type)
@@ -144,7 +141,7 @@ class BattleManager:
         self.all_sprites.update(self.defenders, self.all_sprites, self.projectiles)
         self.apply_auras()
         self.check_collisions()
-        self._check_calamity_triggers()  # <-- ИЗМЕНЕНИЕ: Проверяем триггеры напастей
+        self._check_calamity_triggers()
 
         enemies_after_update = len(self.enemies)
         killed_this_frame = enemies_before_update - enemies_after_update
@@ -166,18 +163,16 @@ class BattleManager:
                     self.is_game_over = True
                     return
 
-        # Обновление таймера уведомления
         if self.calamity_notification and pygame.time.get_ticks() > self.calamity_notification_timer:
             self.calamity_notification = None
 
-    # <-- ИЗМЕНЕНИЕ: Новые методы для управления напастями
     def _check_calamity_triggers(self):
         spawn_progress = self.level_manager.get_spawn_progress()
         for trigger_point in self.calamity_triggers:
             if spawn_progress >= trigger_point:
                 self.calamity_triggers.remove(trigger_point)
                 self._trigger_random_calamity()
-                break  # Только один триггер за кадр
+                break
 
     def _trigger_random_calamity(self):
         if not self.pending_calamities: return
@@ -214,11 +209,9 @@ class BattleManager:
     def _apply_internet_down(self):
         for enemy in self.enemies:
             enemy.health *= 2
-            # Увеличиваем и максимальное здоровье, чтобы health bar отображался корректно
             if hasattr(enemy, 'max_health'):
                 enemy.max_health *= 2
 
-    # ... (методы check_collisions и apply_auras без изменений)
     def check_collisions(self):
         for proj in list(self.projectiles):
             if proj.alive() and not isinstance(proj, Integral):

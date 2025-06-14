@@ -15,6 +15,8 @@ class UIManager:
         self.font_tiny = pygame.font.SysFont('Arial', 18)
         self.font_large = pygame.font.SysFont('Arial', 60)
         self.font_huge = pygame.font.SysFont('Impact', 120)
+        self.font_small_bold = pygame.font.SysFont('Arial', 24, bold=True)
+
 
         margin = 20
         panel_width = (SCREEN_WIDTH - 4 * margin) / 3
@@ -37,7 +39,6 @@ class UIManager:
         self.shop_panel_surf = pygame.Surface((SCREEN_WIDTH, SHOP_PANEL_HEIGHT), pygame.SRCALPHA)
         self.pause_button_rect = pygame.Rect(SCREEN_WIDTH - 120, (SHOP_PANEL_HEIGHT - 60) / 2, 60, 60)
 
-    # ... (методы draw_shop, draw_grid, draw_menu, draw_main_menu, draw_level_clear_message остаются без изменений)
     def create_battle_shop(self, team):
         self.shop_items = team
         self.shop_rects = {}
@@ -337,20 +338,59 @@ class UIManager:
                                            panel_h)
         pygame.draw.rect(surface, DEFAULT_COLORS['shop_panel'], self.desc_panel_rect, border_radius=15)
         pygame.draw.rect(surface, WHITE, self.desc_panel_rect, 3, border_radius=15)
+
         img_size = 120
         default_color = DEFAULT_COLORS.get(card_data['type'], RED)
-        img = load_image(f"{card_data['type']}.png", default_color, (img_size, img_size));
-        img_rect = img.get_rect(centerx=self.desc_panel_rect.centerx, top=self.desc_panel_rect.top + 20);
+        img = load_image(f"{card_data['type']}.png", default_color, (img_size, img_size))
+        img_rect = img.get_rect(centerx=self.desc_panel_rect.centerx, top=self.desc_panel_rect.top + 20)
         surface.blit(img, img_rect)
-        name_surf = self.font.render(card_data['name'], True, YELLOW);
-        name_rect = name_surf.get_rect(centerx=self.desc_panel_rect.centerx, top=img_rect.bottom + 10);
+
+        name_surf = self.font.render(card_data['name'], True, YELLOW)
+        name_rect = name_surf.get_rect(centerx=self.desc_panel_rect.centerx, top=img_rect.bottom + 10)
         surface.blit(name_surf, name_rect)
+
+        # <-- ИЗМЕНЕНИЕ: Новый блок отрисовки статов
+        left_margin = self.desc_panel_rect.left + 40
+        line_height = 30
         line_y = name_rect.bottom + 20
-        wrapped_lines = self._render_text_wrapped(card_data['description'], self.font_small, WHITE, panel_w - 60)
+
+        all_data_sources = {**DEFENDERS_DATA, **ENEMIES_DATA}
+        unit_data = all_data_sources.get(card_data['type'])
+
+        if unit_data:  # Показываем статы только для героев и врагов
+            stats_to_render = {
+                "Здоровье:": unit_data.get('health'),
+                "Урон:": unit_data.get('damage'),
+                "Перезарядка:": unit_data.get('cooldown')
+            }
+            for title, value in stats_to_render.items():
+                if value is None:
+                    value_str = "Нет"
+                elif value == 0:
+                    value_str = "0"
+                else:
+                    value_str = f"{value}"
+                    if title == "Перезарядка:":
+                        value_str += " сек."
+
+                title_surf = self.font_small_bold.render(title, True, WHITE)
+                value_surf = self.font_small.render(value_str, True, WHITE)
+                surface.blit(title_surf, (left_margin, line_y))
+                surface.blit(value_surf, (left_margin + 180, line_y))
+                line_y += line_height
+            line_y += 10  # Дополнительный отступ перед описанием
+
+        # Описание
+        desc_title_surf = self.font_small_bold.render("Описание:", True, WHITE)
+        surface.blit(desc_title_surf, (left_margin, line_y))
+        line_y += line_height
+
+        wrapped_lines = self._render_text_wrapped(card_data['description'], self.font_small, WHITE, panel_w - 80)
         for line_surf in wrapped_lines:
-            line_rect = line_surf.get_rect(centerx=self.desc_panel_rect.centerx, top=line_y);
-            surface.blit(line_surf, line_rect);
+            surface.blit(line_surf, (left_margin, line_y))
             line_y += line_surf.get_height()
+
+        # Кнопки
         buttons = {}
         close_rect = pygame.Rect(self.desc_panel_rect.right - 45, self.desc_panel_rect.top + 10, 35, 35)
         pygame.draw.line(surface, WHITE, close_rect.topleft, close_rect.bottomright, 3);
@@ -358,7 +398,7 @@ class UIManager:
         buttons['close'] = close_rect
         if can_be_taken:
             take_rect = pygame.Rect(0, 0, 180, 50);
-            take_rect.center = (self.desc_panel_rect.centerx, self.desc_panel_rect.bottom - 40);
+            take_rect.center = (self.desc_panel_rect.centerx, self.desc_panel_rect.bottom - 45);
             pygame.draw.rect(surface, GREEN, take_rect, border_radius=10);
             pygame.draw.rect(surface, WHITE, take_rect, 2, border_radius=10)
             take_text = self.font.render("Взять", True, BLACK);

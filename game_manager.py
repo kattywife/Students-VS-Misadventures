@@ -45,7 +45,6 @@ class Game:
         self.pause_menu_buttons["Продолжить"].center = (SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2)
         self.pause_menu_buttons["Главное меню"].center = (SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2 + 100)
 
-        # <-- ИЗМЕНЕНИЕ: Убираем LEVEL_INTRO
         self.state = 'START_SCREEN'
         self.level_clear_timer = 0
         self.victory_initial_delay = 300
@@ -78,7 +77,6 @@ class Game:
                 self._main_menu_loop()
             elif self.state == 'PREPARATION':
                 self._preparation_loop()
-            # <-- ИЗМЕНЕНИЕ: LEVEL_INTRO удален
             elif self.state == 'PLAYING':
                 self._playing_loop()
             elif self.state == 'PAUSED':
@@ -111,55 +109,13 @@ class Game:
 
         level_manager = LevelManager(self.current_level_id, enemies, all_sprites)
 
-        # Размещаем героев, которые были куплены на экране подготовки
-        placed_defenders = self._pre_place_defenders(defenders, all_sprites, coffee_beans)
-
         self.battle_manager = BattleManager(all_sprites, defenders, enemies, projectiles, coffee_beans, neuro_mowers,
                                             self.ui_manager, level_manager,
                                             self.prep_manager.team, self.prep_manager.upgraded_heroes,
                                             self.prep_manager.neuro_mowers)
 
-        # <-- ИСПРАВЛЕНИЕ ОШИБКИ: Обновляем ссылки на группы у пред-созданных героев
-        for defender in placed_defenders:
-            if hasattr(defender, 'enemies_group'): defender.enemies_group = self.battle_manager.enemies
-            if hasattr(defender, 'projectile_group'): defender.projectile_group = self.battle_manager.projectiles
-
         self.battle_manager.start()
         self.state = 'PLAYING'
-
-    def _pre_place_defenders(self, defenders_group, all_sprites_group, coffee_bean_group):
-        placed_defenders = []
-        for i, defender_type in enumerate(self.prep_manager.team):
-            col, row = 0, i % GRID_ROWS
-            x, y = GRID_START_X + col * CELL_SIZE_W / 2, GRID_START_Y + row * CELL_SIZE_H + CELL_SIZE_H / 2
-
-            groups = (all_sprites_group, defenders_group)
-            data = DEFENDERS_DATA[defender_type].copy();
-            data['type'] = defender_type
-
-            if defender_type in self.prep_manager.upgraded_heroes:
-                upgrade_info = data.get('upgrade', {})
-                for key, value in upgrade_info.items():
-                    if key != 'cost' and key in data: data[key] += value
-
-            unit_map = {'programmer': ProgrammerBoy, 'botanist': BotanistGirl, 'coffee_machine': CoffeeMachine,
-                        'activist': Activist, 'guitarist': Guitarist, 'medic': Medic, 'artist': Artist}
-            constructor = unit_map[defender_type]
-            common_args = {'x': x, 'y': y, 'groups': groups, 'data': data}
-
-            # <-- ИСПРАВЛЕНИЕ ОШИБКИ: передаем временные/пустые группы, которые обновим позже
-            specific_args = {
-                'programmer': {'all_sprites': all_sprites_group, 'projectile_group': None, 'enemies_group': None},
-                'botanist': {'all_sprites': all_sprites_group, 'enemies_group': None},
-                'coffee_machine': {'all_sprites': all_sprites_group, 'coffee_bean_group': coffee_bean_group},
-                'guitarist': {'all_sprites': all_sprites_group, 'enemies_group': None},
-                'medic': {'defenders_group': defenders_group},
-                'artist': {'all_sprites': all_sprites_group, 'projectile_group': None, 'enemies_group': None},
-            }
-            defender = constructor(**{**common_args, **specific_args.get(defender_type, {})})
-            if defender_type in self.prep_manager.upgraded_heroes: defender.is_upgraded = True
-            placed_defenders.append(defender)
-        return placed_defenders
 
     def _menu_loop_template(self, title, buttons_config, next_states):
         for event in pygame.event.get():
@@ -212,7 +168,7 @@ class Game:
                 if self.prep_start_button and self.prep_start_button.collidepoint(event.pos):
                     if self.prep_manager.is_ready():
                         if SOUNDS.get('button'): SOUNDS['button'].play()
-                        self._start_battle()  # <-- ИЗМЕНЕНИЕ: Сразу начинаем бой
+                        self._start_battle()
                         return
         self.prep_start_button = self.prep_manager.draw(self.screen)
 
