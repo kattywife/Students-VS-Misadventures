@@ -18,13 +18,7 @@ class UIManager:
         self.shop_items = ['programmer', 'botanist', 'coffee_machine']
         self.shop_rects = {}
         self.shop_panel_surf = pygame.Surface((SCREEN_WIDTH, SHOP_PANEL_HEIGHT), pygame.SRCALPHA)
-
-        # ----- ВОТ ИСПРАВЛЕНИЕ: Сдвигаем кнопку паузы левее -----
-        button_size = 80
-        # Раньше отступ был 90 от края (кнопка 80 + паддинг 10). Сделаем 180.
         self.pause_button_rect = pygame.Rect(SCREEN_WIDTH - 130, (SHOP_PANEL_HEIGHT - 80) / 2, 80, 80)
-        # --------------------------------------------------------
-
         self._create_shop()
 
     def _create_shop(self):
@@ -134,7 +128,9 @@ class UIManager:
         settings_rect = pygame.Rect(btn_x, 250, btn_width, btn_height)
         pygame.draw.rect(self.screen, DEFAULT_COLORS['button'], settings_rect, border_radius=10)
         pygame.draw.rect(self.screen, WHITE, settings_rect, 2, border_radius=10)
-        settings_text = self.font_large.render("?", True, WHITE)
+        # ----- ИСПРАВЛЕНИЕ: Меняем "?" на "Настройки" -----
+        settings_text = self.font.render("Настройки", True, WHITE)
+        # ----------------------------------------------------
         self.screen.blit(settings_text, settings_text.get_rect(center=settings_rect.center))
         control_buttons["Настройки"] = settings_rect
         exit_rect = pygame.Rect(btn_x, settings_rect.bottom + 30, btn_width, btn_height)
@@ -187,14 +183,14 @@ class UIManager:
         for i, item_type in enumerate(types):
             row, col = divmod(i, cols)
             x = panel_rect.left + padding + col * (card_size + padding)
-            y = panel_rect.top + 80 + row * (card_size + padding + 35)
+            y = panel_rect.top + 80 + row * (card_size + padding + 40)
             card_rect = pygame.Rect(x, y, card_size, card_size)
             card_rects[item_type] = card_rect
             pygame.draw.rect(self.screen, DEFAULT_COLORS['shop_card'], card_rect, border_radius=10)
             img = load_image(f"{item_type}.png", DEFAULT_COLORS[item_type], (card_size - 10, card_size - 10))
             self.screen.blit(img, img.get_rect(center=card_rect.center))
-            name = data_source[item_type].get('display_name', item_type.replace('_', ' ').title())
-            wrapped_name_lines = self._render_text_wrapped(name, self.font_tiny, WHITE, card_size)
+            name = data_source[item_type].get('display_name', item_type)
+            wrapped_name_lines = self._render_text_wrapped(name, self.font_tiny, WHITE, card_size + 5)
             line_y = card_rect.bottom + 5
             for line_surf in wrapped_name_lines:
                 self.screen.blit(line_surf, line_surf.get_rect(centerx=card_rect.centerx, top=line_y))
@@ -217,12 +213,15 @@ class UIManager:
         name_surf = self.font_large.render(card_data['name'], True, YELLOW)
         name_rect = name_surf.get_rect(centerx=panel_rect.centerx, top=img_rect.bottom + 15)
         self.screen.blit(name_surf, name_rect)
-        wrapped_lines = self._render_text_wrapped(card_data['description'], self.font_small, WHITE, panel_w - 60)
+        description_parts = card_data['description'].split('\n')
         line_y = name_rect.bottom + 25
-        for line_surf in wrapped_lines:
-            line_rect = line_surf.get_rect(centerx=panel_rect.centerx, top=line_y)
-            self.screen.blit(line_surf, line_rect)
-            line_y += line_surf.get_height() + 5
+        for part in description_parts:
+            wrapped_lines = self._render_text_wrapped(part, self.font_small, WHITE, panel_w - 60)
+            for line_surf in wrapped_lines:
+                line_rect = line_surf.get_rect(centerx=panel_rect.centerx, top=line_y)
+                self.screen.blit(line_surf, line_rect)
+                line_y += line_surf.get_height()
+            line_y += 10
         close_button_size = 40
         close_rect = pygame.Rect(panel_rect.right - close_button_size - 10, panel_rect.top + 10, close_button_size,
                                  close_button_size)

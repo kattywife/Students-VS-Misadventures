@@ -28,15 +28,25 @@ class Game:
         self.max_level_unlocked = 1
         self.current_level_id = 1
         self.level_select_buttons = {}
-        self.level_intro_button = None
-        self.selected_defender = None
         self.control_buttons = {}
         self.defender_card_rects = {}
         self.enemy_card_rects = {}
+        self.level_intro_button = None
         self.close_card_button = None
+        self.pause_menu_buttons = {
+            "Продолжить": pygame.Rect(0, 0, 300, 80),
+            "Главное меню": pygame.Rect(0, 0, 400, 80)
+        }
+        self.pause_menu_buttons["Продолжить"].center = (SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2)
+        self.pause_menu_buttons["Главное меню"].center = (SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2 + 100)
+
+        self.selected_defender = None
+        self.selected_card_info = None
 
         self.state = 'START_SCREEN'
         self.level_clear_timer = 0
+        self.victory_initial_delay = 300
+        self.victory_sound_played = False
         self.level_clear_duration = 3000
 
         self._setup_sprite_groups()
@@ -73,6 +83,7 @@ class Game:
     def _prepare_level(self, level_id):
         self.current_level_id = level_id
         self.selected_card_info = None
+        self.victory_sound_played = False
         self._setup_sprite_groups()
         self.level_manager = LevelManager(level_id, self.enemies, self.akadems, self.all_sprites)
         self.coffee_beans_amount = self.level_manager.level_data['start_coffee']
@@ -117,6 +128,7 @@ class Game:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 self.running = False
+
             if self.state == 'PLAYING':
                 if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
                     if SOUNDS.get('button'): SOUNDS['button'].play()
@@ -186,12 +198,9 @@ class Game:
     def _update(self):
         if self.level_manager.is_complete():
             if self.state != 'LEVEL_CLEAR':
-                pygame.mixer.stop()
-                if SOUNDS.get('win'): SOUNDS['win'].play()
                 self.level_clear_timer = pygame.time.get_ticks()
                 self.state = 'LEVEL_CLEAR'
             return
-
         enemies_before_update = len(self.enemies)
         self.all_sprites.update(self.defenders)
         for proj in list(self.projectiles):
@@ -217,16 +226,13 @@ class Game:
                     pygame.mixer.stop()
                     self.state = 'GAME_OVER'
                     return
-
         enemies_after_update = len(self.enemies)
         killed_this_frame = enemies_before_update - enemies_after_update
-        if killed_this_frame > 0:
-            for _ in range(killed_this_frame):
-                self.level_manager.enemy_killed()
-
+        for _ in range(killed_this_frame):
+            self.level_manager.enemy_killed()
         self.level_manager.update()
 
-    def _draw(self):
+    def _draw_world(self):
         self.screen.blit(self.background, (0, 0))
         self.ui_manager.draw_grid()
         self.all_sprites.draw(self.screen)
@@ -236,6 +242,9 @@ class Game:
         spawn_count_data = self.level_manager.get_spawn_count_data()
         kill_count_data = self.level_manager.get_kill_count_data()
         self.ui_manager.draw_hud(spawn_progress, kill_progress, spawn_count_data, kill_count_data)
+
+    def _draw(self):
+        self._draw_world()
         pygame.display.flip()
 
     def _playing_loop(self):
@@ -245,42 +254,50 @@ class Game:
 
     def _level_clear_loop(self):
         now = pygame.time.get_ticks()
-        if now - self.level_clear_timer > self.level_clear_duration:
+        if not self.victory_sound_played and now - self.level_clear_timer > self.victory_initial_delay:
+            pygame.mixer.stop()
+            if SOUNDS.get('win'): SOUNDS['win'].play()
+            self.victory_sound_played = True
+            self.level_clear_timer = pygame.time.get_ticks()
+
+        if self.victory_sound_played and now - self.level_clear_timer > self.level_clear_duration:
             self.state = 'LEVEL_VICTORY'
             return
-        self._draw()
+
+        self._draw_world()
         self.ui_manager.draw_level_clear_message()
         pygame.display.flip()
 
     def _menu_loop_template(self, title, buttons_config, next_states):
-        buttons = {}
-        for i, (text, size) in enumerate(buttons_config.items()):
-            rect = pygame.Rect(0, 0, size[0], size[1])
-            rect.center = (SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2 + i * 100)
-            buttons[text] = rect
         for event in pygame.event.get():
             if event.type == pygame.QUIT: self.running = False
             if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-                for text, rect in buttons.items():
+                for text, rect in buttons_config.items():
                     if rect.collidepoint(event.pos):
                         if SOUNDS.get('button'): SOUNDS['button'].play()
                         pygame.time.delay(100)
                         if text == "Выход":
                             self.running = False
-                        elif text == "Продолжить":
-                            pygame.mixer.unpause()
-                            self.state = next_states.get(text)
                         else:
                             pygame.mixer.stop()
-                            self.state = next_states.get(text)
+                            # Для "Попробовать снова" нужно пересоздать уровень
+                            if self.state == 'GAME_OVER' and text == 'Попробовать снова':
+                                self._prepare_level(self.current_level_id)
+                            else:
+                                self.state = next_states.get(text)
         self.screen.blit(self.background, (0, 0))
-        if title == "Пауза": self.all_sprites.draw(self.screen)
-        self.ui_manager.draw_menu(title, buttons)
+        self.ui_manager.draw_menu(title, buttons_config)
         pygame.display.flip()
 
     def _start_screen_loop(self):
-        self._menu_loop_template("Студенты против Злоключений", {"Начать обучение": (400, 80), "Выход": (400, 80)},
-                                 {"Начать обучение": "MAIN_MENU"})
+        buttons = {
+            "Начать обучение": pygame.Rect(0, 0, 400, 80),
+            "Выход": pygame.Rect(0, 0, 400, 80)
+        }
+        buttons["Начать обучение"].center = (SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2)
+        buttons["Выход"].center = (SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2 + 100)
+        next_states = {"Начать обучение": "MAIN_MENU"}
+        self._menu_loop_template("Студенты против Злоключений", buttons, next_states)
 
     def _main_menu_loop(self):
         for event in pygame.event.get():
@@ -320,14 +337,12 @@ class Game:
                     if rect.collidepoint(pos):
                         if name in DEFENDERS_DATA:
                             data = DEFENDERS_DATA[name]
-                            display_name = name.replace('_', ' ').title()
                         else:
                             data = ENEMIES_DATA[name]
-                            display_name = data['display_name']
-                        self.selected_card_info = {'type': name, 'name': display_name,
+                        self.selected_card_info = {'type': name, 'name': data['display_name'],
                                                    'description': data['description']}
                         if SOUNDS.get('cards'): SOUNDS['cards'].play()
-                        if SOUNDS.get(data['select_sound']): SOUNDS[data['select_sound']].play()
+                        if SOUNDS.get(data.get('select_sound')): SOUNDS[data['select_sound']].play()
                         clicked_on_card = True
                         break
                 if not clicked_on_card and self.level_intro_button and self.level_intro_button.collidepoint(pos):
@@ -336,20 +351,44 @@ class Game:
                     self._start_level()
                     return
         self.screen.blit(self.background, (0, 0))
-        defender_types = ['programmer', 'botanist', 'coffee_machine']
+        defender_types = list(DEFENDERS_DATA.keys())
         enemy_types = self.level_manager.get_enemy_types_for_level()
         self.defender_card_rects, self.enemy_card_rects, self.level_intro_button, self.close_card_button = \
             self.ui_manager.draw_character_intro_screen(defender_types, enemy_types, self.selected_card_info)
         pygame.display.flip()
 
     def _paused_loop(self):
-        self._menu_loop_template("Пауза", {"Продолжить": (300, 80), "Главное меню": (400, 80)},
-                                 {"Продолжить": "PLAYING", "Главное меню": "MAIN_MENU"})
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                self.running = False
+            if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+                pygame.mixer.unpause()
+                self.state = "PLAYING"
+            if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                for text, rect in self.pause_menu_buttons.items():
+                    if rect.collidepoint(event.pos):
+                        if SOUNDS.get('button'): SOUNDS['button'].play()
+                        pygame.time.delay(100)
+                        if text == "Продолжить":
+                            pygame.mixer.unpause()
+                            self.state = "PLAYING"
+                        else:
+                            pygame.mixer.stop()
+                            self.state = "MAIN_MENU"
+
+        self._draw_world()
+        self.ui_manager.draw_menu("Пауза", self.pause_menu_buttons)
+        pygame.display.flip()
 
     def _game_over_loop(self):
-        pygame.mixer.stop()
-        self._menu_loop_template("ОТЧИСЛЕНИЕ!", {"Попробовать снова": (400, 80), "Главное меню": (400, 80)},
-                                 {"Попробовать снова": "MAIN_MENU", "Главное меню": "MAIN_MENU"})
+        buttons = {
+            "Попробовать снова": pygame.Rect(0, 0, 400, 80),
+            "Главное меню": pygame.Rect(0, 0, 400, 80)
+        }
+        buttons["Попробовать снова"].center = (SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2)
+        buttons["Главное меню"].center = (SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2 + 100)
+        next_states = {"Попробовать снова": "MAIN_MENU", "Главное меню": "MAIN_MENU"}
+        self._menu_loop_template("ОТЧИСЛЕНИЕ!", buttons, next_states)
 
     def _level_victory_loop(self):
         if self.current_level_id == self.max_level_unlocked and self.max_level_unlocked < len(LEVELS):
@@ -357,9 +396,17 @@ class Game:
         if self.current_level_id >= len(LEVELS):
             self.state = "GAME_VICTORY"
             return
-        self._menu_loop_template("КУРС ПРОЙДЕН!", {"Следующий курс": (400, 80), "Главное меню": (400, 80)},
-                                 {"Следующий курс": "MAIN_MENU", "Главное меню": "MAIN_MENU"})
+
+        buttons = {
+            "Следующий курс": pygame.Rect(0, 0, 400, 80),
+            "Главное меню": pygame.Rect(0, 0, 400, 80)
+        }
+        buttons["Следующий курс"].center = (SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2)
+        buttons["Главное меню"].center = (SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2 + 100)
+        next_states = {"Следующий курс": "MAIN_MENU", "Главное меню": "MAIN_MENU"}
+        self._menu_loop_template("КУРС ПРОЙДЕН!", buttons, next_states)
 
     def _game_victory_loop(self):
-        pygame.mixer.stop()
-        self._menu_loop_template("ДИПЛОМ ЗАЩИЩЕН!", {"Главное меню": (400, 80)}, {"Главное меню": "MAIN_MENU"})
+        buttons = {"Главное меню": pygame.Rect(0, 0, 400, 80)}
+        buttons["Главное меню"].center = (SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2)
+        self._menu_loop_template("ДИПЛОМ ЗАЩИЩЕН!", buttons, {"Главное меню": "MAIN_MENU"})

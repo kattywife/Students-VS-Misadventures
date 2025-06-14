@@ -58,21 +58,24 @@ SHOP_ITEM_PADDING = 20
 ASSETS_DIR = 'assets'
 IMAGES_DIR = f'{ASSETS_DIR}/images'
 
-# Данные юнитов
+# --- ОБНОВЛЕННЫЕ ДАННЫЕ С РУССКИМИ ИМЕНАМИ И ХАРАКТЕРИСТИКАМИ ---
 DEFENDERS_DATA = {
     'programmer': {
         'cost': 100, 'health': 300, 'cooldown': 1.5, 'damage': 25,
-        'description': "Пишет код быстрее, чем ты говоришь 'дедлайн'. Стреляет скобочками.",
+        'display_name': 'Мальчик-джун',
+        'description': "Урон: 25\nЗдоровье: 300\nОсобенность: стреляет быстрыми, но слабыми снарядами.",
         'select_sound': 'programmer_select.mp3'
     },
     'botanist': {
         'cost': 150, 'health': 300, 'cooldown': 2.5, 'damage': 50, 'radius': CELL_SIZE_W * 1.5,
-        'description': "Знает всё о матане и о том, как больно бить книгой. Атакует по области.",
+        'display_name': 'Девочка-ботан',
+        'description': "Урон: 50 (по области)\nЗдоровье: 300\nОсобенность: атакует книгой по области вокруг себя.",
         'select_sound': 'botanist_select.mp3'
     },
     'coffee_machine': {
         'cost': 50, 'health': 200, 'cooldown': 5, 'production': 25,
-        'description': "Источник жизни и энергии. Производит бесценные кофейные зернышки.",
+        'display_name': 'Кофемашина',
+        'description': "Здоровье: 200\nОсобенность: производит кофейные зернышки для покупки новых юнитов.",
         'select_sound': 'coffee_machine_select.mp3'
     }
 }
@@ -80,17 +83,17 @@ DEFENDERS_DATA = {
 ENEMIES_DATA = {
     'alarm_clock': {
         'health': 100, 'speed': 0.8, 'damage': 50, 'display_name': "Будильник (8:30)",
-        'description': "Безжалостный и неотвратимый. Его звон - предвестник беды. Стандартный враг.",
+        'description': "Здоровье: 100\nУрон: 50\nОсобенность: стандартный враг, просто идет вперед.",
         'select_sound': 'alarm_clock_select.mp3'
     },
     'professor': {
         'health': 250, 'speed': 0.6, 'damage': 100, 'display_name': "Грозный Преподаватель",
-        'description': "Крепкий и выносливый. Выдержит много критики и нанесет сокрушительный удар по самооценке.",
+        'description': "Здоровье: 250\nУрон: 100\nОсобенность: очень 'толстый' враг, выдерживает много урона.",
         'select_sound': 'professor_select.mp3'
     },
     'calculus': {
         'health': 180, 'speed': 1, 'damage': 75, 'display_name': "Матанализ",
-        'description': "Быстрый и непредсказуемый. Может легко 'перепрыгнуть' через простые аргументы и застать врасплох.",
+        'description': "Здоровье: 180\nУрон: 75\nОсобенность: один раз перепрыгивает через защитника на своем пути.",
         'select_sound': 'calculus_select.mp3'
     }
 }
