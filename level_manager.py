@@ -28,8 +28,6 @@ class LevelManager:
         self.final_wave_threshold = 0.6
         self.in_final_wave = False
 
-        self.setup_akadems()
-
     def start(self):
         self.is_running = True
         self.last_spawn_time = pygame.time.get_ticks()
@@ -38,34 +36,30 @@ class LevelManager:
         self.enemies_killed += 1
 
     def get_spawn_progress(self):
-        """Возвращает прогресс спавна (0.0 до 1.0)."""
         if self.total_enemies_in_level == 0: return 1.0
         return self.enemies_spawned / self.total_enemies_in_level
 
     def get_kill_progress(self):
-        """Возвращает прогресс убийств (0.0 до 1.0)."""
         if self.total_enemies_in_level == 0: return 1.0
         return self.enemies_killed / self.total_enemies_in_level
 
     def get_kill_count_data(self):
-        """Возвращает данные для текстового счетчика БРС."""
         return self.enemies_killed, self.total_enemies_in_level
+
     def get_spawn_count_data(self):
         return self.enemies_spawned, self.total_enemies_in_level
+
     def get_enemy_types_for_level(self):
         if not self.level_data['enemies']: return []
         return sorted(list(set(enemy[0] for enemy in self.level_data['enemies'])))
-
-    def setup_akadems(self):
-        for i in range(GRID_ROWS):
-            Akadem(i, (self.akadem_group, self.all_sprites_group))
 
     def update(self):
         if not self.is_running or not self.enemy_spawn_list: return
 
         now = pygame.time.get_ticks()
 
-        if not self.in_final_wave and (self.enemies_spawned / self.total_enemies_in_level) >= self.final_wave_threshold:
+        if not self.in_final_wave and self.total_enemies_in_level > 0 and (
+                self.enemies_spawned / self.total_enemies_in_level) >= self.final_wave_threshold:
             self.in_final_wave = True
             self.spawn_cooldown = 2000
 
@@ -83,10 +77,6 @@ class LevelManager:
             Enemy(row, groups, enemy_type)
 
     def is_complete(self):
-        """
-        Уровень считается пройденным, когда все враги из списка спавна выпущены,
-        и на поле не осталось живых врагов.
-        """
         all_spawned = len(self.enemy_spawn_list) == 0
         all_defeated = len(self.enemy_group) == 0
         return all_spawned and all_defeated and self.total_enemies_in_level > 0

@@ -20,7 +20,7 @@ class Defender(BaseSprite):
         self.image = load_image(f'{defender_type}.png', DEFAULT_COLORS[defender_type],
                                 (CELL_SIZE_W - 10, CELL_SIZE_H - 10))
         self.rect = self.image.get_rect(center=(x, y))
-        self.is_animate = False
+        self.is_animate = defender_type != 'coffee_machine'  # Кофемашина не "одушевленная"
         self.is_being_eaten = False
         self.scream_channel = None
 
@@ -52,7 +52,6 @@ class Defender(BaseSprite):
 class ProgrammerBoy(Defender):
     def __init__(self, x, y, groups, all_sprites_group, projectile_group, enemies_group):
         super().__init__(x, y, groups, 'programmer')
-        self.is_animate = True
         self.all_sprites_group = all_sprites_group
         self.projectile_group = projectile_group
         self.enemies_group = enemies_group
@@ -72,7 +71,6 @@ class ProgrammerBoy(Defender):
 class BotanistGirl(Defender):
     def __init__(self, x, y, groups, all_sprites_group, enemies_group):
         super().__init__(x, y, groups, 'botanist')
-        self.is_animate = True
         self.all_sprites_group = all_sprites_group
         self.enemies_group = enemies_group
         self.attack_cooldown = self.data['cooldown'] * 1000
@@ -115,9 +113,7 @@ class BookAttackEffect(BaseSprite):
 
 class CoffeeMachine(Defender):
     def __init__(self, x, y, groups, all_sprites_group, coffee_bean_group):
-        # ----- ВОТ ИСПРАВЛЕНИЕ -----
         super().__init__(x, y, groups, 'coffee_machine')
-        # ---------------------------
         self.all_sprites_group = all_sprites_group
         self.coffee_bean_group = coffee_bean_group
         self.production_cooldown = self.data['cooldown'] * 1000
@@ -205,10 +201,6 @@ class Enemy(BaseSprite):
     def update(self, defenders_group):
         self.manage_hit_flash()
         if self.health <= 0:
-            if SOUNDS.get('enemy_dead'): SOUNDS['enemy_dead'].play()
-            self.stop_eating_sound()
-            if self.current_target:
-                self.current_target.is_being_eaten = False
             self.kill()
             return
 
@@ -244,7 +236,6 @@ class Enemy(BaseSprite):
             self.rect.x -= self.speed
 
     def kill(self):
-        # Проверяем, жив ли еще спрайт, чтобы избежать двойного вызова
         if self.alive():
             if SOUNDS.get('enemy_dead'):
                 SOUNDS['enemy_dead'].play()
@@ -253,8 +244,8 @@ class Enemy(BaseSprite):
             if self.current_target:
                 self.current_target.is_being_eaten = False
 
-            # Вызываем оригинальный метод kill() из pygame.sprite.Sprite
             super().kill()
+
     def play_eating_sound(self):
         eating_sound = SOUNDS.get('eating')
         if eating_sound and not (self.eating_channel and self.eating_channel.get_busy()):
