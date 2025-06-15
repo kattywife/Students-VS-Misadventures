@@ -7,7 +7,6 @@ SCREEN_HEIGHT = 720
 FPS = 60
 TITLE = "Студенты против Злоключений"
 
-# <-- ИЗМЕНЕНИЕ: Максимальный размер команды теперь 6
 MAX_TEAM_SIZE = 6
 
 # Цвета
@@ -21,8 +20,10 @@ CALAMITY_ORANGE = (255, 140, 0)
 DEFAULT_COLORS = {
     'programmer': (60, 179, 113), 'botanist': (255, 105, 180), 'coffee_machine': (255, 215, 0),
     'activist': (0, 128, 128), 'guitarist': (218, 112, 214), 'medic': (240, 255, 255), 'artist': (255, 165, 0),
+    'modnik': (128, 0, 128),  # --- НОВЫЙ ЦВЕТ ---
     'coffee_bean': (255, 222, 173), 'bracket': (0, 191, 255), 'book_attack': (188, 143, 143),
     'sound_wave': (138, 43, 226, 100), 'paint_splat': (255, 165, 0), 'integral': (100, 100, 100),
+    'explosion': (255, 127, 80), # --- НОВЫЙ ЦВЕТ ---
     'alarm_clock': (169, 169, 169), 'professor': (112, 128, 144), 'calculus': (70, 130, 180),
     'math_teacher': (210, 105, 30), 'addict': (0, 100, 0), 'thief': (139, 0, 0),
     'chat_gpt': (0, 168, 150), 'deepseek': (20, 20, 40), 'gemini': (106, 90, 205),
@@ -39,13 +40,46 @@ ASSETS_DIR = 'assets'; IMAGES_DIR = f'{ASSETS_DIR}/images'
 
 # ЗАЩИТНИКИ
 DEFENDERS_DATA = {
-    'programmer': {'cost': 100, 'health': 300, 'damage': 25, 'cooldown': 1.5, 'display_name': 'Мальчик-джун','description': "Стреляет быстрыми, но слабыми снарядами.", 'upgrade': {'damage': 5, 'cost': 15}},
-    'botanist': {'cost': 150, 'health': 300, 'damage': 50, 'cooldown': 2.5, 'radius': CELL_SIZE_W * 1.5, 'display_name': 'Девочка-ботан','description': "Атакует по области самого сильного врага.", 'upgrade': {'damage': 10, 'cost': 25}},
-    'coffee_machine': {'cost': 50, 'health': 200, 'damage': 0, 'cooldown': 5, 'production': 25, 'display_name': 'Кофемашина','description': "Производит кофейные зернышки.", 'upgrade': {'cooldown': -0.5, 'cost': 20}},
-    'activist': {'cost': 75, 'health': 400, 'damage': 0, 'cooldown': None, 'radius': CELL_SIZE_W * 2, 'buff': 1.5, 'display_name': 'Активист с рупором','description': "Не атакует, но усиливает урон союзников в радиусе в {buff} раза.", 'upgrade': {'radius': 20, 'cost': 30}},
-    'guitarist': {'cost': 175, 'health': 300, 'damage': 20, 'cooldown': 4, 'display_name': 'Гитарист','description': "Атакует звуковой волной всех врагов на линии.", 'upgrade': {'damage': 5, 'cost': 20}},
-    'medic': {'cost': 50, 'health': 250, 'damage': 0, 'cooldown': None, 'heal_amount': 150, 'radius': CELL_SIZE_W * 4, 'display_name': 'Студент-медик','description': "Лечит самого раненого союзника и исчезает.", 'upgrade': {'heal_amount': 50, 'cost': 25}},
-    'artist': {'cost': 125, 'health': 300, 'damage': 10, 'cooldown': 2, 'slow_duration': 2000, 'slow_factor': 0.5, 'display_name': 'Художница','description': "Снаряды замедляют врагов.", 'upgrade': {'slow_duration': 500, 'cost': 15}}
+    'programmer': {'cost': 100, 'health': 300, 'damage': 25, 'cooldown': 1.5, 'display_name': 'Мальчик-джун','description': "Стреляет быстрыми, но слабыми снарядами.",
+                   'upgrades': {
+                       'damage': {'value': 5, 'cost': 15},
+                       'cooldown': {'value': -0.2, 'cost': 20}
+                   }},
+    'botanist': {'cost': 150, 'health': 300, 'damage': 50, 'cooldown': 2.5, 'radius': CELL_SIZE_W * 1.5, 'display_name': 'Девочка-ботан','description': "Атакует по области самого сильного врага.",
+                 'upgrades': {
+                     'damage': {'value': 15, 'cost': 25},
+                     'radius': {'value': 20, 'cost': 15}
+                 }},
+    'coffee_machine': {'cost': 50, 'health': 200, 'damage': 0, 'cooldown': 5, 'production': 25, 'display_name': 'Кофемашина','description': "Производит кофейные зернышки.",
+                       'upgrades': {
+                           'production': {'value': 10, 'cost': 25},
+                           'health': {'value': 100, 'cost': 15}
+                       }},
+    'activist': {'cost': 75, 'health': 400, 'damage': 0, 'cooldown': None, 'radius': CELL_SIZE_W * 2, 'buff': 1.5, 'display_name': 'Активист с рупором','description': "Не атакует, но усиливает урон союзников в радиусе в {buff} раза.",
+                 'upgrades': {
+                     'buff': {'value': 0.2, 'cost': 30},
+                     'radius': {'value': 30, 'cost': 20}
+                 }},
+    'guitarist': {'cost': 175, 'health': 300, 'damage': 20, 'cooldown': 4, 'display_name': 'Гитарист','description': "Атакует звуковой волной всех врагов на линии.",
+                  'upgrades': {
+                      'damage': {'value': 10, 'cost': 25}
+                  }},
+    'medic': {'cost': 50, 'health': 250, 'damage': 0, 'cooldown': None, 'heal_amount': 150, 'radius': CELL_SIZE_W * 4, 'display_name': 'Студент-медик','description': "Лечит самого раненого союзника и исчезает.",
+              'upgrades': {
+                  'heal_amount': {'value': 75, 'cost': 25}
+              }},
+    'artist': {'cost': 125, 'health': 300, 'damage': 10, 'cooldown': 2, 'slow_duration': 2000, 'slow_factor': 0.5, 'display_name': 'Художница','description': "Снаряды замедляют врагов.",
+               'upgrades': {
+                   'slow_duration': {'value': 1000, 'cost': 20},
+                   'slow_factor': {'value': -0.1, 'cost': 25}
+               }},
+    # --- НОВЫЙ ПЕРСОНАЖ ---
+    'modnik': {'cost': 125, 'health': 300, 'damage': 1800, 'radius': CELL_SIZE_W * 2.5, 'speed': 1.5, 'display_name': 'Модник', 'cooldown': None,
+               'description': "Одноразовый юнит. Подходит к ближайшему врагу и взрывается, уничтожая всех в большом радиусе.",
+               'upgrades': {
+                   'radius': {'value': 40, 'cost': 30},
+                   'damage': {'value': 200, 'cost': 25}
+               }}
 }
 
 # ВРАГИ

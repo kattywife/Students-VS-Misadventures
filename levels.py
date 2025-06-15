@@ -2,7 +2,7 @@
 
 LEVELS = {
     1: {
-        'name': "Курс 1: Введение",
+        'name': "Курс 1",
         'start_coffee': 150,
         'neuro_slots': 2,
         'calamities': ['colloquium'], # <-- Добавлена напасть
@@ -14,7 +14,7 @@ LEVELS = {
         ]
     },
     2: {
-        'name': "Курс 2: Основы матана",
+        'name': "Курс 2",
         'start_coffee': 200,
         'neuro_slots': 3,
         'calamities': ['colloquium'],
@@ -26,7 +26,7 @@ LEVELS = {
         ]
     },
     3: {
-        'name': "Курс 3: Злые преподаватели",
+        'name': "Курс 3",
         'start_coffee': 250,
         'neuro_slots': 3,
         'calamities': ['internet_down'],
@@ -39,7 +39,7 @@ LEVELS = {
         ]
     },
     4: {
-        'name': "Курс 4: Сессия близко",
+        'name': "Курс 4",
         'start_coffee': 300,
         'neuro_slots': 4,
         'calamities': ['epidemic', 'colloquium'],

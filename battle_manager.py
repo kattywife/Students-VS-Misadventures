@@ -96,10 +96,14 @@ class BattleManager:
         defender_type = self.selected_defender
         data = DEFENDERS_DATA[defender_type].copy();
         data['type'] = defender_type
+
+        # Применяем все купленные улучшения
         if defender_type in self.upgrades:
-            upgrade_info = data.get('upgrade', {})
-            for key, value in upgrade_info.items():
-                if key != 'cost' and key in data: data[key] += value
+            upgraded_stats = self.upgrades[defender_type]
+            for stat_name in upgraded_stats:
+                upgrade_info = DEFENDERS_DATA[defender_type]['upgrades'][stat_name]
+                data[stat_name] += upgrade_info['value']
+
         unit_map = {'programmer': ProgrammerBoy, 'botanist': BotanistGirl, 'coffee_machine': CoffeeMachine,
                     'activist': Activist, 'guitarist': Guitarist, 'medic': Medic, 'artist': Artist}
         constructor = unit_map[defender_type];
@@ -119,7 +123,7 @@ class BattleManager:
     def update(self):
         now = pygame.time.get_ticks()
         enemies_before_update = len(self.enemies)
-        self.all_sprites.update(self.defenders, self.all_sprites, self.projectiles);
+        self.all_sprites.update(self.defenders, self.all_sprites, self.projectiles, enemies_group=self.enemies)
         self.apply_auras();
         self.check_collisions()
         self._check_calamity_triggers(now)
@@ -134,9 +138,19 @@ class BattleManager:
                 mower_activated = False
                 for mower in self.neuro_mowers:
                     if mower.rect.centery == enemy.rect.centery and not mower.is_active:
-                        mower.activate(self.enemies);
-                        if mower.mower_type == 'chat_gpt': enemy.kill()
-                        mower_activated = True;
+                        enemies_before_activation = set(self.enemies.sprites())
+
+                        mower.activate(self.enemies)
+                        if mower.mower_type == 'chat_gpt':
+                            enemy.kill()
+
+                        enemies_after_activation = set(self.enemies.sprites())
+
+                        killed_by_mower = len(enemies_before_activation - enemies_after_activation)
+                        for _ in range(killed_by_mower):
+                            self.level_manager.enemy_killed()
+
+                        mower_activated = True
                         break
                 if not mower_activated: self.is_game_over = True; return
 

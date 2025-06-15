@@ -97,5 +97,5 @@ class LevelManager:
 
     def is_complete(self):
         all_spawned = len(self.enemy_spawn_list) == 0
-        all_defeated = len(self.enemy_group) == 0
+        all_defeated = self.enemies_killed >= self.total_enemies_in_level
         return all_spawned and all_defeated and self.total_enemies_in_level > 0

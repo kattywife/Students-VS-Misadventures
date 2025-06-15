@@ -16,7 +16,8 @@ class PrepManager:
 
         self.team_slots = MAX_TEAM_SIZE
         self.team = []
-        self.upgraded_heroes = set()
+        # Теперь это словарь, где ключ - герой, значение - сет его улучшенных характеристик
+        self.upgrades = {}
 
         self.neuro_mower_slots = self.level_data.get('neuro_slots', 2)
         self.chat_gpt_limit = 2
@@ -35,20 +36,23 @@ class PrepManager:
 
     def randomize_team(self):
         if SOUNDS.get('taking'): SOUNDS['taking'].play()
-        self.team.clear();
-        self.upgraded_heroes.clear()
-        available_heroes = self.all_defenders.copy();
+        # Возвращаем стоимость всех апгрейдов перед очисткой
+        for hero_type, upgraded_stats in self.upgrades.items():
+            for stat in upgraded_stats:
+                cost = DEFENDERS_DATA[hero_type]['upgrades'][stat]['cost']
+                self.stipend += cost
+        self.team.clear()
+        self.upgrades.clear()
+        available_heroes = self.all_defenders.copy()
         random.shuffle(available_heroes)
         self.team = available_heroes[:self.team_slots]
 
     def randomize_neuro(self):
         if SOUNDS.get('taking'): SOUNDS['taking'].play()
-        # Возвращаем стоимость старых нейросетей
         for mower_type in self.purchased_mowers:
             self.stipend += NEURO_MOWERS_DATA[mower_type]['cost']
         self.purchased_mowers.clear()
 
-        # Покупаем новые случайные, пока хватает денег и слотов
         available_mowers = self.all_neuro_mowers.copy()
         while len(self.purchased_mowers) < self.neuro_mower_slots:
             random.shuffle(available_mowers)
@@ -62,37 +66,51 @@ class PrepManager:
                 self.stipend -= cost
                 self.purchased_mowers.append(mower_to_buy)
             else:
-                break  # Заканчиваем, если деньги кончились
+                break
 
     def handle_click(self, pos):
-        # Обработка кнопок внутри открытой информационной панели
         if self.selected_card_info:
+            card_type = self.selected_card_info['type']
+            # Динамическая обработка кнопок улучшения/отмены
+            for key, rect in self.info_panel_buttons.items():
+                if rect.collidepoint(pos):
+                    if key.startswith('upgrade_'):
+                        stat_to_upgrade = key.split('_')[1]
+                        self.try_upgrade_hero(card_type, stat_to_upgrade)
+                        return
+                    if key.startswith('revert_'):
+                        stat_to_revert = key.split('_')[1]
+                        self.revert_upgrade(card_type, stat_to_revert)
+                        return
+
             if 'close' in self.info_panel_buttons and self.info_panel_buttons['close'].collidepoint(pos):
                 if SOUNDS.get('cards'): SOUNDS['cards'].play(); self.selected_card_info = None; return
             if 'take' in self.info_panel_buttons and self.info_panel_buttons['take'].collidepoint(pos):
-                self.try_take_card(self.selected_card_info['type']); self.selected_card_info = None; return
-            if 'upgrade' in self.info_panel_buttons and self.info_panel_buttons['upgrade'].collidepoint(pos):
-                self.try_upgrade_hero(self.selected_card_info['type']); return
-            # Не закрывать панель при клике на нее саму
+                self.try_take_card(card_type);
+                self.selected_card_info = None;
+                return
+            if 'kick' in self.info_panel_buttons and self.info_panel_buttons['kick'].collidepoint(pos):
+                self.kick_unit_from_team(card_type);
+                self.selected_card_info = None;
+                return
             if self.ui_manager.desc_panel_rect and self.ui_manager.desc_panel_rect.collidepoint(pos): return
 
-        # Кнопки случайной генерации
         if 'team' in self.random_buttons_rects and self.random_buttons_rects['team'].collidepoint(pos):
-            self.randomize_team(); return
+            self.randomize_team();
+            return
         if 'neuro' in self.random_buttons_rects and self.random_buttons_rects['neuro'].collidepoint(pos):
-            self.randomize_neuro(); return
+            self.randomize_neuro();
+            return
 
-        # Обработка кликов по карточкам (ИЗМЕНЕНИЕ 1)
-        # Проверяем клики по всем группам карточек, чтобы избежать бага с перезаписью
-        all_card_groups = [
-            self.ui_manager.selection_cards_rects,
-            self.ui_manager.team_card_rects,
-            self.ui_manager.plan_cards_rects
-        ]
-        for group in all_card_groups:
+        all_clickable_cards_with_source = {
+            'selection': self.ui_manager.selection_cards_rects,
+            'team': self.ui_manager.team_card_rects,
+            'plan': self.ui_manager.plan_cards_rects
+        }
+        for source, group in all_clickable_cards_with_source.items():
             for card_type, rect in group.items():
                 if rect.collidepoint(pos):
-                    self.show_card_info(card_type)
+                    self.show_card_info(card_type, source)
                     return
 
     def try_take_card(self, card_type):
@@ -107,16 +125,43 @@ class PrepManager:
                 if SOUNDS.get('taking'): SOUNDS['taking'].play(); self.stipend -= cost; self.purchased_mowers.append(
                     card_type)
 
-    def try_upgrade_hero(self, hero_type):
-        if hero_type in self.upgraded_heroes: return
-        upgrade_info = DEFENDERS_DATA[hero_type].get('upgrade')
+    def kick_unit_from_team(self, unit_type):
+        if SOUNDS.get('taking'): SOUNDS['taking'].play()
+        if unit_type in self.team:
+            self.team.remove(unit_type)
+            if unit_type in self.upgrades:
+                for stat in self.upgrades[unit_type]:
+                    cost = DEFENDERS_DATA[unit_type]['upgrades'][stat]['cost']
+                    self.stipend += cost
+                del self.upgrades[unit_type]
+        elif unit_type in self.purchased_mowers:
+            self.purchased_mowers.remove(unit_type)
+            cost = NEURO_MOWERS_DATA[unit_type].get('cost', 0)
+            self.stipend += cost
+
+    def try_upgrade_hero(self, hero_type, stat):
+        upgrade_info = DEFENDERS_DATA[hero_type].get('upgrades', {}).get(stat)
         if not upgrade_info: return
+
         cost = upgrade_info['cost']
         if self.stipend >= cost:
-            if SOUNDS.get('purchase'): SOUNDS['purchase'].play(); self.stipend -= cost; self.upgraded_heroes.add(
-                hero_type)
+            if SOUNDS.get('tuning'): SOUNDS['tuning'].play()
+            self.stipend -= cost
+            if hero_type not in self.upgrades:
+                self.upgrades[hero_type] = set()
+            self.upgrades[hero_type].add(stat)
 
-    def show_card_info(self, card_type):
+    def revert_upgrade(self, hero_type, stat):
+        if hero_type in self.upgrades and stat in self.upgrades[hero_type]:
+            if SOUNDS.get('tuning'): SOUNDS['tuning'].play()
+            self.upgrades[hero_type].remove(stat)
+            if not self.upgrades[hero_type]:
+                del self.upgrades[hero_type]
+
+            cost = DEFENDERS_DATA[hero_type]['upgrades'][stat]['cost']
+            self.stipend += cost
+
+    def show_card_info(self, card_type, source):
         if SOUNDS.get('cards'): SOUNDS['cards'].play()
         data_source = {}
         if card_type in DEFENDERS_DATA:
@@ -131,15 +176,18 @@ class PrepManager:
             return
         data = data_source[card_type]
         description = data.get('description', '').format(**{k: data.get(k, '?') for k in data})
-        self.selected_card_info = {'type': card_type, 'name': data['display_name'], 'description': description}
+        self.selected_card_info = {
+            'type': card_type, 'name': data['display_name'],
+            'description': description, 'source': source
+        }
 
     def draw(self, surface):
-        start_button_rect, self.random_buttons_rects, self.info_panel_buttons = self.ui_manager.draw_preparation_screen(
-            surface, self.stipend, self.team, self.upgraded_heroes, self.purchased_mowers,
+        prep_buttons, self.random_buttons_rects, self.info_panel_buttons = self.ui_manager.draw_preparation_screen(
+            surface, self.stipend, self.team, self.upgrades, self.purchased_mowers,
             self.all_defenders, self.all_neuro_mowers,
             self.level_id, self.selected_card_info, self.neuro_mower_slots
         )
-        return start_button_rect
+        return prep_buttons
 
     def is_ready(self):
         return len(self.team) > 0
