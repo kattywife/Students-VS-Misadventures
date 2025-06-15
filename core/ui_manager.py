@@ -1,10 +1,10 @@
-# ui_manager.py
+# core/ui_manager.py
 
 import pygame
-from settings import *
-from assets import load_image
-from levels import LEVELS
-from level_manager import LevelManager
+from data.settings import *
+from data.assets import load_image
+from data.levels import LEVELS
+from core.level_manager import LevelManager
 
 STAT_DISPLAY_NAMES = {
     'health': 'Здоровье:',
@@ -13,9 +13,11 @@ STAT_DISPLAY_NAMES = {
     'radius': 'Радиус:',
     'production': 'Производство:',
     'buff': 'Усиление:',
-    'heal_amount': 'Лечение:',
+    'heal_amount': 'Запас лечения:',
     'slow_duration': 'Длит. замедл.:',
-    'slow_factor': 'Сила замедл.:'
+    'slow_factor': 'Сила замедл.:',
+    'speed': 'Скорость:',
+    'projectile_speed': 'Скор. снаряда:'
 }
 
 
@@ -207,10 +209,8 @@ class UIManager:
 
         info_buttons = {}
         if selected_card_info:
-            info_buttons = self._draw_description_panel(surface, selected_card_info, team=team,
-                                                        upgrades=upgrades,
-                                                        purchased_mowers=purchased_mowers,
-                                                        neuro_slots=neuro_slots)
+            info_buttons = self._draw_description_panel(surface, selected_card_info, team,
+                                                        upgrades, purchased_mowers, neuro_slots)
 
         return prep_buttons, random_buttons, info_buttons
 
@@ -218,12 +218,33 @@ class UIManager:
         self._draw_panel_with_title(surface, panel_rect, "Твоя команда")
         team_card_rects, random_buttons = {}, {}
 
+        hero_slots_bottom_y = self._render_hero_slots(surface, panel_rect, team, upgrades)
+
+        random_team_rect = pygame.Rect(0, 0, 220, 40)
+        random_team_rect.center = (panel_rect.centerx, hero_slots_bottom_y + 35)
+        self._draw_button(surface, "Случайная команда", random_team_rect, BLUE, WHITE)
+        random_buttons['team'] = random_team_rect
+
+        neuro_slots_bottom_y = self._render_neuro_slots(surface, panel_rect, purchased_mowers, neuro_slots,
+                                                        random_team_rect.bottom + 30)
+
+        random_neuro_rect = pygame.Rect(0, 0, 220, 40)
+        random_neuro_rect.center = (panel_rect.centerx, neuro_slots_bottom_y + 30)
+        self._draw_button(surface, "Случайные нейросети", random_neuro_rect, BLUE, WHITE)
+        random_buttons['neuro'] = random_neuro_rect
+
+        team_card_rects.update(self.team_card_rects)
+        return team_card_rects, random_buttons
+
+    def _render_hero_slots(self, surface, panel_rect, team, upgrades):
         self._render_text_with_title(surface, "Одногруппники:", self.font_small, YELLOW, panel_rect.centerx,
                                      panel_rect.top + 70)
         card_size, padding_x, padding_y, cols = 80, 25, 15, 3
         start_x = panel_rect.centerx - (cols * card_size + (cols - 1) * padding_x) / 2
         start_y = panel_rect.top + 110
-        team_block_bottom_y = start_y
+        bottom_y = start_y
+        self.team_card_rects = {}
+
         for i in range(MAX_TEAM_SIZE):
             row, col = divmod(i, cols)
             x, y = start_x + col * (card_size + padding_x), start_y + row * (card_size + padding_y)
@@ -232,44 +253,28 @@ class UIManager:
                 hero_type = team[i]
                 is_upgraded = hero_type in upgrades
                 self._draw_unit_card(surface, hero_type, slot_rect, DEFENDERS_DATA[hero_type], is_upgraded)
-                team_card_rects[hero_type] = slot_rect
+                self.team_card_rects[hero_type] = slot_rect
             else:
                 pygame.draw.rect(surface, (0, 0, 0, 50), slot_rect, border_radius=10)
-            team_block_bottom_y = slot_rect.bottom
+            bottom_y = slot_rect.bottom
+        return bottom_y
 
-        random_team_rect = pygame.Rect(0, 0, 220, 40)
-        random_team_rect.center = (panel_rect.centerx, team_block_bottom_y + 35)
-        pygame.draw.rect(surface, BLUE, random_team_rect, border_radius=10)
-        pygame.draw.rect(surface, WHITE, random_team_rect, 2, border_radius=10)
-        random_text = self.font_small.render("Случайная команда", True, WHITE)
-        surface.blit(random_text, random_text.get_rect(center=random_team_rect.center))
-        random_buttons['team'] = random_team_rect
-
-        neuro_y_start = random_team_rect.bottom + 30
+    def _render_neuro_slots(self, surface, panel_rect, purchased_mowers, neuro_slots, start_y):
         self._render_text_with_title(surface, f"Нейросети ({len(purchased_mowers)}/{neuro_slots}):", self.font_small,
-                                     YELLOW, panel_rect.centerx, neuro_y_start)
+                                     YELLOW, panel_rect.centerx, start_y)
         neuro_start_x = panel_rect.centerx - (neuro_slots * 80 + (neuro_slots - 1) * 10) / 2
-        neuro_cards_y = neuro_y_start + 40
-        neuro_cards_bottom_y = neuro_cards_y
+        neuro_cards_y = start_y + 40
+        bottom_y = neuro_cards_y
         for i in range(neuro_slots):
             rect = pygame.Rect(neuro_start_x + i * 90, neuro_cards_y, 80, 80)
             if i < len(purchased_mowers):
                 mower_type = purchased_mowers[i]
                 self._draw_unit_card(surface, mower_type, rect, NEURO_MOWERS_DATA[mower_type])
-                team_card_rects[mower_type] = rect
+                self.team_card_rects[mower_type] = rect
             else:
                 pygame.draw.rect(surface, (0, 0, 0, 50), rect, border_radius=10)
-            neuro_cards_bottom_y = rect.bottom
-
-        random_neuro_rect = pygame.Rect(0, 0, 220, 40)
-        random_neuro_rect.center = (panel_rect.centerx, neuro_cards_bottom_y + 30)
-        pygame.draw.rect(surface, BLUE, random_neuro_rect, border_radius=10)
-        pygame.draw.rect(surface, WHITE, random_neuro_rect, 2, border_radius=10)
-        random_text = self.font_small.render("Случайные нейросети", True, WHITE)
-        surface.blit(random_text, random_text.get_rect(center=random_neuro_rect.center))
-        random_buttons['neuro'] = random_neuro_rect
-
-        return team_card_rects, random_buttons
+            bottom_y = rect.bottom
+        return bottom_y
 
     def _draw_selection_panel(self, surface, panel_rect, upgrades):
         self._draw_panel_with_title(surface, panel_rect, "Выбор юнитов")
@@ -317,22 +322,24 @@ class UIManager:
         buttons = {}
 
         back_button_rect = pygame.Rect(margin, SCREEN_HEIGHT - btn_height - margin, btn_width, btn_height)
-        pygame.draw.rect(surface, GREY, back_button_rect, border_radius=10)
-        pygame.draw.rect(surface, WHITE, back_button_rect, 2, border_radius=10)
-        back_text = self.font.render("Назад", True, WHITE)
-        surface.blit(back_text, back_text.get_rect(center=back_button_rect.center))
+        self._draw_button(surface, "Назад", back_button_rect, GREY, WHITE, self.font)
         buttons['back'] = back_button_rect
 
         start_button_rect = pygame.Rect(SCREEN_WIDTH - btn_width - margin, SCREEN_HEIGHT - btn_height - margin,
                                         btn_width, btn_height)
         color = GREEN if team_is_ready else GREY
-        pygame.draw.rect(surface, color, start_button_rect, border_radius=10)
-        pygame.draw.rect(surface, WHITE, start_button_rect, 2, border_radius=10)
-        start_text = self.font.render("К расстановке", True, BLACK if team_is_ready else DARK_GREY)
-        surface.blit(start_text, start_text.get_rect(center=start_button_rect.center))
+        text_color = BLACK if team_is_ready else DARK_GREY
+        self._draw_button(surface, "К расстановке", start_button_rect, color, text_color, self.font)
         buttons['start'] = start_button_rect
 
         return buttons
+
+    def _draw_button(self, surface, text, rect, color, text_color, font=None):
+        if font is None: font = self.font_small
+        pygame.draw.rect(surface, color, rect, border_radius=10)
+        pygame.draw.rect(surface, WHITE, rect, 2, border_radius=10)
+        text_surf = font.render(text, True, text_color)
+        surface.blit(text_surf, text_surf.get_rect(center=rect.center))
 
     def _draw_unit_card(self, surface, unit_type, rect, data, is_upgraded=False):
         pygame.draw.rect(surface, DEFAULT_COLORS['shop_card'], rect, border_radius=10)
@@ -346,115 +353,139 @@ class UIManager:
             cost_surf = self.font_tiny.render(str(cost), True, YELLOW)
             surface.blit(cost_surf, cost_surf.get_rect(bottomright=(rect.right - 5, rect.bottom - 2)))
 
-    def _draw_description_panel(self, surface, card_data, team=None, upgrades=None,
-                                purchased_mowers=None, neuro_slots=None):
-        overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA);
-        overlay.fill((0, 0, 0, 180));
+    def _draw_description_panel(self, surface, card_data, team, upgrades, purchased_mowers, neuro_slots):
+        overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
+        overlay.fill((0, 0, 0, 180))
         surface.blit(overlay, (0, 0))
+
         panel_w, panel_h = 700, 600
         self.desc_panel_rect = pygame.Rect((SCREEN_WIDTH - panel_w) / 2, (SCREEN_HEIGHT - panel_h) / 2, panel_w,
                                            panel_h)
-        pygame.draw.rect(surface, DEFAULT_COLORS['shop_panel'], self.desc_panel_rect, border_radius=15);
+        pygame.draw.rect(surface, DEFAULT_COLORS['shop_panel'], self.desc_panel_rect, border_radius=15)
         pygame.draw.rect(surface, WHITE, self.desc_panel_rect, 3, border_radius=15)
 
         card_type = card_data['type']
-        img_size = 120;
+
+        img_rect = self._draw_desc_panel_header(surface, card_type, card_data['name'])
+        buttons, current_y = self._draw_desc_panel_stats(surface, card_type, team, upgrades, img_rect.bottom + 25)
+        self._draw_desc_panel_description(surface, card_data['description'], current_y + 15)
+        action_buttons = self._draw_desc_panel_actions(surface, card_data, team, purchased_mowers, neuro_slots)
+        buttons.update(action_buttons)
+
+        return buttons
+
+    def _draw_desc_panel_header(self, surface, card_type, name):
+        img_size = 120
         default_color = DEFAULT_COLORS.get(card_type, RED)
-        img = load_image(f"{card_type}.png", default_color, (img_size, img_size));
-        img_rect = img.get_rect(centerx=self.desc_panel_rect.centerx, top=self.desc_panel_rect.top + 20);
+        img = load_image(f"{card_type}.png", default_color, (img_size, img_size))
+        img_rect = img.get_rect(centerx=self.desc_panel_rect.centerx, top=self.desc_panel_rect.top + 20)
         surface.blit(img, img_rect)
-        name_surf = self.font.render(card_data['name'], True, YELLOW);
-        name_rect = name_surf.get_rect(centerx=self.desc_panel_rect.centerx, top=img_rect.bottom + 10);
+        name_surf = self.font.render(name, True, YELLOW)
+        name_rect = name_surf.get_rect(centerx=self.desc_panel_rect.centerx, top=img_rect.bottom + 10)
         surface.blit(name_surf, name_rect)
+        return name_rect
 
+    def _draw_desc_panel_stats(self, surface, card_type, team, upgrades, start_y):
         buttons = {}
-        all_data_sources = {**DEFENDERS_DATA, **ENEMIES_DATA, **NEURO_MOWERS_DATA}
+        all_data_sources = {**DEFENDERS_DATA, **ENEMIES_DATA, **NEURO_MOWERS_DATA, **CALAMITIES_DATA}
         unit_data = all_data_sources.get(card_type)
+        if not unit_data:
+            return buttons, start_y
+
         left_margin, right_margin = self.desc_panel_rect.left + 30, self.desc_panel_rect.right - 20
-        line_height, line_y = 35, name_rect.bottom + 25
+        line_height, line_y = 35, start_y
 
-        # --- Блок характеристик и улучшений ---
-        if unit_data:  # ИСПРАВЛЕНИЕ: Проверяем, есть ли у юнита данные, перед тем как их отрисовывать
-            for key, title in STAT_DISPLAY_NAMES.items():
-                if key in unit_data:
-                    base_value = unit_data[key]
-                    value_color = WHITE
+        for key, title in STAT_DISPLAY_NAMES.items():
+            if key in unit_data:
+                base_value, value_color, value_str = self._get_stat_display_values(unit_data, card_type, key, upgrades)
 
-                    if base_value is None:
-                        value_str = "Нет"
-                    else:
-                        upgraded_stats_set = upgrades.get(card_type, set())
-                        if key in upgraded_stats_set:
-                            base_value += unit_data['upgrades'][key]['value']
-                            value_color = AURA_PINK
+                title_surf = self.font_small_bold.render(title, True, WHITE)
+                value_surf = self.font_small.render(value_str, True, value_color)
+                surface.blit(title_surf, (left_margin, line_y))
+                surface.blit(value_surf, (left_margin + 200, line_y))
 
-                        if key == 'radius':
-                            value_str = f"{round(base_value / CELL_SIZE_W)} кл."
-                        elif key == "slow_factor":
-                            value_str = f"{1 - base_value:.0%}"
-                        else:
-                            value_str = f"{base_value:.1f}".replace('.0', '') + (" сек." if key == "cooldown" else "")
+                is_in_team = team and card_type in team
+                if is_in_team and 'upgrades' in unit_data and key in unit_data['upgrades']:
+                    upgrade_buttons = self._draw_upgrade_buttons_for_stat(surface, unit_data, card_type, key, upgrades,
+                                                                          line_y, line_height, right_margin)
+                    buttons.update(upgrade_buttons)
 
-                    title_surf = self.font_small_bold.render(title, True, WHITE)
-                    value_surf = self.font_small.render(value_str, True, value_color)
-                    surface.blit(title_surf, (left_margin, line_y))
-                    surface.blit(value_surf, (left_margin + 200, line_y))
+                line_y += line_height
 
-                    is_in_team = team and card_type in team
-                    if is_in_team and 'upgrades' in unit_data and key in unit_data['upgrades']:
-                        upgrade_info = unit_data['upgrades'][key]
-                        cost = upgrade_info['cost']
-                        upgraded_stats_set = upgrades.get(card_type, set())
+        return buttons, line_y
 
-                        if key in upgraded_stats_set:
-                            btn_rect = pygame.Rect(0, 0, 120, line_height - 5)
-                            btn_rect.midleft = (right_margin - btn_rect.width, line_y + 2)
-                            pygame.draw.rect(surface, RED, btn_rect, border_radius=5)
-                            pygame.draw.rect(surface, WHITE, btn_rect, 1, border_radius=5)
-                            text_surf = self.font_tiny.render("Отменить", True, WHITE)
-                            surface.blit(text_surf, text_surf.get_rect(center=btn_rect.center))
-                            buttons[f'revert_{key}'] = btn_rect
-                        else:
-                            bonus = upgrade_info['value']
-                            bonus_str = f"+{bonus:.1f}".replace('.0', '') if bonus > 0 else f"{bonus:.1f}".replace('.0',
-                                                                                                                   '')
-                            btn_text = f"Улучшить ({bonus_str}) ({cost}$)"
-                            btn_rect = pygame.Rect(0, 0, 250, line_height - 5)
-                            btn_rect.midleft = (right_margin - btn_rect.width, line_y + 2)
-                            pygame.draw.rect(surface, GREEN, btn_rect, border_radius=5)
-                            pygame.draw.rect(surface, WHITE, btn_rect, 1, border_radius=5)
-                            text_surf = self.font_tiny.render(btn_text, True, BLACK)
-                            surface.blit(text_surf, text_surf.get_rect(center=btn_rect.center))
-                            buttons[f'upgrade_{key}'] = btn_rect
+    def _get_stat_display_values(self, unit_data, card_type, key, upgrades):
+        base_value = unit_data[key]
+        value_color = WHITE
 
-                    line_y += line_height
+        if base_value is None:
+            return None, WHITE, "Нет"
 
-        desc_y_start = line_y + 15
+        upgraded_stats_set = upgrades.get(card_type, set())
+        if key in upgraded_stats_set:
+            base_value += unit_data['upgrades'][key]['value']
+            value_color = AURA_PINK
+
+        if key == 'radius':
+            value_str = f"{round(base_value / CELL_SIZE_W, 1)} кл."
+        elif key == "slow_factor":
+            value_str = f"{1 - base_value:.0%}"
+        elif key == "slow_duration":
+            value_str = f"{base_value / 1000:.1f} сек."
+        elif key == "cooldown":
+            value_str = f"{base_value:.1f} сек."
+        else:
+            value_str = f"{base_value:.1f}".replace('.0', '')
+
+        return base_value, value_color, value_str
+
+    def _draw_upgrade_buttons_for_stat(self, surface, unit_data, card_type, key, upgrades, line_y, line_height,
+                                       right_margin):
+        buttons = {}
+        upgrade_info = unit_data['upgrades'][key]
+        cost = upgrade_info['cost']
+        upgraded_stats_set = upgrades.get(card_type, set())
+
+        if key in upgraded_stats_set:
+            btn_rect = pygame.Rect(0, 0, 120, line_height - 5)
+            btn_rect.midleft = (right_margin - btn_rect.width, line_y + (line_height - btn_rect.height) / 2)
+            self._draw_button(surface, "Отменить", btn_rect, RED, WHITE, self.font_tiny)
+            buttons[f'revert_{key}'] = btn_rect
+        else:
+            bonus = upgrade_info['value']
+            bonus_str = f"+{bonus:.1f}".replace('.0', '') if bonus > 0 else f"{bonus:.1f}".replace('.0', '')
+            btn_text = f"Улучшить ({bonus_str}) ({cost}$)"
+            btn_rect = pygame.Rect(0, 0, 250, line_height - 5)
+            btn_rect.midleft = (right_margin - btn_rect.width, line_y + (line_height - btn_rect.height) / 2)
+            self._draw_button(surface, btn_text, btn_rect, GREEN, BLACK, self.font_tiny)
+            buttons[f'upgrade_{key}'] = btn_rect
+        return buttons
+
+    def _draw_desc_panel_description(self, surface, description, start_y):
+        left_margin = self.desc_panel_rect.left + 30
         desc_title_surf = self.font_small_bold.render("Описание:", True, WHITE)
-        surface.blit(desc_title_surf, (left_margin, desc_y_start))
-        desc_y_start += line_height
-        wrapped_lines = self._render_text_wrapped(card_data['description'], self.font_small, WHITE, panel_w - 60)
+        surface.blit(desc_title_surf, (left_margin, start_y))
+
+        current_y = start_y + 35
+        wrapped_lines = self._render_text_wrapped(description, self.font_small, WHITE, self.desc_panel_rect.width - 60)
         for line_surf in wrapped_lines:
-            surface.blit(line_surf, (left_margin, desc_y_start));
-            desc_y_start += line_surf.get_height()
+            surface.blit(line_surf, (left_margin, current_y));
+            current_y += line_surf.get_height()
+        return current_y
 
-        close_rect = pygame.Rect(self.desc_panel_rect.right - 45, self.desc_panel_rect.top + 10, 35, 35)
-        pygame.draw.line(surface, WHITE, close_rect.topleft, close_rect.bottomright, 3);
-        pygame.draw.line(surface, WHITE, close_rect.topright, close_rect.bottomleft, 3);
-        buttons['close'] = close_rect
-
+    def _draw_desc_panel_actions(self, surface, card_data, team, purchased_mowers, neuro_slots):
+        buttons = {}
+        card_type = card_data['type']
         source = card_data.get('source')
         is_hero, is_mower = card_type in DEFENDERS_DATA, card_type in NEURO_MOWERS_DATA
         is_in_team_panel = source == 'team'
 
-        action_button_rect = pygame.Rect(0, 0, 220, 50)
+        action_button_rect = pygame.Rect(0, 0, 250, 50)
         action_button_rect.center = (self.desc_panel_rect.centerx, self.desc_panel_rect.bottom - 45)
-        text_surf = None
 
         if is_in_team_panel:
             text = "Выгнать" if is_hero else "Удалить"
-            pygame.draw.rect(surface, RED, action_button_rect, border_radius=10)
-            text_surf = self.font.render(text, True, WHITE)
+            self._draw_button(surface, text, action_button_rect, RED, WHITE, self.font)
             buttons['kick'] = action_button_rect
         elif is_hero:
             is_in_team = team and card_type in team
@@ -466,8 +497,8 @@ class UIManager:
                 text = "Уже в команде"
             elif team_is_full:
                 text = "Команда полна"
-            pygame.draw.rect(surface, color, action_button_rect, border_radius=10)
-            text_surf = self.font.render(text, True, BLACK if is_clickable else DARK_GREY)
+            text_color = BLACK if is_clickable else DARK_GREY
+            self._draw_button(surface, text, action_button_rect, color, text_color, self.font)
             if is_clickable: buttons['take'] = action_button_rect
         elif is_mower:
             slots_are_full = purchased_mowers and len(purchased_mowers) >= neuro_slots
@@ -479,15 +510,17 @@ class UIManager:
                 text = "Слоты полны"
             elif chat_gpt_limit_reached:
                 text = "Достигнут лимит"
-            pygame.draw.rect(surface, color, action_button_rect, border_radius=10)
-            text_surf = self.font.render(text, True, BLACK if is_clickable else DARK_GREY)
+            text_color = BLACK if is_clickable else DARK_GREY
+            self._draw_button(surface, text, action_button_rect, color, text_color, self.font)
             if is_clickable: buttons['take'] = action_button_rect
 
-        if text_surf:
-            pygame.draw.rect(surface, WHITE, action_button_rect, 2, border_radius=10)
-            surface.blit(text_surf, text_surf.get_rect(center=action_button_rect.center))
+        close_rect = pygame.Rect(self.desc_panel_rect.right - 45, self.desc_panel_rect.top + 10, 35, 35)
+        pygame.draw.line(surface, WHITE, close_rect.topleft, close_rect.bottomright, 3);
+        pygame.draw.line(surface, WHITE, close_rect.topright, close_rect.bottomleft, 3);
+        buttons['close'] = close_rect
 
         return buttons
+
     def _render_text_wrapped(self, text, font, color, max_width):
         words = text.split(' ');
         lines = [];
@@ -514,6 +547,23 @@ class UIManager:
     def draw_neuro_placement_screen(self, surface, purchased_mowers, placed_mowers, dragged_mower_info):
         surface.blit(load_image('background.png', DEFAULT_COLORS['background'], (SCREEN_WIDTH, SCREEN_HEIGHT)), (0, 0))
         self.draw_grid(surface)
+        self._draw_neuro_placement_slots(surface)
+
+        for row, info in placed_mowers.items():
+            self._draw_placed_mower(surface, row, info)
+
+        unplaced_mowers_rects, start_button_rect = self._draw_neuro_selection_panel(surface, purchased_mowers,
+                                                                                    placed_mowers)
+
+        if dragged_mower_info:
+            pos, mower_type = dragged_mower_info['pos'], dragged_mower_info['type']
+            rect = pygame.Rect(0, 0, 100, 100)
+            rect.center = pos
+            self._draw_unit_card(surface, mower_type, rect, NEURO_MOWERS_DATA[mower_type])
+
+        return unplaced_mowers_rects, start_button_rect
+
+    def _draw_neuro_placement_slots(self, surface):
         placement_zone_width = CELL_SIZE_W + 20
         placement_zone_x = GRID_START_X - placement_zone_width
         for row in range(GRID_ROWS):
@@ -523,19 +573,22 @@ class UIManager:
             slot_rect.center = (slot_center_x, slot_center_y)
             pygame.draw.rect(surface, (20, 20, 20, 200), slot_rect, border_radius=10)
             pygame.draw.rect(surface, WHITE, slot_rect, 2, border_radius=10)
-        for row, info in placed_mowers.items():
-            y = GRID_START_Y + row * CELL_SIZE_H + CELL_SIZE_H / 2
-            x = placement_zone_x + placement_zone_width / 2
-            img = load_image(f"{info['type']}.png", DEFAULT_COLORS[info['type']], (CELL_SIZE_W - 10, CELL_SIZE_H - 10))
-            surface.blit(img, img.get_rect(center=(x, y)))
+
+    def _draw_placed_mower(self, surface, row, info):
+        placement_zone_width = CELL_SIZE_W + 20
+        placement_zone_x = GRID_START_X - placement_zone_width
+        y = GRID_START_Y + row * CELL_SIZE_H + CELL_SIZE_H / 2
+        x = placement_zone_x + placement_zone_width / 2
+        img = load_image(f"{info['type']}.png", DEFAULT_COLORS[info['type']], (CELL_SIZE_W - 10, CELL_SIZE_H - 10))
+        surface.blit(img, img.get_rect(center=(x, y)))
+
+    def _draw_neuro_selection_panel(self, surface, purchased_mowers, placed_mowers):
         panel_w, panel_h = 600, 550
         panel_x = (SCREEN_WIDTH - panel_w) / 2 + 100
         panel_y = (SCREEN_HEIGHT - panel_h) / 2
         panel_rect = pygame.Rect(panel_x, panel_y, panel_w, panel_h)
-        pygame.draw.rect(surface, DEFAULT_COLORS['shop_panel'], panel_rect, border_radius=15)
-        pygame.draw.rect(surface, WHITE, panel_rect, 3, border_radius=15)
-        self._render_text_with_title(surface, "Расставьте нейросети по рядам", self.font, WHITE, panel_rect.centerx,
-                                     panel_rect.top + 30)
+        self._draw_panel_with_title(surface, panel_rect, "Расставьте нейросети по рядам")
+
         card_size, padding, cols = 100, 20, 4
         unplaced_mowers_rects = {}
         placed_indices = [info.get('original_index') for info in placed_mowers.values()]
@@ -548,17 +601,11 @@ class UIManager:
             rect = pygame.Rect(x, y, card_size, card_size)
             self._draw_unit_card(surface, mower_type, rect, NEURO_MOWERS_DATA[mower_type])
             unplaced_mowers_rects[original_index] = rect
+
         can_start = len(purchased_mowers) == len(placed_mowers)
         start_button_rect = pygame.Rect(0, 0, 300, 70)
         start_button_rect.center = (panel_rect.centerx, panel_rect.bottom - 60)
         color = GREEN if can_start else GREY
-        pygame.draw.rect(surface, color, start_button_rect, border_radius=10)
-        pygame.draw.rect(surface, WHITE, start_button_rect, 2, border_radius=10)
-        start_text = self.font_large.render("В Бой!", True, BLACK)
-        surface.blit(start_text, start_text.get_rect(center=start_button_rect.center))
-        if dragged_mower_info:
-            pos, mower_type = dragged_mower_info['pos'], dragged_mower_info['type']
-            rect = pygame.Rect(0, 0, card_size, card_size)
-            rect.center = pos
-            self._draw_unit_card(surface, mower_type, rect, NEURO_MOWERS_DATA[mower_type])
+        self._draw_button(surface, "В Бой!", start_button_rect, color, BLACK, self.font_large)
+
         return unplaced_mowers_rects, start_button_rect

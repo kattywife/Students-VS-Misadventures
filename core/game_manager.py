@@ -1,15 +1,15 @@
-# game_manager.py
+# core/game_manager.py
 
 import pygame
 import sys
-from settings import *
-from sprites import *
-from ui_manager import UIManager
-from level_manager import LevelManager
-from assets import load_image, load_sound, SOUNDS
-from levels import LEVELS
-from prep_manager import PrepManager
-from battle_manager import BattleManager
+from data.settings import *
+from entities.other_sprites import NeuroMower
+from core.ui_manager import UIManager
+from core.level_manager import LevelManager
+from data.assets import load_image, load_sound, SOUNDS
+from data.levels import LEVELS
+from core.prep_manager import PrepManager
+from core.battle_manager import BattleManager
 
 
 class Game:
@@ -32,7 +32,6 @@ class Game:
 
         self.level_select_buttons = {};
         self.control_buttons = {};
-        # --- ИЗМЕНЕНИЕ: Теперь это словарь для нескольких кнопок ---
         self.prep_buttons = {}
         self.pause_menu_buttons = {"Продолжить": pygame.Rect(0, 0, 300, 80), "Главное меню": pygame.Rect(0, 0, 400, 80)}
         self.pause_menu_buttons["Продолжить"].center = (SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2);
@@ -166,7 +165,6 @@ class Game:
         for event in pygame.event.get():
             if event.type == pygame.QUIT: self.running = False
             self.prep_manager.handle_event(event)
-            # --- ИЗМЕНЕНИЕ: Обработка новых кнопок ---
             if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                 pos = event.pos
                 if 'start' in self.prep_buttons and self.prep_buttons['start'].collidepoint(pos):

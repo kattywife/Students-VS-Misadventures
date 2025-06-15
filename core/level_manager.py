@@ -1,10 +1,10 @@
-# level_manager.py
+# core/level_manager.py
 
 import pygame
 import random
-from levels import LEVELS
-from sprites import Enemy, Calculus, StuffyProf, MathTeacher, Addict, Thief
-from settings import *
+from data.levels import LEVELS
+from entities.enemies import Enemy, Calculus, StuffyProf, MathTeacher, Addict, Thief
+from data.settings import *
 
 
 class LevelManager:
@@ -83,16 +83,11 @@ class LevelManager:
             'thief': Thief
         }
 
-        # Получаем конструктор специализированного класса, если он есть
         enemy_class = enemy_map.get(enemy_type)
 
         if enemy_class:
-            # Для классов вроде Calculus, Addict и т.д.
-            # Их конструктор принимает только row и groups
             enemy_class(row, groups)
         else:
-            # Для базовых врагов, не входящих в карту (например, 'alarm_clock')
-            # Используем общий класс Enemy, которому нужен enemy_type для данных
             Enemy(row, groups, enemy_type)
 
     def is_complete(self):

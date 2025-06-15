@@ -1,12 +1,12 @@
-# levels.py
+# data/levels.py
 
 LEVELS = {
     1: {
         'name': "Курс 1",
         'start_coffee': 150,
         'neuro_slots': 2,
-        'calamities': ['colloquium'], # <-- Добавлена напасть
-        'enemies': [ # <-- Добавлены новые враги
+        'calamities': ['colloquium'],
+        'enemies': [
             ('alarm_clock', 2), ('alarm_clock', 1),
             ('calculus', 3), ('alarm_clock', 2),
             ('professor', 0), ('alarm_clock', 4),

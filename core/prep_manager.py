@@ -1,10 +1,10 @@
-# prep_manager.py
+# core/prep_manager.py
 
 import pygame
 import random
-from settings import *
-from assets import SOUNDS
-from levels import LEVELS
+from data.settings import *
+from data.assets import SOUNDS
+from data.levels import LEVELS
 
 
 class PrepManager:
@@ -16,7 +16,6 @@ class PrepManager:
 
         self.team_slots = MAX_TEAM_SIZE
         self.team = []
-        # Теперь это словарь, где ключ - герой, значение - сет его улучшенных характеристик
         self.upgrades = {}
 
         self.neuro_mower_slots = self.level_data.get('neuro_slots', 2)
@@ -36,7 +35,6 @@ class PrepManager:
 
     def randomize_team(self):
         if SOUNDS.get('taking'): SOUNDS['taking'].play()
-        # Возвращаем стоимость всех апгрейдов перед очисткой
         for hero_type, upgraded_stats in self.upgrades.items():
             for stat in upgraded_stats:
                 cost = DEFENDERS_DATA[hero_type]['upgrades'][stat]['cost']
@@ -71,7 +69,6 @@ class PrepManager:
     def handle_click(self, pos):
         if self.selected_card_info:
             card_type = self.selected_card_info['type']
-            # Динамическая обработка кнопок улучшения/отмены
             for key, rect in self.info_panel_buttons.items():
                 if rect.collidepoint(pos):
                     if key.startswith('upgrade_'):

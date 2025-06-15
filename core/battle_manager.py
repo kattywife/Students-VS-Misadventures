@@ -1,10 +1,14 @@
-# battle_manager.py
+# core/battle_manager.py
 
 import pygame
 import random
-from settings import *
-from assets import SOUNDS
-from sprites import *
+from data.settings import *
+from data.assets import SOUNDS, load_image
+from data.assets import SOUNDS
+from entities.defenders import Defender, ProgrammerBoy, BotanistGirl, CoffeeMachine, Activist, Guitarist, Medic, Artist, Fashionista
+from entities.enemies import Enemy, StuffyProf
+from entities.projectiles import Integral, PaintSplat, SoundWave
+from entities.other_sprites import NeuroMower, CoffeeBean
 
 
 class BattleManager:
@@ -97,7 +101,6 @@ class BattleManager:
         data = DEFENDERS_DATA[defender_type].copy();
         data['type'] = defender_type
 
-        # Применяем все купленные улучшения
         if defender_type in self.upgrades:
             upgraded_stats = self.upgrades[defender_type]
             for stat_name in upgraded_stats:
@@ -105,7 +108,8 @@ class BattleManager:
                 data[stat_name] += upgrade_info['value']
 
         unit_map = {'programmer': ProgrammerBoy, 'botanist': BotanistGirl, 'coffee_machine': CoffeeMachine,
-                    'activist': Activist, 'guitarist': Guitarist, 'medic': Medic, 'artist': Artist}
+                    'activist': Activist, 'guitarist': Guitarist, 'medic': Medic, 'artist': Artist,
+                    'modnik': Fashionista}
         constructor = unit_map[defender_type];
         common_args = {'x': x, 'y': y, 'groups': groups, 'data': data}
         specific_args = {'programmer': {'all_sprites': self.all_sprites, 'projectile_group': self.projectiles,
@@ -115,7 +119,8 @@ class BattleManager:
                          'guitarist': {'all_sprites': self.all_sprites, 'enemies_group': self.enemies},
                          'medic': {'defenders_group': self.defenders},
                          'artist': {'all_sprites': self.all_sprites, 'projectile_group': self.projectiles,
-                                    'enemies_group': self.enemies}}
+                                    'enemies_group': self.enemies},
+                         'modnik': {'all_sprites': self.all_sprites, 'enemies_group': self.enemies}}
         all_args = {**common_args, **specific_args.get(defender_type, {})};
         defender = constructor(**all_args)
         if defender_type in self.upgrades: defender.is_upgraded = True
@@ -139,17 +144,13 @@ class BattleManager:
                 for mower in self.neuro_mowers:
                     if mower.rect.centery == enemy.rect.centery and not mower.is_active:
                         enemies_before_activation = set(self.enemies.sprites())
-
                         mower.activate(self.enemies)
                         if mower.mower_type == 'chat_gpt':
                             enemy.kill()
-
                         enemies_after_activation = set(self.enemies.sprites())
-
                         killed_by_mower = len(enemies_before_activation - enemies_after_activation)
                         for _ in range(killed_by_mower):
                             self.level_manager.enemy_killed()
-
                         mower_activated = True
                         break
                 if not mower_activated: self.is_game_over = True; return
@@ -177,47 +178,69 @@ class BattleManager:
         self.calamity_notification_timer = now + self.notification_duration
         self.calamity_end_time = now + self.calamity_duration
 
-        for sprite in self.all_sprites:
-            if hasattr(sprite, 'apply_calamity_effect'): sprite.apply_calamity_effect(self.active_calamity)
+        if self.active_calamity == 'big_party':
+            heroes_to_consider = [d for d in self.defenders if d.alive() and not isinstance(d, CoffeeMachine)]
+            if heroes_to_consider:
+                num_to_remove = int(len(heroes_to_consider) * 0.8)
+                heroes_to_remove = random.sample(heroes_to_consider, k=min(num_to_remove, len(heroes_to_consider)))
+                for hero in heroes_to_remove:
+                    hero.kill()
+            self.active_calamity = None
+        else:
+            for sprite in self.all_sprites:
+                if hasattr(sprite, 'apply_calamity_effect'): sprite.apply_calamity_effect(self.active_calamity)
 
     def _end_calamity(self):
+        if not self.active_calamity: return
         for sprite in self.all_sprites:
             if hasattr(sprite, 'revert_calamity_effect'): sprite.revert_calamity_effect(self.active_calamity)
         self.active_calamity = None
 
     def check_collisions(self):
+        professors = [e for e in self.enemies if isinstance(e, StuffyProf) and e.alive()]
+
         for proj in list(self.projectiles):
-            if proj.alive() and not isinstance(proj, Integral):
+            if not proj.alive(): continue
+
+            if not isinstance(proj, Integral):
+                debuff = 1.0
+                for prof in professors:
+                    aura_rect = prof.rect.inflate(prof.data['radius'], prof.data['radius'])
+                    if aura_rect.colliderect(proj.rect):
+                        debuff = prof.data['debuff']
+                        break
+
                 hits = pygame.sprite.spritecollide(proj, self.enemies, False)
                 if hits:
                     target = hits[0]
                     if target.alive():
-                        if isinstance(proj, PaintSplat): target.slow_down(proj.artist.data['slow_factor'],
-                                                                          proj.artist.data['slow_duration'])
-                        target.get_hit(proj.damage);
+                        if isinstance(proj, PaintSplat):
+                            target.slow_down(proj.artist.data['slow_factor'], proj.artist.data['slow_duration'])
+                        target.get_hit(proj.damage * debuff)
                         proj.kill()
-        for proj in list(self.projectiles):
-            if proj.alive() and isinstance(proj, Integral):
-                if pygame.sprite.spritecollide(proj, self.defenders, True): proj.kill()
+            elif isinstance(proj, Integral):
+                if pygame.sprite.spritecollide(proj, self.defenders, True):
+                    proj.kill()
+
         for wave in [s for s in self.all_sprites if isinstance(s, SoundWave)]:
             for enemy in self.enemies:
                 if wave.rect.colliderect(enemy.rect) and enemy not in wave.hit_enemies:
-                    enemy.get_hit(wave.damage);
+                    enemy.get_hit(wave.damage)
                     wave.hit_enemies.add(enemy)
+
         for mower in list(self.neuro_mowers):
             if not mower.is_active:
-                if pygame.sprite.spritecollide(mower, self.enemies, False): mower.activate(self.enemies)
+                if pygame.sprite.spritecollide(mower, self.enemies, False):
+                    mower.activate(self.enemies)
 
     def apply_auras(self):
-        for d in self.defenders: d.buff_multiplier, d.debuff_multiplier = 1.0, 1.0
+        for d in self.defenders:
+            d.buff_multiplier = 1.0
+
         for activist in [s for s in self.defenders if isinstance(s, Activist) and s.alive()]:
             for defender in self.defenders:
-                if pygame.math.Vector2(activist.rect.center).distance_to(defender.rect.center) < activist.data[
-                    'radius']: defender.buff_multiplier *= activist.data['buff']
-        for prof in [s for s in self.enemies if isinstance(s, StuffyProf) and s.alive()]:
-            for defender in self.defenders:
-                if pygame.math.Vector2(prof.rect.center).distance_to(defender.rect.center) < prof.data[
-                    'radius']: defender.debuff_multiplier *= prof.data['debuff']
+                if pygame.math.Vector2(activist.rect.center).distance_to(defender.rect.center) < activist.data['radius']:
+                    defender.buff_multiplier *= activist.data['buff']
 
     def draw(self, surface):
         self.draw_world(surface)
@@ -232,9 +255,11 @@ class BattleManager:
     def draw_world(self, surface):
         surface.blit(load_image('background.png', DEFAULT_COLORS['background'], (SCREEN_WIDTH, SCREEN_HEIGHT)), (0, 0))
         self.ui_manager.draw_grid(surface)
-        for sprite in self.all_sprites:
+
+        sprites_to_draw = sorted(self.all_sprites, key=lambda s: s.rect.bottom)
+        for sprite in sprites_to_draw:
             if hasattr(sprite, 'draw_aura'): sprite.draw_aura(surface)
             if hasattr(sprite, 'draw'):
                 sprite.draw(surface)
             else:
-                self.all_sprites.draw(surface)
+                surface.blit(sprite.image, sprite.rect)

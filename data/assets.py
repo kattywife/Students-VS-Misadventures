@@ -1,16 +1,12 @@
-# assets.py (ПОЛНЫЙ ФАЙЛ)
+# data/assets.py
+
 import pygame
 import os
-from settings import *
+from data.settings import *
 
-# Глобальный словарь для хранения загруженных звуков
 SOUNDS = {}
 
 def load_image(filename, default_color, size=None):
-    """
-    Загружает изображение. Если файл не найден, создает поверхность
-    с цветом по умолчанию.
-    """
     path = os.path.join(IMAGES_DIR, filename)
     try:
         image = pygame.image.load(path).convert_alpha()
@@ -26,9 +22,6 @@ def load_image(filename, default_color, size=None):
         return fallback_surface
 
 def load_sound(name, filename):
-    """
-    Загружает звук. Если файл не найден, игра не упадет.
-    """
     path = os.path.join(ASSETS_DIR, 'sounds', filename)
     try:
         sound = pygame.mixer.Sound(path)
