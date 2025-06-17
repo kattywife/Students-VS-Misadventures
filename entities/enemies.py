@@ -3,6 +3,7 @@
 import pygame
 import random
 import os
+# --- ИЗМЕНЕНИЕ ЗДЕСЬ: Добавляем IMAGES_DIR в импорт ---
 from data.settings import *
 from data.assets import load_image, SOUNDS, PROJECTILE_IMAGES
 from data.settings import CALCULUS_PROJECTILE_TYPES
@@ -53,7 +54,8 @@ class Enemy(BaseSprite):
         anim_data = self.data.get('animation_data')
         if not anim_data: return
 
-        size = (CELL_SIZE_W - 20, CELL_SIZE_H - 10)
+        size = self.data.get('battle_size', (CELL_SIZE_W - 20, CELL_SIZE_H - 10))
+
         category = self.data.get('category', 'enemies')
         folder = anim_data.get('folder', self.enemy_type)
 
@@ -80,16 +82,14 @@ class Enemy(BaseSprite):
             self.frame_index = 0
 
     def animate(self):
-        if not self.animations or not self.animations[self.current_animation]: return
+        if not self.animations or not self.animations.get(self.current_animation): return
 
-        # Логика выбора анимации
         if self.current_animation != 'hit':
             if self.is_attacking:
                 self.set_animation('attack')
             else:
                 self.set_animation('walk')
 
-        # Проигрывание
         anim_sequence = self.animations[self.current_animation]
         now = pygame.time.get_ticks()
         if now - self.last_anim_update > self.anim_speed * 1000:
@@ -257,8 +257,8 @@ class MathTeacher(Enemy):
 
 
 class Addict(Enemy):
-    def __init__(self, row, groups):
-        super().__init__(row, groups, 'addict')
+    def __init__(self, row, groups, enemy_type='addict'):
+        super().__init__(row, groups, enemy_type)
         self.state = 'SEEKING'
         self.target_defender = None
         self.victim = None
@@ -309,29 +309,21 @@ class Addict(Enemy):
                 self.kill()
 
     def kill(self):
-        if self.victim: self.victim.is_being_eaten = False
+        if hasattr(self, 'victim') and self.victim:
+            self.victim.is_being_eaten = False
         super().kill()
 
 
-# entities/enemies.py
-
-# ... (код до класса Thief) ...
-
-class Thief(Addict):
+class Thief(Enemy):
     def __init__(self, row, groups):
-        # Вызываем конструктор родителя (Enemy) через Addict, передавая тип 'thief'
-        super(Addict, self).__init__(row, groups, 'thief')
-        # Перезагружаем анимации, так как у Вора они свои
-        self.load_animations()
+        super().__init__(row, groups, 'thief')
 
     def update(self, defenders_group, *args, **kwargs):
         coffee_machines = [d for d in defenders_group if isinstance(d, CoffeeMachine) and d.alive()]
         if not coffee_machines:
-            # Если кофемашин нет, ведем себя как базовый враг
-            Enemy.update(self, defenders_group, *args, **kwargs)
+            super().update(defenders_group, *args, **kwargs)
             return
 
-        # Если кофемашины есть, используем свою логику, но с базовыми апдейтами
         self.animate()
         self._layer = self.rect.bottom
         if self.health <= 0: self.kill(); return
@@ -348,7 +340,6 @@ class Thief(Addict):
             if self.current_target: self.current_target.is_being_eaten = False
             self.current_target = None
 
-            # Движемся к кофемашине
             direction = pygame.math.Vector2(closest_machine.rect.center) - pygame.math.Vector2(self.rect.center)
             if direction.length() > 0:
                 norm_dir = direction.normalize()

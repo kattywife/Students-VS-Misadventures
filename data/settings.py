@@ -67,8 +67,10 @@ ENEMIES_DATA = {
     'calculus': {'health': 180, 'speed': 0.8, 'damage': 15, 'cooldown': 3.0, 'display_name': "Матанализ", 'category': 'enemies', 'description': "Стреляет интегралами...",
                  'animation_data': {'folder': 'calculus', 'speed': 0.1, 'walk': [], 'attack': [], 'hit': []}},
     'professor': {'health': 350, 'speed': 0.5, 'damage': 50, 'cooldown': 1.0, 'radius': CELL_SIZE_W * 1.5, 'debuff': 0.5, 'display_name': "Душный препод", 'category': 'enemies', 'description': "Ослабляет урон...",
+                  'battle_size': (CELL_SIZE_W+15, CELL_SIZE_H + 25), # Увеличиваем размер на поле
                   'animation_data': {'folder': 'professor', 'speed': 0.2, 'walk': [], 'attack': [], 'hit': []}},
     'math_teacher': {'health': 150, 'speed': 1.5, 'damage': 80, 'cooldown': 1.0, 'display_name': "Злая математичка", 'category': 'enemies', 'description': "Быстрый враг...",
+                     'battle_size': (CELL_SIZE_W+15, CELL_SIZE_H+25), # Увеличиваем размер на поле
                      'animation_data': {'folder': 'math_teacher', 'speed': 0.1, 'walk': [], 'attack': [], 'hit': []}},
     'addict': {'health': 120, 'speed': 2.5, 'damage': 9999, 'cooldown': 0.5, 'display_name': "Наркоман", 'category': 'enemies', 'description': "Охотится за сильнейшим...",
                'animation_data': {'folder': 'addict', 'speed': 0.1, 'walk': [], 'attack': [], 'hit': []}},

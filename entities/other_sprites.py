@@ -25,8 +25,11 @@ class CoffeeBean(BaseSprite):
 
 class AuraEffect(BaseSprite):
     def __init__(self, groups, parent):
-        super().__init__(groups)
+        # Не добавляем сразу в группу, чтобы контролировать слой
+        super().__init__()
         self.parent = parent
+        self.groups_tuple = groups
+
         self.radius = self.parent.data['radius']
 
         self.animations = []
@@ -38,7 +41,10 @@ class AuraEffect(BaseSprite):
 
         self.anim_speed = 0.1
         self.last_anim_update = pygame.time.get_ticks()
+
+        # Устанавливаем слой и добавляем в группы
         self._layer = self.parent._layer - 1
+        self.add(self.groups_tuple)
 
     def load_animations(self):
         size = (self.radius * 2, self.radius * 2)
@@ -66,21 +72,27 @@ class AuraEffect(BaseSprite):
             self.image = self.animations[self.frame_index]
 
         self.rect.center = self.parent.rect.center
-        self._layer = self.parent._layer - 1
+
+        # Чтобы слой корректно обновлялся, нужно передобавить спрайт в группу
+        if self._layer != self.parent._layer - 1:
+            self.remove(self.groups_tuple)
+            self._layer = self.parent._layer - 1
+            self.add(self.groups_tuple)
 
 
 class CalamityAuraEffect(BaseSprite):
     def __init__(self, groups, parent, calamity_type):
-        super().__init__(groups)
+        super().__init__()
         self.parent = parent
+        self.groups_tuple = groups
 
         path = os.path.join('effects', f'{calamity_type}_aura.png')
-        # Уменьшаем размер ауры, чтобы она не перекрывала соседние ряды
-        size = (CELL_SIZE_W - 10, CELL_SIZE_H)
+        size = (CELL_SIZE_W + 10, CELL_SIZE_H + 20)
         self.image = load_image(path, (0, 0, 0, 0), size)
         self.rect = self.image.get_rect(center=self.parent.rect.center)
 
         self._layer = self.parent._layer - 1
+        self.add(self.groups_tuple)
 
     def update(self, *args, **kwargs):
         if not self.parent.alive():
@@ -88,7 +100,11 @@ class CalamityAuraEffect(BaseSprite):
             return
 
         self.rect.center = self.parent.rect.center
-        self._layer = self.parent._layer - 1
+
+        if self._layer != self.parent._layer - 1:
+            self.remove(self.groups_tuple)
+            self._layer = self.parent._layer - 1
+            self.add(self.groups_tuple)
 
 
 class NeuroMower(BaseSprite):
@@ -108,10 +124,13 @@ class NeuroMower(BaseSprite):
         self.is_active = True
 
         if self.mower_type == 'deepseek':
-            for enemy in sorted(list(enemies_group), key=lambda e: e.rect.left)[:3]:
+            # Фильтруем врагов, чтобы не было ошибки, если их меньше 3
+            targets = sorted(list(enemies_group), key=lambda e: e.rect.left)[:3]
+            for enemy in targets:
                 enemy.kill()
         elif self.mower_type == 'gemini':
-            for enemy in sorted(list(enemies_group), key=lambda e: e.health, reverse=True)[:4]:
+            targets = sorted(list(enemies_group), key=lambda e: e.health, reverse=True)[:4]
+            for enemy in targets:
                 enemy.kill()
 
     def update(self, *args, **kwargs):

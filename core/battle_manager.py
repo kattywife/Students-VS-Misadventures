@@ -280,4 +280,5 @@ class BattleManager:
             if hasattr(sprite, 'draw_aura'):
                 sprite.draw_aura(surface)
 
-        self.all_sprites.draw(surface)
+        for sprite in sorted(self.all_sprites, key=lambda s: s._layer):
+            surface.blit(sprite.image, sprite.rect)
