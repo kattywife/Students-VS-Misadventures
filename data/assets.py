@@ -34,14 +34,20 @@ def load_all_resources():
         if category:
             if anim_data:
                 folder = anim_data.get('folder', unit_type)
-                path_to_card_img = os.path.join(category, folder, 'idle_0.png')
+                # --- ИЗМЕНЕНИЕ ЗДЕСЬ ---
+                # Если это враг, берем картинку ходьбы. Иначе - картинку бездействия.
+                if category == 'enemies':
+                    path_to_card_img = os.path.join(category, folder, 'walk_0.png')
+                else:
+                    path_to_card_img = os.path.join(category, folder, 'idle_0.png')
             else:
                 path_to_card_img = os.path.join(category, f"{unit_type}.png")
 
         if path_to_card_img:
+            # Для иконок интерфейса и ресурсов используем их оригинальный размер
             current_size = card_size
             if unit_type in UI_ELEMENTS_DATA:
-                current_size = None
+                current_size = None  # None в load_image означает "не менять размер"
 
             CARD_IMAGES[unit_type] = load_image(path_to_card_img, DEFAULT_COLORS.get(unit_type), current_size)
 

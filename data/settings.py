@@ -32,49 +32,48 @@ GRID_START_Y = 150; GRID_WIDTH = GRID_COLS * CELL_SIZE_W; GRID_HEIGHT = GRID_ROW
 SHOP_PANEL_HEIGHT = 140; SHOP_CARD_SIZE = 100; SHOP_ITEM_PADDING = 20
 ASSETS_DIR = 'assets'; IMAGES_DIR = f'{ASSETS_DIR}/images'
 
-# --- ИЗМЕНЕНИЕ: Добавлен ключ 'category' в каждый словарь ---
-
 DEFENDERS_DATA = {
     'programmer': {'cost': 100, 'health': 300, 'damage': 25, 'cooldown': 1.5, 'display_name': 'Мальчик-джун', 'category': 'defenders',
                    'description': "Стандартный стрелок...", 'upgrades': { 'damage': {'value': 5, 'cost': 15}, 'cooldown': {'value': -0.2, 'cost': 20} },
-                   'animation_data': { 'folder': 'programmer', 'speed': 0.1, 'idle': 2, 'attack': 2, 'hit': 1 }},
+                   'animation_data': { 'folder': 'programmer', 'speed': 0.1, 'idle': [], 'attack': [], 'hit': [] }},
     'botanist': {'cost': 150, 'health': 300, 'damage': 50, 'cooldown': 2.5, 'radius': CELL_SIZE_W * 1.5, 'display_name': 'Девочка-ботан', 'category': 'defenders',
                  'description': "Находит самого сильного врага...", 'upgrades': { 'damage': {'value': 15, 'cost': 25}, 'radius': {'value': 20, 'cost': 15} },
-                 'animation_data': { 'folder': 'botanist', 'speed': 0.15, 'idle': 3, 'attack': 2, 'hit': 1 }},
+                 'animation_data': { 'folder': 'botanist', 'speed': 0.15, 'idle': [], 'attack': [], 'hit': [] }},
     'coffee_machine': {'cost': 50, 'health': 200, 'damage': 0, 'cooldown': 5, 'production': 25, 'display_name': 'Кофемашина', 'category': 'defenders',
                        'description': "Производит кофейные зернышки.", 'upgrades': { 'production': {'value': 10, 'cost': 25}, 'health': {'value': 100, 'cost': 15} },
-                       'animation_data': { 'folder': 'coffee_machine', 'speed': 0.2, 'idle': 2, 'attack': 6 }},
+                       'animation_data': { 'folder': 'coffee_machine', 'speed': 0.2, 'idle': [], 'attack': [] }},
     'activist': {'cost': 75, 'health': 400, 'damage': 0, 'cooldown': None, 'radius': CELL_SIZE_W * 2, 'buff': 1.5,
                  'display_name': 'Активист', 'category': 'defenders',
                  'description': "Не атакует, но усиливает урон...",
                  'upgrades': {'buff': {'value': 0.2, 'cost': 30}, 'radius': {'value': 30, 'cost': 20}},
-                 'animation_data': {
-                     'folder': 'activist',
-                     'speed': 0.1,
-                     'idle': 2,
-                     'hit': 2
-                 }},
+                 'animation_data': { 'folder': 'activist', 'speed': 0.1, 'idle': [], 'hit': [] }},
     'guitarist': {'cost': 150, 'health': 300, 'damage': 20, 'cooldown': 4, 'display_name': 'Гитарист', 'category': 'defenders',
                   'projectile_speed': 5, 'description': "Атакует звуковой волной...", 'upgrades': { 'damage': {'value': 10, 'cost': 25}, 'projectile_speed': {'value': 2, 'cost': 15} },
-                  'animation_data': { 'folder': 'guitarist', 'speed': 0.15, 'idle': 3, 'attack': 2, 'hit': 1 }},
+                  'animation_data': { 'folder': 'guitarist', 'speed': 0.15, 'idle': [], 'attack': [], 'hit': [] }},
     'medic': {'cost': 50, 'health': 250, 'damage': 0, 'cooldown': 1.0, 'heal_amount': 200, 'radius': CELL_SIZE_W * 2, 'display_name': 'Студент-медик', 'category': 'defenders',
               'description': "Постепенно отдает свое здоровье...", 'upgrades': { 'heal_amount': {'value': 100, 'cost': 25} },
-              'animation_data': { 'folder': 'medic', 'speed': 0.1, 'idle': 2, 'attack': 2, 'hit': 1 }},
+              'animation_data': { 'folder': 'medic', 'speed': 0.1, 'idle': [], 'attack': [], 'hit': [] }},
     'artist': {'cost': 125, 'health': 300, 'damage': 10, 'cooldown': 2, 'slow_duration': 2000, 'slow_factor': 0.5, 'display_name': 'Художница', 'category': 'defenders',
                'description': "Её кляксы краски замедляют...", 'upgrades': { 'damage': {'value': 10, 'cost': 20}, 'slow_factor': {'value': -0.1, 'cost': 25} },
-               'animation_data': { 'folder': 'artist', 'speed': 0.15, 'idle': 2, 'attack': 1, 'hit': 1 }},
+               'animation_data': { 'folder': 'artist', 'speed': 0.15, 'idle': [], 'attack': [], 'hit': [] }},
     'modnik': {'cost': 125, 'health': 300, 'damage': 1800, 'radius': CELL_SIZE_W * 2.5, 'speed': 1.5, 'display_name': 'Модник', 'category': 'defenders',
                'description': "Подходит к ближайшему врагу и взрывается...", 'upgrades': { 'radius': {'value': 40, 'cost': 30}, 'damage': {'value': 200, 'cost': 25} },
-               'animation_data': { 'folder': 'modnik', 'speed': 0.1, 'idle': 2, 'hit': 1 }}
+               'animation_data': { 'folder': 'modnik', 'speed': 0.1, 'idle': [], 'hit': [] }}
 }
 
 ENEMIES_DATA = {
-    'alarm_clock': {'health': 100, 'speed': 0.8, 'damage': 50, 'cooldown': 1.0, 'display_name': "Первая пара", 'category': 'enemies', 'description': "Базовый враг..."},
-    'calculus': {'health': 180, 'speed': 0.8, 'damage': 15, 'cooldown': 3.0, 'display_name': "Матанализ", 'category': 'enemies', 'description': "Стреляет интегралами..."},
-    'professor': {'health': 350, 'speed': 0.5, 'damage': 50, 'cooldown': 1.0, 'radius': CELL_SIZE_W * 1.5, 'debuff': 0.5, 'display_name': "Душный препод", 'category': 'enemies', 'description': "Ослабляет урон..."},
-    'math_teacher': {'health': 150, 'speed': 1.5, 'damage': 80, 'cooldown': 1.0, 'display_name': "Злая математичка", 'category': 'enemies', 'description': "Быстрый враг..."},
-    'addict': {'health': 120, 'speed': 2.5, 'damage': 9999, 'cooldown': 0.5, 'display_name': "Наркоман", 'category': 'enemies', 'description': "Охотится за сильнейшим..."},
-    'thief': {'health': 120, 'speed': 2.5, 'damage': 9999, 'cooldown': 0.5, 'display_name': "Вор", 'category': 'enemies', 'description': "Его цель - кофемашины."}
+    'alarm_clock': {'health': 100, 'speed': 0.8, 'damage': 50, 'cooldown': 1.0, 'display_name': "Первая пара", 'category': 'enemies', 'description': "Базовый враг...",
+                    'animation_data': {'folder': 'alarm_clock', 'speed': 0.15, 'walk': [], 'attack': [], 'hit': []}},
+    'calculus': {'health': 180, 'speed': 0.8, 'damage': 15, 'cooldown': 3.0, 'display_name': "Матанализ", 'category': 'enemies', 'description': "Стреляет интегралами...",
+                 'animation_data': {'folder': 'calculus', 'speed': 0.1, 'walk': [], 'attack': [], 'hit': []}},
+    'professor': {'health': 350, 'speed': 0.5, 'damage': 50, 'cooldown': 1.0, 'radius': CELL_SIZE_W * 1.5, 'debuff': 0.5, 'display_name': "Душный препод", 'category': 'enemies', 'description': "Ослабляет урон...",
+                  'animation_data': {'folder': 'professor', 'speed': 0.2, 'walk': [], 'attack': [], 'hit': []}},
+    'math_teacher': {'health': 150, 'speed': 1.5, 'damage': 80, 'cooldown': 1.0, 'display_name': "Злая математичка", 'category': 'enemies', 'description': "Быстрый враг...",
+                     'animation_data': {'folder': 'math_teacher', 'speed': 0.1, 'walk': [], 'attack': [], 'hit': []}},
+    'addict': {'health': 120, 'speed': 2.5, 'damage': 9999, 'cooldown': 0.5, 'display_name': "Наркоман", 'category': 'enemies', 'description': "Охотится за сильнейшим...",
+               'animation_data': {'folder': 'addict', 'speed': 0.1, 'walk': [], 'attack': [], 'hit': []}},
+    'thief': {'health': 120, 'speed': 2.5, 'damage': 9999, 'cooldown': 0.5, 'display_name': "Вор", 'category': 'enemies', 'description': "Его цель - кофемашины.",
+              'animation_data': {'folder': 'thief', 'speed': 0.1, 'walk': [], 'attack': [], 'hit': []}}
 }
 
 NEURO_MOWERS_DATA = {
@@ -85,8 +84,8 @@ NEURO_MOWERS_DATA = {
 
 CALAMITIES_DATA = {
     'epidemic': {'display_name': 'Эпидемия гриппа', 'category': 'calamities', 'description': 'Здоровье и урон героев падают в 2 раза.'},
-    'big_party': {'display_name': 'Великая туса', 'category': 'calamities', 'description': '80% ваших героев покидают поле боя.'},
-    'colloquium': {'display_name': 'Внезапный коллоквиум', 'category': 'calamities', 'description': 'Атаки врагов становятся в 1.5 раза сильнее.'},
+    'big_party': {'display_name': 'Великая туса', 'category': 'calamities', 'description': '80% ваших героев покидают поле боя.'}, # <--- ДОБАВИТЬ СЮДА
+    'colloquium': {'display_name': 'Внезапный коллоквиум', 'category': 'calamities', 'description': 'Атаки врагов становятся в 1.5 раза сильнее.'}, # <--- И СЮДА
     'internet_down': {'display_name': 'Отключение интернета', 'category': 'calamities', 'description': 'Здоровье врагов удваивается.'}
 }
 

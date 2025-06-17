@@ -55,19 +55,27 @@ class Defender(BaseSprite):
         category = self.data.get('category', 'defenders')
         folder = anim_data.get('folder', self.data.get('type'))
 
-        for anim_type, frame_count in anim_data.items():
+        for anim_type in anim_data:
             if anim_type not in ['folder', 'speed']:
                 self.animations[anim_type] = []
-                for i in range(frame_count):
-                    filename = f"{anim_type}_{i}.png"
-                    path = os.path.join(category, folder, filename)
-                    img = load_image(path, DEFAULT_COLORS.get(self.data['type']), size)
-                    self.animations[anim_type].append(img)
+                path_to_folder = os.path.join(IMAGES_DIR, category, folder)
+                if os.path.exists(path_to_folder):
+                    filenames = sorted(
+                        [f for f in os.listdir(path_to_folder) if f.startswith(f"{anim_type}_") and f.endswith('.png')])
+                    for filename in filenames:
+                        path = os.path.join(category, folder, filename)
+                        img = load_image(path, DEFAULT_COLORS.get(self.data['type']), size)
+                        self.animations[anim_type].append(img)
+
+                if not self.animations[anim_type]:
+                    fallback_surface = pygame.Surface(size, pygame.SRCALPHA)
+                    fallback_surface.fill((0, 0, 0, 0))
+                    self.animations[anim_type].append(fallback_surface)
 
     def animate(self):
-        if not self.animations or self.current_animation not in self.animations:
+        if not self.animations or not self.animations[self.current_animation]:
             return
-        if self.is_being_eaten and 'hit' in self.animations:
+        if self.is_being_eaten and 'hit' in self.animations and self.animations['hit']:
             self.current_animation = 'hit'
         elif not self.is_being_eaten and self.current_animation == 'hit':
             self.current_animation = 'idle'
@@ -195,17 +203,15 @@ class CoffeeMachine(Defender):
         self.is_producing = False
         self.producing_timer = 0
         self.producing_duration = 500
-        self.producing_frame = self.animations.get('attack', [None])[0]
+        # Исправляем возможную ошибку если у кофемашины нет анимации атаки
+        self.producing_frame = self.animations.get('attack', [None])[0] or self.animations.get('idle', [None])[0]
 
     def animate(self):
-        if self.is_producing:
+        # Кофемашина может иметь особую логику анимации
+        if self.is_producing and self.producing_frame:
             self.image = self.producing_frame
         else:
-            now = pygame.time.get_ticks()
-            if now - self.last_anim_update > self.anim_speed * 1000:
-                self.last_anim_update = now
-                self.frame_index = (self.frame_index + 1) % len(self.animations['idle'])
-                self.image = self.animations['idle'][self.frame_index]
+            super().animate()  # Используем стандартную анимацию idle
 
     def update(self, *args, **kwargs):
         self.animate()

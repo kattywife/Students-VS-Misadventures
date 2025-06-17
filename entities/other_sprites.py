@@ -1,10 +1,10 @@
 # entities/other_sprites.py
 
 import pygame
+import os
 from data.settings import *
 from data.assets import load_image
 from entities.base_sprite import BaseSprite
-import os
 
 
 class CoffeeBean(BaseSprite):
@@ -36,33 +36,59 @@ class AuraEffect(BaseSprite):
         self.image = self.animations[0]
         self.rect = self.image.get_rect(center=self.parent.rect.center)
 
-        self.anim_speed = 0.1  # Скорость анимации
+        self.anim_speed = 0.1
         self.last_anim_update = pygame.time.get_ticks()
-        self._layer = self.parent._layer - 1  # Рисуем ауру под родителем
+        self._layer = self.parent._layer - 1
 
     def load_animations(self):
         size = (self.radius * 2, self.radius * 2)
-        # Предполагаем, что есть 3 кадра анимации. Если у тебя больше/меньше, измени цифру в range(3)
-        for i in range(3):
-            path = os.path.join('effects', 'activist_aura', f'aura_{i}.png')
-            img = load_image(path, (0, 0, 0, 0), size)
-            self.animations.append(img)
+        path = os.path.join(IMAGES_DIR, 'effects', 'activist_aura')
+        if os.path.exists(path):
+            filenames = sorted([f for f in os.listdir(path) if f.startswith('aura_') and f.endswith('.png')])
+            for filename in filenames:
+                img_path = os.path.join('effects', 'activist_aura', filename)
+                self.animations.append(load_image(img_path, (0, 0, 0, 0), size))
+
+        if not self.animations:
+            fallback_surface = pygame.Surface(size, pygame.SRCALPHA)
+            fallback_surface.fill((0, 0, 0, 0))
+            self.animations.append(fallback_surface)
 
     def update(self, *args, **kwargs):
-        # Если родитель (Активист) исчез, аура тоже исчезает
         if not self.parent.alive():
             self.kill()
             return
 
-        # Анимация
         now = pygame.time.get_ticks()
         if now - self.last_anim_update > self.anim_speed * 1000:
             self.last_anim_update = now
             self.frame_index = (self.frame_index + 1) % len(self.animations)
             self.image = self.animations[self.frame_index]
 
-        # Аура всегда следует за своим родителем
         self.rect.center = self.parent.rect.center
+        self._layer = self.parent._layer - 1
+
+
+class CalamityAuraEffect(BaseSprite):
+    def __init__(self, groups, parent, calamity_type):
+        super().__init__(groups)
+        self.parent = parent
+
+        path = os.path.join('effects', f'{calamity_type}_aura.png')
+        # Уменьшаем размер ауры, чтобы она не перекрывала соседние ряды
+        size = (CELL_SIZE_W - 10, CELL_SIZE_H)
+        self.image = load_image(path, (0, 0, 0, 0), size)
+        self.rect = self.image.get_rect(center=self.parent.rect.center)
+
+        self._layer = self.parent._layer - 1
+
+    def update(self, *args, **kwargs):
+        if not self.parent.alive():
+            self.kill()
+            return
+
+        self.rect.center = self.parent.rect.center
+        self._layer = self.parent._layer - 1
 
 
 class NeuroMower(BaseSprite):

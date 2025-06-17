@@ -5,7 +5,8 @@ import random
 from data.settings import *
 from data.assets import SOUNDS, load_image
 from data.assets import SOUNDS
-from entities.defenders import Defender, ProgrammerBoy, BotanistGirl, CoffeeMachine, Activist, Guitarist, Medic, Artist, Fashionista
+from entities.defenders import Defender, ProgrammerBoy, BotanistGirl, CoffeeMachine, Activist, Guitarist, Medic, Artist, \
+    Fashionista
 from entities.enemies import Enemy, StuffyProf
 from entities.projectiles import Integral, PaintSplat, SoundWave
 from entities.other_sprites import NeuroMower, CoffeeBean
@@ -112,10 +113,12 @@ class BattleManager:
                     'modnik': Fashionista}
         constructor = unit_map[defender_type];
         common_args = {'x': x, 'y': y, 'groups': groups, 'data': data}
+
         specific_args = {'programmer': {'all_sprites': self.all_sprites, 'projectile_group': self.projectiles,
                                         'enemies_group': self.enemies},
                          'botanist': {'all_sprites': self.all_sprites, 'enemies_group': self.enemies},
                          'coffee_machine': {'all_sprites': self.all_sprites, 'coffee_bean_group': self.coffee_beans},
+                         'activist': {'all_sprites': self.all_sprites},
                          'guitarist': {'all_sprites': self.all_sprites, 'enemies_group': self.enemies},
                          'medic': {'defenders_group': self.defenders},
                          'artist': {'all_sprites': self.all_sprites, 'projectile_group': self.projectiles,
@@ -128,16 +131,29 @@ class BattleManager:
     def update(self):
         now = pygame.time.get_ticks()
         enemies_before_update = len(self.enemies)
+
+        # Обновляем спрайты
         self.all_sprites.update(self.defenders, self.all_sprites, self.projectiles, enemies_group=self.enemies)
         self.apply_auras();
         self.check_collisions()
         self._check_calamity_triggers(now)
 
+        # Убитые враги
         enemies_after_update = len(self.enemies)
         killed_this_frame = enemies_before_update - enemies_after_update
         for _ in range(killed_this_frame): self.level_manager.enemy_killed()
-        self.level_manager.update()
 
+        # Спавн новых врагов и применение к ним эффектов
+        enemies_before_spawn = set(self.enemies.sprites())
+        self.level_manager.update()
+        enemies_after_spawn = set(self.enemies.sprites())
+        newly_spawned = enemies_after_spawn - enemies_before_spawn
+
+        if self.active_calamity:
+            for enemy in newly_spawned:
+                enemy.apply_calamity_effect(self.active_calamity)
+
+        # Проверка на проигрыш (враги дошли до конца)
         for enemy in list(self.enemies):
             if enemy.alive() and enemy.rect.right < GRID_START_X:
                 mower_activated = False
@@ -155,6 +171,7 @@ class BattleManager:
                         break
                 if not mower_activated: self.is_game_over = True; return
 
+        # Таймеры уведомлений и напастей
         if self.calamity_notification and now > self.calamity_notification_timer: self.calamity_notification = None
         if self.active_calamity and now > self.calamity_end_time: self._end_calamity()
 
@@ -174,7 +191,8 @@ class BattleManager:
 
         if SOUNDS.get('misfortune'): SOUNDS['misfortune'].play()
 
-        self.calamity_notification = {'type': self.active_calamity, 'name': calamity_data['display_name'], 'desc': calamity_data['description']}
+        self.calamity_notification = {'type': self.active_calamity, 'name': calamity_data['display_name'],
+                                      'desc': calamity_data['description']}
         self.calamity_notification_timer = now + self.notification_duration
         self.calamity_end_time = now + self.calamity_duration
 
@@ -185,8 +203,9 @@ class BattleManager:
                 heroes_to_remove = random.sample(heroes_to_consider, k=min(num_to_remove, len(heroes_to_consider)))
                 for hero in heroes_to_remove:
                     hero.kill()
-            self.active_calamity = None
+            self.active_calamity = None  # Эффект мгновенный, состояние не сохраняем
         else:
+            # Применяем эффекты ко всем существующим спрайтам
             for sprite in self.all_sprites:
                 if hasattr(sprite, 'apply_calamity_effect'): sprite.apply_calamity_effect(self.active_calamity)
 
@@ -239,7 +258,8 @@ class BattleManager:
 
         for activist in [s for s in self.defenders if isinstance(s, Activist) and s.alive()]:
             for defender in self.defenders:
-                if pygame.math.Vector2(activist.rect.center).distance_to(defender.rect.center) < activist.data['radius']:
+                if pygame.math.Vector2(activist.rect.center).distance_to(defender.rect.center) < activist.data[
+                    'radius']:
                     defender.buff_multiplier *= activist.data['buff']
 
     def draw(self, surface):

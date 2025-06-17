@@ -2,15 +2,15 @@
 
 LEVELS = {
     1: {
-        'name': "Курс 1",
-        'start_coffee': 1000,
-        'neuro_slots': 2,
-        'calamities': ['colloquium'],
+        'name': "Тестовый уровень",
+        'start_coffee': 2000,
+        'neuro_slots': 4,
+        'calamities': ['epidemic', 'big_party', 'colloquium', 'internet_down'],
         'enemies': [
-            ('alarm_clock', 2), ('alarm_clock', 1),
-            ('calculus', 3), ('alarm_clock', 2),
-            ('professor', 0), ('alarm_clock', 4),
-            ('calculus', 1), ('alarm_clock', 3),
+            ('alarm_clock', 0), ('calculus', 1), ('professor', 2),
+            ('math_teacher', 3), ('thief', 4), ('addict', 0),
+            ('alarm_clock', 1), ('calculus', 2), ('professor', 3),
+            ('math_teacher', 4), ('thief', 0), ('addict', 1)
         ]
     },
     2: {

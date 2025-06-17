@@ -2,12 +2,15 @@
 
 import pygame
 import random
+import os
 from data.settings import *
 from data.assets import load_image, SOUNDS, PROJECTILE_IMAGES
 from data.settings import CALCULUS_PROJECTILE_TYPES
 from entities.base_sprite import BaseSprite
 from entities.projectiles import Integral
 from entities.defenders import CoffeeMachine
+from entities.other_sprites import CalamityAuraEffect
+
 
 class Enemy(BaseSprite):
     def __init__(self, row, groups, enemy_type):
@@ -20,30 +23,90 @@ class Enemy(BaseSprite):
         self.original_speed = self.data['speed']
         self.damage = self.data['damage']
         self.damage_multiplier = 1.0
-        self.original_image = load_image(f'{enemy_type}.png', DEFAULT_COLORS[enemy_type],
-                                         (CELL_SIZE_W - 20, CELL_SIZE_H - 10))
-        self.image = self.original_image.copy()
+
+        self.all_sprites_group = groups[1]
+        self.aura_effect = None
+
+        self.animations = {}
+        self.load_animations()
+        self.current_animation = 'walk'
+        self.frame_index = 0
+        self.image = self.animations.get(self.current_animation, [pygame.Surface((0, 0))])[0]
+
         y = GRID_START_Y + row * CELL_SIZE_H + CELL_SIZE_H / 2
         self.rect = self.image.get_rect(midleft=(SCREEN_WIDTH - 1, y))
         self._layer = self.rect.bottom
-        self.attack_cooldown = self.data['cooldown'] * 1000 if self.data['cooldown'] else 1000
 
-        self.is_attacking = False
-        self.is_hit = False
-        self.hit_timer = 0
-        self.hit_duration = 100
+        self.anim_speed = self.data.get('animation_data', {}).get('speed', 0.2)
+        self.last_anim_update = pygame.time.get_ticks()
+
+        self.attack_cooldown = self.data['cooldown'] * 1000 if self.data['cooldown'] else 1000
         self.last_attack_time = 0
+
         self.eating_channel = None
         self.current_target = None
         self.slow_timer = 0
         self.is_slowed = False
-        self.active_calamity_color = None
+        self.is_attacking = False
+
+    def load_animations(self):
+        anim_data = self.data.get('animation_data')
+        if not anim_data: return
+
+        size = (CELL_SIZE_W - 20, CELL_SIZE_H - 10)
+        category = self.data.get('category', 'enemies')
+        folder = anim_data.get('folder', self.enemy_type)
+
+        for anim_type in anim_data:
+            if anim_type not in ['folder', 'speed']:
+                self.animations[anim_type] = []
+                path_to_folder = os.path.join(IMAGES_DIR, category, folder)
+                if os.path.exists(path_to_folder):
+                    filenames = sorted(
+                        [f for f in os.listdir(path_to_folder) if f.startswith(f"{anim_type}_") and f.endswith('.png')])
+                    for filename in filenames:
+                        path = os.path.join(category, folder, filename)
+                        img = load_image(path, DEFAULT_COLORS.get(self.enemy_type), size)
+                        self.animations[anim_type].append(img)
+
+                if not self.animations[anim_type]:
+                    fallback_surface = pygame.Surface(size, pygame.SRCALPHA)
+                    fallback_surface.fill((0, 0, 0, 0))
+                    self.animations[anim_type].append(fallback_surface)
+
+    def set_animation(self, new_animation_type):
+        if self.current_animation != new_animation_type and new_animation_type in self.animations:
+            self.current_animation = new_animation_type
+            self.frame_index = 0
+
+    def animate(self):
+        if not self.animations or not self.animations[self.current_animation]: return
+
+        # Логика выбора анимации
+        if self.current_animation != 'hit':
+            if self.is_attacking:
+                self.set_animation('attack')
+            else:
+                self.set_animation('walk')
+
+        # Проигрывание
+        anim_sequence = self.animations[self.current_animation]
+        now = pygame.time.get_ticks()
+        if now - self.last_anim_update > self.anim_speed * 1000:
+            self.last_anim_update = now
+            self.frame_index += 1
+            if self.frame_index >= len(anim_sequence):
+                if self.current_animation in ['hit', 'attack']:
+                    self.set_animation('walk')
+                self.frame_index = 0
+
+        self.image = self.animations[self.current_animation][self.frame_index]
 
     def get_hit(self, damage):
         self.health -= damage
-        self.is_hit = True
-        self.hit_timer = pygame.time.get_ticks()
         if SOUNDS.get('damage'): SOUNDS['damage'].play()
+        if 'hit' in self.animations and self.animations['hit']:
+            self.set_animation('hit')
 
     def apply_calamity_effect(self, calamity_type):
         if calamity_type == 'colloquium':
@@ -52,7 +115,9 @@ class Enemy(BaseSprite):
             ratio = self.health / self.max_health if self.max_health > 0 else 1
             self.max_health *= 2
             self.health = self.max_health * ratio
-        self.active_calamity_color = DEFAULT_COLORS.get(calamity_type)
+
+        if calamity_type != 'big_party' and not self.aura_effect:
+            self.aura_effect = CalamityAuraEffect((self.all_sprites_group,), self, calamity_type)
 
     def revert_calamity_effect(self, calamity_type):
         if calamity_type == 'colloquium':
@@ -61,43 +126,36 @@ class Enemy(BaseSprite):
             ratio = self.health / self.max_health if self.max_health > 0 else 1
             self.max_health /= 2
             self.health = max(1, self.max_health * ratio)
-        self.active_calamity_color = None
 
-    def draw(self, surface):
-        surface.blit(self.image, self.rect)
-        if self.active_calamity_color:
-            pygame.draw.rect(surface, self.active_calamity_color, self.rect, 4, border_radius=5)
+        if self.aura_effect:
+            self.aura_effect.kill()
+            self.aura_effect = None
 
-    def manage_hit_flash(self):
-        if self.is_hit:
-            if pygame.time.get_ticks() - self.hit_timer > self.hit_duration:
-                self.is_hit = False
-                self.image = self.original_image
-            else:
-                flash_image = self.original_image.copy()
-                flash_image.fill((255, 255, 255, 128), special_flags=pygame.BLEND_RGBA_ADD)
-                self.image = flash_image
-        else:
-            self.image = self.original_image
+    def update_movement(self, target_found):
+        if not target_found:
+            self.rect.x -= self.speed
 
     def update(self, defenders_group, *args, **kwargs):
-        self.manage_hit_flash()
+        self.animate()
+        self._layer = self.rect.bottom
+
         if self.health <= 0:
             self.kill()
             return
+
         if self.is_slowed and pygame.time.get_ticks() > self.slow_timer:
             self.speed = self.original_speed
             self.is_slowed = False
 
         target_found = self.find_and_attack_target(defenders_group)
         if not target_found:
-            if self.is_attacking:
-                self.is_attacking = False
-                self.stop_eating_sound()
-                if self.current_target:
-                    self.current_target.is_being_eaten = False
-                    self.current_target = None
-            self.rect.x -= self.speed
+            self.is_attacking = False
+            self.stop_eating_sound()
+            if self.current_target:
+                self.current_target.is_being_eaten = False
+                self.current_target = None
+
+        self.update_movement(target_found)
 
     def find_and_attack_target(self, defenders_group):
         collided_defenders = [d for d in defenders_group if
@@ -112,6 +170,7 @@ class Enemy(BaseSprite):
                 self.current_target.is_being_eaten = False
             self.current_target = target
         self.current_target.is_being_eaten = True
+
         now = pygame.time.get_ticks()
         if now - self.last_attack_time > self.attack_cooldown:
             self.play_eating_sound()
@@ -121,6 +180,10 @@ class Enemy(BaseSprite):
 
     def kill(self):
         if self.alive():
+            if self.aura_effect:
+                self.aura_effect.kill()
+                self.aura_effect = None
+
             if SOUNDS.get('enemy_dead'):
                 SOUNDS['enemy_dead'].play()
             self.stop_eating_sound()
@@ -151,29 +214,25 @@ class Calculus(Enemy):
     def __init__(self, row, groups):
         super().__init__(row, groups, 'calculus')
         self.last_shot = pygame.time.get_ticks()
-        self.is_shooting = False
 
     def update(self, defenders_group, all_sprites, projectiles, *args, **kwargs):
-        self.is_shooting = any(d.rect.centery == self.rect.centery for d in defenders_group)
-        # Вызываем update родителя ПОСЛЕ определения self.is_shooting
-        super().update(defenders_group, *args, **kwargs)
+        is_shooting = any(d.rect.centery == self.rect.centery for d in defenders_group)
+        self.is_attacking = is_shooting
 
-        if self.alive() and self.is_shooting:
+        self.animate()
+        self._layer = self.rect.bottom
+        if self.health <= 0: self.kill(); return
+
+        if is_shooting:
             now = pygame.time.get_ticks()
             if now - self.last_shot > self.attack_cooldown:
                 self.last_shot = now
                 damage = self.damage * self.damage_multiplier
-
-                # Выбираем случайный тип снаряда и получаем его картинку
                 random_projectile_type = random.choice(CALCULUS_PROJECTILE_TYPES)
                 projectile_image = PROJECTILE_IMAGES[random_projectile_type]
-
-                # Создаем снаряд с этой картинкой
                 Integral(self.rect.left, self.rect.centery, (all_sprites, projectiles), damage, projectile_image)
-
-    def find_and_attack_target(self, defenders_group):
-        # Логика движения. Calculus останавливается, если видит цель.
-        return self.is_shooting
+        else:
+            self.rect.x -= self.speed
 
 
 class StuffyProf(Enemy):
@@ -206,15 +265,15 @@ class Addict(Enemy):
 
     def find_strongest_defender(self, defenders_group):
         living_defenders = [d for d in defenders_group if d.alive() and not isinstance(d, CoffeeMachine)]
-        if not living_defenders:
-            return None
+        if not living_defenders: return None
         return max(living_defenders, key=lambda d: d.get_final_damage(d.data.get('damage', 0)))
 
     def update(self, defenders_group, *args, **kwargs):
-        self.manage_hit_flash()
-        if self.health <= 0:
-            self.kill()
-            return
+        self.animate()
+        self._layer = self.rect.bottom
+        if self.health <= 0: self.kill(); return
+
+        self.is_attacking = (self.state == 'GRABBING')
 
         if self.state == 'SEEKING':
             self.target_defender = self.find_strongest_defender(defenders_group)
@@ -227,11 +286,11 @@ class Addict(Enemy):
             if not self.target_defender or not self.target_defender.alive():
                 self.state = 'SEEKING'
                 return
-            if self.rect.centery < self.target_defender.rect.centery - 5:
-                self.rect.y += self.speed
-            elif self.rect.centery > self.target_defender.rect.centery + 5:
-                self.rect.y -= self.speed
-            self.rect.x -= self.speed
+            direction = pygame.math.Vector2(self.target_defender.rect.center) - pygame.math.Vector2(self.rect.center)
+            if direction.length() > 0:
+                norm_dir = direction.normalize()
+                self.rect.x += norm_dir.x * self.speed
+                self.rect.y += norm_dir.y * self.speed
 
             if self.rect.colliderect(self.target_defender.rect):
                 self.victim = self.target_defender
@@ -250,35 +309,48 @@ class Addict(Enemy):
                 self.kill()
 
     def kill(self):
-        if self.victim:
-            self.victim.is_being_eaten = False
+        if self.victim: self.victim.is_being_eaten = False
         super().kill()
 
 
+# entities/enemies.py
+
+# ... (код до класса Thief) ...
+
 class Thief(Addict):
     def __init__(self, row, groups):
-        super().__init__(row, groups)
-        self.enemy_type = 'thief'
-        self.data = ENEMIES_DATA[self.enemy_type]
+        # Вызываем конструктор родителя (Enemy) через Addict, передавая тип 'thief'
+        super(Addict, self).__init__(row, groups, 'thief')
+        # Перезагружаем анимации, так как у Вора они свои
+        self.load_animations()
 
-    def find_and_attack_target(self, defenders_group):
+    def update(self, defenders_group, *args, **kwargs):
         coffee_machines = [d for d in defenders_group if isinstance(d, CoffeeMachine) and d.alive()]
         if not coffee_machines:
-            return Enemy.find_and_attack_target(self, defenders_group)
+            # Если кофемашин нет, ведем себя как базовый враг
+            Enemy.update(self, defenders_group, *args, **kwargs)
+            return
 
-        closest_machine = min(coffee_machines, key=lambda m: abs(m.rect.centery - self.rect.centery) * 100 + abs(
-            m.rect.centerx - self.rect.centerx))
+        # Если кофемашины есть, используем свою логику, но с базовыми апдейтами
+        self.animate()
+        self._layer = self.rect.bottom
+        if self.health <= 0: self.kill(); return
 
-        if self.rect.colliderect(closest_machine):
-            return Enemy.find_and_attack_target(self, [closest_machine])
+        closest_machine = min(coffee_machines,
+                              key=lambda m: pygame.math.Vector2(self.rect.center).distance_to(m.rect.center))
+        target_found = self.rect.colliderect(closest_machine)
+
+        if target_found:
+            self.find_and_attack_target([closest_machine])
         else:
-            if self.rect.centery < closest_machine.rect.centery:
-                self.rect.y += self.speed / 2
-            else:
-                self.rect.y -= self.speed / 2
+            self.is_attacking = False
+            self.stop_eating_sound()
+            if self.current_target: self.current_target.is_being_eaten = False
+            self.current_target = None
 
-            if self.rect.centerx > closest_machine.rect.centerx:
-                self.rect.x -= self.speed
-            else:
-                self.rect.x += self.speed
-        return False
+            # Движемся к кофемашине
+            direction = pygame.math.Vector2(closest_machine.rect.center) - pygame.math.Vector2(self.rect.center)
+            if direction.length() > 0:
+                norm_dir = direction.normalize()
+                self.rect.x += norm_dir.x * self.speed
+                self.rect.y += norm_dir.y * self.speed
