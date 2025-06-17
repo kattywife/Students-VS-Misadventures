@@ -4,13 +4,14 @@ import pygame
 from data.settings import *
 from data.assets import load_image
 from entities.base_sprite import BaseSprite
-
+import os
 
 class CoffeeBean(BaseSprite):
     def __init__(self, x, y, groups, value):
         super().__init__(groups)
         self.value = value
-        self.image = load_image('coffee_bean.png', DEFAULT_COLORS['coffee_bean'], (40, 40))
+        path_to_image = os.path.join('resources', 'coffee_bean.png')
+        self.image = load_image(path_to_image, DEFAULT_COLORS['coffee_bean'], (40, 40))
         self.rect = self.image.get_rect(center=(x, y))
         self._layer = self.rect.bottom + 1
         self.spawn_time = pygame.time.get_ticks()

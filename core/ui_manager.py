@@ -191,20 +191,38 @@ class UIManager:
     def draw_preparation_screen(self, surface, stipend, team, upgrades, purchased_mowers,
                                 all_defenders, all_neuro_mowers, level_id, selected_card_info, neuro_slots):
         surface.fill(DEFAULT_COLORS['background'])
+
         self.team_card_rects, random_buttons = self._draw_team_panel(surface, self.team_panel_rect, team,
                                                                      upgrades, purchased_mowers, neuro_slots)
         self.selection_cards_rects = self._draw_selection_panel(surface, self.selection_panel_rect, upgrades)
         self.plan_cards_rects = self._draw_plan_panel(surface, self.plan_panel_rect, level_id)
+
         prep_buttons = self._draw_prep_hud(surface, len(team) > 0)
-        stipend_bg_rect = pygame.Rect(0, 0, 300, 50);
+
+        stipend_bg_rect = pygame.Rect(0, 0, 320, 50)
         stipend_bg_rect.centerx = SCREEN_WIDTH / 2
         pygame.draw.rect(surface, DEFAULT_COLORS['shop_panel'], stipend_bg_rect, border_radius=10)
+
         stipend_text = self.font.render(f"Стипендия: {stipend}", True, YELLOW)
-        surface.blit(stipend_text, stipend_text.get_rect(center=stipend_bg_rect.center))
+        text_rect = stipend_text.get_rect(center=stipend_bg_rect.center)
+
+        stipend_icon = CARD_IMAGES.get('stipend')
+        if stipend_icon:
+            # Сначала рисуем текст, немного сместив его влево
+            text_rect.centerx -= 20
+            surface.blit(stipend_text, text_rect)
+
+            # Затем рисуем иконку справа от текста
+            icon_rect = stipend_icon.get_rect(midleft=(text_rect.right + 10, stipend_bg_rect.centery))
+            surface.blit(stipend_icon, icon_rect)
+        else:
+            # Если иконки нет, рисуем текст по центру
+            surface.blit(stipend_text, text_rect)
         info_buttons = {}
         if selected_card_info:
             info_buttons = self._draw_description_panel(surface, selected_card_info, team,
                                                         upgrades, purchased_mowers, neuro_slots)
+
         return prep_buttons, random_buttons, info_buttons
 
     def _draw_unit_card(self, surface, unit_type, rect, data, is_upgraded=False):

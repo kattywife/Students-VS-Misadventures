@@ -29,20 +29,24 @@ def load_all_resources():
         category = data.get('category')
         anim_data = data.get('animation_data')
 
-        # Собираем путь для карточки
         path_to_card_img = ""
-        if anim_data:
-            folder = anim_data.get('folder', unit_type)
-            path_to_card_img = os.path.join(category, folder, 'idle_0.png')
-        elif category:
-            path_to_card_img = os.path.join(category, f"{unit_type}.png")
+        if category:
+            if anim_data:
+                folder = anim_data.get('folder', unit_type)
+                path_to_card_img = os.path.join(category, folder, 'idle_0.png')
+            else:
+                path_to_card_img = os.path.join(category, f"{unit_type}.png")
 
         if path_to_card_img:
-            CARD_IMAGES[unit_type] = load_image(path_to_card_img, DEFAULT_COLORS.get(unit_type), card_size)
+            # Для иконок интерфейса и ресурсов используем их оригинальный размер
+            current_size = card_size
+            if unit_type in UI_ELEMENTS_DATA:
+                current_size = None  # None в load_image означает "не менять размер"
+
+            CARD_IMAGES[unit_type] = load_image(path_to_card_img, DEFAULT_COLORS.get(unit_type), current_size)
 
 
 def load_image(path, default_color, size=None):
-    # Теперь путь формируется относительно главной папки с картинками
     full_path = os.path.join(IMAGES_DIR, path)
     try:
         image = pygame.image.load(full_path).convert_alpha()
