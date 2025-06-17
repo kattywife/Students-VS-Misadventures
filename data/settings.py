@@ -46,24 +46,48 @@ DEFENDERS_DATA = {
                    'upgrades': {
                        'damage': {'value': 5, 'cost': 15},
                        'cooldown': {'value': -0.2, 'cost': 20}
+                   },
+                   # --- ИЗМЕНЕНИЕ ЗДЕСЬ ---
+                   'animation_data': {
+                       'file': 'programmer.png', 'cols': 3, 'rows': 3, 'speed': 0.1,
+                       'idle_frames': [0, 1],  # Улыбается и спокойный
+                       'attack_frames': [3, 4],  # Сосредоточенно печатает
+                       'hit_frames': [2, 5, 8]  # Страдает
                    }},
     'botanist': {'cost': 150, 'health': 300, 'damage': 50, 'cooldown': 2.5, 'radius': CELL_SIZE_W * 1.5, 'display_name': 'Девочка-ботан',
                  'description': "Находит самого сильного врага (по здоровью) на поле, смещает свой радиус атаки на него и наносит урон всем врагам в этой области.",
                  'upgrades': {
                      'damage': {'value': 15, 'cost': 25},
                      'radius': {'value': 20, 'cost': 15}
+                 },
+                 'animation_data': {
+                     'file': 'botanist.png', 'cols': 5, 'rows': 2, 'speed': 0.15,
+                     'idle_frames': [0, 1, 2],
+                     'attack_frames': [3, 4],
+                     'hit_frames': [6, 7]
                  }},
     'coffee_machine': {'cost': 50, 'health': 200, 'damage': 0, 'cooldown': 5, 'production': 25, 'display_name': 'Кофемашина',
                        'description': "Производит кофейные зернышки.",
                        'upgrades': {
                            'production': {'value': 10, 'cost': 25},
                            'health': {'value': 100, 'cost': 15}
+                       },
+                       'animation_data': {
+                           'file': 'coffee_machine.png', 'cols': 4, 'rows': 2, 'speed': 0.2,
+                           'idle_frames': [0, 1],
+                           'attack_frames': [2, 3, 4, 5, 6, 7]
                        }},
     'activist': {'cost': 75, 'health': 400, 'damage': 0, 'cooldown': None, 'radius': CELL_SIZE_W * 2, 'buff': 1.5, 'display_name': 'Активист с рупором',
                  'description': "Не атакует, но усиливает урон союзников, находящихся в его ауре.",
                  'upgrades': {
                      'buff': {'value': 0.2, 'cost': 30},
                      'radius': {'value': 30, 'cost': 20}
+                 },
+                 'animation_data': {
+                     'file': 'activist.png', 'cols': 3, 'rows': 2, 'speed': 0.1,
+                     'idle_frames': [0, 1],
+                     'attack_frames': [0],
+                     'hit_frames': [2, 5]
                  }},
     'guitarist': {'cost': 150, 'health': 300, 'damage': 20, 'cooldown': 4, 'display_name': 'Гитарист',
                   'projectile_speed': 5,
@@ -71,23 +95,47 @@ DEFENDERS_DATA = {
                   'upgrades': {
                       'damage': {'value': 10, 'cost': 25},
                       'projectile_speed': {'value': 2, 'cost': 15}
+                  },
+                  'animation_data': {
+                      'file': 'guitarist.png', 'cols': 4, 'rows': 2, 'speed': 0.15,
+                      'idle_frames': [0, 1, 2],
+                      'attack_frames': [3, 4],
+                      'hit_frames': [6, 7]
                   }},
     'medic': {'cost': 50, 'health': 250, 'damage': 0, 'cooldown': 1.0, 'heal_amount': 200, 'radius': CELL_SIZE_W * 2, 'display_name': 'Студент-медик',
               'description': "Постепенно отдает свое здоровье окружающим союзникам, в первую очередь самым раненым. Исчезает, когда у него кончаются запасы здоровья.",
               'upgrades': {
                   'heal_amount': {'value': 100, 'cost': 25}
+              },
+              'animation_data': {
+                  'file': 'medic.png', 'cols': 4, 'rows': 2, 'speed': 0.1,
+                  'idle_frames': [0, 1],
+                  'attack_frames': [0, 1],
+                  'hit_frames': [6, 7]
               }},
     'artist': {'cost': 125, 'health': 300, 'damage': 10, 'cooldown': 2, 'slow_duration': 2000, 'slow_factor': 0.5, 'display_name': 'Художница',
                'description': "Погруженная в свое творчество, она не замечает ничего вокруг. Её кляксы краски попадают во врагов, замедляя их и нанося урон.",
                'upgrades': {
                    'damage': {'value': 10, 'cost': 20},
                    'slow_factor': {'value': -0.1, 'cost': 25}
+               },
+               'animation_data': {
+                   'file': 'artist.png', 'cols': 3, 'rows': 2, 'speed': 0.15,
+                   'idle_frames': [0, 1],
+                   'attack_frames': [2],
+                   'hit_frames': [4, 5]
                }},
     'modnik': {'cost': 125, 'health': 300, 'damage': 1800, 'radius': CELL_SIZE_W * 2.5, 'speed': 1.5, 'display_name': 'Модник', 'cooldown': None,
                'description': "Появляется раз в семестр помодничать и исчезает. Подходит к ближайшему врагу и взрывается, уничтожая всех в большом радиусе.",
                'upgrades': {
                    'radius': {'value': 40, 'cost': 30},
                    'damage': {'value': 200, 'cost': 25}
+               },
+               'animation_data': {
+                   'file': 'modnik.png', 'cols': 3, 'rows': 2, 'speed': 0.1,
+                   'idle_frames': [0, 1],
+                   'attack_frames': [0],
+                   'hit_frames': [2, 5]
                }}
 }
 

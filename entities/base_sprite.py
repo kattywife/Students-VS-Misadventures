@@ -9,6 +9,7 @@ class BaseSprite(pygame.sprite.Sprite):
     def __init__(self, *groups):
         super().__init__(*groups)
         self.last_update = pygame.time.get_ticks()
+        self._layer = self.rect.bottom if hasattr(self, 'rect') else 4
 
     def draw(self, surface):
         surface.blit(self.image, self.rect)

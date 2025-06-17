@@ -3,7 +3,7 @@
 LEVELS = {
     1: {
         'name': "Курс 1",
-        'start_coffee': 150,
+        'start_coffee': 1000,
         'neuro_slots': 2,
         'calamities': ['colloquium'],
         'enemies': [

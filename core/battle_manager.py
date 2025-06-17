@@ -256,10 +256,8 @@ class BattleManager:
         surface.blit(load_image('background.png', DEFAULT_COLORS['background'], (SCREEN_WIDTH, SCREEN_HEIGHT)), (0, 0))
         self.ui_manager.draw_grid(surface)
 
-        sprites_to_draw = sorted(self.all_sprites, key=lambda s: s.rect.bottom)
-        for sprite in sprites_to_draw:
-            if hasattr(sprite, 'draw_aura'): sprite.draw_aura(surface)
-            if hasattr(sprite, 'draw'):
-                sprite.draw(surface)
-            else:
-                surface.blit(sprite.image, sprite.rect)
+        for sprite in self.all_sprites:
+            if hasattr(sprite, 'draw_aura'):
+                sprite.draw_aura(surface)
+
+        self.all_sprites.draw(surface)

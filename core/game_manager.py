@@ -6,7 +6,7 @@ from data.settings import *
 from entities.other_sprites import NeuroMower
 from core.ui_manager import UIManager
 from core.level_manager import LevelManager
-from data.assets import load_image, load_sound, SOUNDS
+from data.assets import load_all_resources, SOUNDS, load_image
 from data.levels import LEVELS
 from core.prep_manager import PrepManager
 from core.battle_manager import BattleManager
@@ -23,9 +23,10 @@ class Game:
         self.clock = pygame.time.Clock();
         self.running = True
         self.ui_manager = UIManager(self.screen)
-        self.background = load_image('background.png', DEFAULT_COLORS['background'], (SCREEN_WIDTH, SCREEN_HEIGHT))
-        self.max_level_unlocked = 1;
-        self.current_level_id = 1;
+
+        self.background = None
+        self.max_level_unlocked = 1
+        self.current_level_id = 1
         self.stipend = 150
         self.prep_manager = None;
         self.battle_manager = None
@@ -45,22 +46,12 @@ class Game:
 
         self.placed_neuro_mowers = {}
         self.dragged_mower = None
-        self._load_assets()
 
-    def _load_assets(self):
-        load_sound('button', 'pressing a button.mp3');
-        load_sound('purchase', 'purchase and landing of the hero.mp3');
-        load_sound('taking', 'taking.mp3');
-        load_sound('cards', 'cards.mp3');
-        load_sound('damage', 'damage.mp3');
-        load_sound('eating', 'eating.mp3');
-        load_sound('scream', 'scream.mp3');
-        load_sound('enemy_dead', 'enemy_dead.mp3');
-        load_sound('hero_dead', 'hero_dead.mp3');
-        load_sound('money', 'money.mp3');
-        load_sound('win', 'win.mp3')
-        load_sound('misfortune', 'misfortune.mp3')
-        load_sound('tuning', 'tuning.mp3')
+        self._load_resources()
+
+    def _load_resources(self):
+        load_all_resources()
+        self.background = load_image('background.png', DEFAULT_COLORS['background'], (SCREEN_WIDTH, SCREEN_HEIGHT))
         if SOUNDS.get('win'): self.level_clear_duration = SOUNDS['win'].get_length() * 1000
 
     def run(self):
@@ -101,11 +92,11 @@ class Game:
 
     def _start_battle(self):
         self.stipend = self.prep_manager.stipend
-        all_sprites = pygame.sprite.Group();
-        defenders = pygame.sprite.Group();
+        all_sprites = pygame.sprite.LayeredUpdates()
+        defenders = pygame.sprite.Group()
         enemies = pygame.sprite.Group()
-        projectiles = pygame.sprite.Group();
-        coffee_beans = pygame.sprite.Group();
+        projectiles = pygame.sprite.Group()
+        coffee_beans = pygame.sprite.Group()
         neuro_mowers = pygame.sprite.Group()
         level_manager = LevelManager(self.current_level_id, enemies, all_sprites)
 
@@ -200,7 +191,8 @@ class Game:
                         placement_zone_x = GRID_START_X - placement_zone_width
                         mower_rect = pygame.Rect(0, 0, CELL_SIZE_W, CELL_SIZE_H)
                         mower_rect.center = (
-                        placement_zone_x + placement_zone_width / 2, GRID_START_Y + row * CELL_SIZE_H + CELL_SIZE_H / 2)
+                            placement_zone_x + placement_zone_width / 2,
+                            GRID_START_Y + row * CELL_SIZE_H + CELL_SIZE_H / 2)
 
                         if mower_rect.collidepoint(event.pos):
                             if SOUNDS.get('purchase'): SOUNDS['purchase'].play()
@@ -264,9 +256,11 @@ class Game:
                     if rect.collidepoint(event.pos):
                         if SOUNDS.get('button'): SOUNDS['button'].play(); pygame.time.delay(100)
                         if text == "Продолжить":
-                            pygame.mixer.unpause(); self.state = "PLAYING"
+                            pygame.mixer.unpause();
+                            self.state = "PLAYING"
                         else:
-                            pygame.mixer.stop(); self.state = "MAIN_MENU"
+                            pygame.mixer.stop();
+                            self.state = "MAIN_MENU"
         self.battle_manager.draw_world(self.screen)
         self.ui_manager.draw_shop(self.screen, self.battle_manager.selected_defender, self.battle_manager.coffee)
         spawn_progress = self.battle_manager.level_manager.get_spawn_progress();

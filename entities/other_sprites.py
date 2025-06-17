@@ -12,6 +12,7 @@ class CoffeeBean(BaseSprite):
         self.value = value
         self.image = load_image('coffee_bean.png', DEFAULT_COLORS['coffee_bean'], (40, 40))
         self.rect = self.image.get_rect(center=(x, y))
+        self._layer = self.rect.bottom + 1
         self.spawn_time = pygame.time.get_ticks()
         self.lifetime = 8000
 

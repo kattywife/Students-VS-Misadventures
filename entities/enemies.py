@@ -24,7 +24,8 @@ class Enemy(BaseSprite):
                                          (CELL_SIZE_W - 20, CELL_SIZE_H - 10))
         self.image = self.original_image.copy()
         y = GRID_START_Y + row * CELL_SIZE_H + CELL_SIZE_H / 2
-        self.rect = self.image.get_rect(midleft=(SCREEN_WIDTH + random.randint(0, 100), y))
+        self.rect = self.image.get_rect(midleft=(SCREEN_WIDTH - 1, y))
+        self._layer = self.rect.bottom
         self.attack_cooldown = self.data['cooldown'] * 1000 if self.data['cooldown'] else 1000
 
         self.is_attacking = False
