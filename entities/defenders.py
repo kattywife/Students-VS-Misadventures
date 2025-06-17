@@ -1,14 +1,14 @@
 # entities/defenders.py
 
 import pygame
+import os
 from data.settings import *
-from data.assets import SOUNDS, parse_spritesheet
+from data.assets import SOUNDS, load_image
 from entities.base_sprite import BaseSprite, ExplosionEffect, BookAttackEffect
 from entities.projectiles import Bracket, PaintSplat, SoundWave
 from entities.other_sprites import CoffeeBean
 
 
-# ... (класс Defender остается таким же, как в моем предыдущем ответе) ...
 class Defender(BaseSprite):
     def __init__(self, x, y, groups, data):
         super().__init__(groups)
@@ -16,21 +16,28 @@ class Defender(BaseSprite):
         self.max_health = self.data['health']
         self.health = self.max_health
         self.cost = self.data['cost']
+
         self.animations = {}
         self.load_animations()
+
         self.current_animation = 'idle'
         self.frame_index = 0
         self.image = self.animations.get(self.current_animation, [None])[0]
+
         if self.image:
             self.rect = self.image.get_rect(center=(x, y))
         else:
             self.image = pygame.Surface((CELL_SIZE_W - 10, CELL_SIZE_H - 10))
-            self.image.fill(DEFAULT_COLORS.get(data.get('type', 'programmer'), RED))
+            unit_type = data.get('type', 'programmer')
+            self.image.fill(DEFAULT_COLORS.get(unit_type, RED))
             self.rect = self.image.get_rect(center=(x, y))
+
         self.last_anim_update = pygame.time.get_ticks()
         self.anim_speed = self.data.get('animation_data', {}).get('speed', 0.2)
+
         self._layer = self.rect.bottom
         self.is_animate = 'animation_data' in self.data
+
         self.is_being_eaten = False
         self.scream_channel = None
         self.is_upgraded = False
@@ -41,13 +48,21 @@ class Defender(BaseSprite):
         anim_data = self.data.get('animation_data')
         if not anim_data:
             return
-        size = (CELL_SIZE_W - 10, CELL_SIZE_H - 10)
-        all_frames = parse_spritesheet(anim_data['file'], anim_data['cols'], anim_data['rows'], size)
-        for anim_type in ['idle_frames', 'attack_frames', 'hit_frames']:
-            if anim_type in anim_data:
-                frame_indices = anim_data[anim_type]
-                self.animations[anim_type.replace('_frames', '')] = [all_frames[i] for i in frame_indices]
 
+        size = (CELL_SIZE_W - 10, CELL_SIZE_H - 10)
+        category = self.data.get('category', 'defenders')
+        folder = anim_data.get('folder', self.data.get('type'))
+
+        for anim_type, frame_count in anim_data.items():
+            if anim_type not in ['folder', 'speed']:
+                self.animations[anim_type] = []
+                for i in range(frame_count):
+                    filename = f"{anim_type}_{i}.png"
+                    path = os.path.join(category, folder, filename)
+                    img = load_image(path, DEFAULT_COLORS.get(self.data['type']), size)
+                    self.animations[anim_type].append(img)
+
+    # ... остальная часть кода без изменений
     def animate(self):
         if not self.animations or self.current_animation not in self.animations:
             return
@@ -108,7 +123,6 @@ class Defender(BaseSprite):
             surface.blit(aura_surf, self.rect.topleft)
 
 
-# ... (ProgrammerBoy, BotanistGirl остаются без изменений) ...
 class ProgrammerBoy(Defender):
     def __init__(self, x, y, groups, data, all_sprites, projectile_group, enemies_group):
         super().__init__(x, y, groups, data)
@@ -172,20 +186,15 @@ class CoffeeMachine(Defender):
         self.coffee_bean_group = coffee_bean_group
         self.production_cooldown = self.data['cooldown'] * 1000
         self.last_production = pygame.time.get_ticks()
-
-        # --- НОВАЯ ЛОГИКА для Кофемашины ---
         self.is_producing = False
         self.producing_timer = 0
-        self.producing_duration = 500  # Длительность показа кадра "без чашки" в мс
-        # Загружаем особый кадр, если он есть
-        anim_data = self.data.get('animation_data', {})
+        self.producing_duration = 500
         self.producing_frame = self.animations.get('attack', [None])[0]
 
     def animate(self):
-        # Переопределяем анимацию, чтобы она не мешала нашей логике
         if self.is_producing:
             self.image = self.producing_frame
-        else:  # Если не производим, крутим idle-анимацию
+        else:
             now = pygame.time.get_ticks()
             if now - self.last_anim_update > self.anim_speed * 1000:
                 self.last_anim_update = now
@@ -193,26 +202,20 @@ class CoffeeMachine(Defender):
                 self.image = self.animations['idle'][self.frame_index]
 
     def update(self, *args, **kwargs):
-        # Не вызываем super().update(), чтобы полностью контролировать логику
         self.animate()
-
         now = pygame.time.get_ticks()
-
         if self.is_producing and now - self.producing_timer > self.producing_duration:
             self.is_producing = False
-
         if not self.is_producing and self.alive() and now - self.last_production > self.production_cooldown:
             self.last_production = now
             CoffeeBean(self.rect.centerx, self.rect.top, (self.all_sprites, self.coffee_bean_group),
                        self.data['production'])
             self.is_producing = True
             self.producing_timer = now
-
         if self.health <= 0:
             self.kill()
 
 
-# ... (остальные классы без изменений) ...
 class Activist(Defender):
     def __init__(self, x, y, groups, data):
         super().__init__(x, y, groups, data)
