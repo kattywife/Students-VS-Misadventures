@@ -174,7 +174,7 @@ class BattleManager:
 
         if SOUNDS.get('misfortune'): SOUNDS['misfortune'].play()
 
-        self.calamity_notification = {'name': calamity_data['display_name'], 'desc': calamity_data['description']}
+        self.calamity_notification = {'type': self.active_calamity, 'name': calamity_data['display_name'], 'desc': calamity_data['description']}
         self.calamity_notification_timer = now + self.notification_duration
         self.calamity_end_time = now + self.calamity_duration
 

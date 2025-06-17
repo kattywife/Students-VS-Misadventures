@@ -3,11 +3,11 @@
 import pygame
 import random
 from data.settings import *
-from data.assets import load_image, SOUNDS
+from data.assets import load_image, SOUNDS, PROJECTILE_IMAGES
+from data.settings import CALCULUS_PROJECTILE_TYPES
 from entities.base_sprite import BaseSprite
 from entities.projectiles import Integral
 from entities.defenders import CoffeeMachine
-
 
 class Enemy(BaseSprite):
     def __init__(self, row, groups, enemy_type):
@@ -155,6 +155,7 @@ class Calculus(Enemy):
 
     def update(self, defenders_group, all_sprites, projectiles, *args, **kwargs):
         self.is_shooting = any(d.rect.centery == self.rect.centery for d in defenders_group)
+        # Вызываем update родителя ПОСЛЕ определения self.is_shooting
         super().update(defenders_group, *args, **kwargs)
 
         if self.alive() and self.is_shooting:
@@ -162,9 +163,16 @@ class Calculus(Enemy):
             if now - self.last_shot > self.attack_cooldown:
                 self.last_shot = now
                 damage = self.damage * self.damage_multiplier
-                Integral(self.rect.left, self.rect.centery, (all_sprites, projectiles), damage)
+
+                # Выбираем случайный тип снаряда и получаем его картинку
+                random_projectile_type = random.choice(CALCULUS_PROJECTILE_TYPES)
+                projectile_image = PROJECTILE_IMAGES[random_projectile_type]
+
+                # Создаем снаряд с этой картинкой
+                Integral(self.rect.left, self.rect.centery, (all_sprites, projectiles), damage, projectile_image)
 
     def find_and_attack_target(self, defenders_group):
+        # Логика движения. Calculus останавливается, если видит цель.
         return self.is_shooting
 
 

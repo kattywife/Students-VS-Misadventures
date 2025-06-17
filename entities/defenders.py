@@ -2,11 +2,13 @@
 
 import pygame
 import os
+import random
 from data.settings import *
-from data.assets import SOUNDS, load_image
+from data.assets import SOUNDS, load_image, PROJECTILE_IMAGES
+from data.settings import PROGRAMMER_PROJECTILE_TYPES
 from entities.base_sprite import BaseSprite, ExplosionEffect, BookAttackEffect
 from entities.projectiles import Bracket, PaintSplat, SoundWave
-from entities.other_sprites import CoffeeBean
+from entities.other_sprites import CoffeeBean, AuraEffect
 
 
 class Defender(BaseSprite):
@@ -62,7 +64,6 @@ class Defender(BaseSprite):
                     img = load_image(path, DEFAULT_COLORS.get(self.data['type']), size)
                     self.animations[anim_type].append(img)
 
-    # ... остальная часть кода без изменений
     def animate(self):
         if not self.animations or self.current_animation not in self.animations:
             return
@@ -140,7 +141,12 @@ class ProgrammerBoy(Defender):
         if self.alive() and has_enemy_in_row and now - self.last_shot > self.attack_cooldown:
             self.last_shot = now
             damage = self.get_final_damage(self.data['damage'])
-            Bracket(self.rect.right, self.rect.centery, (self.all_sprites, self.projectile_group), damage)
+
+            random_projectile_type = random.choice(PROGRAMMER_PROJECTILE_TYPES)
+            projectile_image = PROJECTILE_IMAGES[random_projectile_type]
+
+            Bracket(self.rect.right, self.rect.centery, (self.all_sprites, self.projectile_group), damage,
+                    projectile_image)
             self.current_animation = 'attack'
             self.frame_index = 0
 
@@ -217,8 +223,10 @@ class CoffeeMachine(Defender):
 
 
 class Activist(Defender):
-    def __init__(self, x, y, groups, data):
+    def __init__(self, x, y, groups, data, all_sprites):
         super().__init__(x, y, groups, data)
+        self.all_sprites = all_sprites
+        AuraEffect((self.all_sprites,), self)
 
 
 class Guitarist(Defender):

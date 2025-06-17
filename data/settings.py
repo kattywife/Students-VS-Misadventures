@@ -37,10 +37,10 @@ ASSETS_DIR = 'assets'; IMAGES_DIR = f'{ASSETS_DIR}/images'
 DEFENDERS_DATA = {
     'programmer': {'cost': 100, 'health': 300, 'damage': 25, 'cooldown': 1.5, 'display_name': 'Мальчик-джун', 'category': 'defenders',
                    'description': "Стандартный стрелок...", 'upgrades': { 'damage': {'value': 5, 'cost': 15}, 'cooldown': {'value': -0.2, 'cost': 20} },
-                   'animation_data': { 'folder': 'programmer', 'speed': 0.1, 'idle': 2, 'attack': 2, 'hit': 3 }},
+                   'animation_data': { 'folder': 'programmer', 'speed': 0.1, 'idle': 2, 'attack': 2, 'hit': 1 }},
     'botanist': {'cost': 150, 'health': 300, 'damage': 50, 'cooldown': 2.5, 'radius': CELL_SIZE_W * 1.5, 'display_name': 'Девочка-ботан', 'category': 'defenders',
                  'description': "Находит самого сильного врага...", 'upgrades': { 'damage': {'value': 15, 'cost': 25}, 'radius': {'value': 20, 'cost': 15} },
-                 'animation_data': { 'folder': 'botanist', 'speed': 0.15, 'idle': 3, 'attack': 2, 'hit': 2 }},
+                 'animation_data': { 'folder': 'botanist', 'speed': 0.15, 'idle': 3, 'attack': 2, 'hit': 1 }},
     'coffee_machine': {'cost': 50, 'health': 200, 'damage': 0, 'cooldown': 5, 'production': 25, 'display_name': 'Кофемашина', 'category': 'defenders',
                        'description': "Производит кофейные зернышки.", 'upgrades': { 'production': {'value': 10, 'cost': 25}, 'health': {'value': 100, 'cost': 15} },
                        'animation_data': { 'folder': 'coffee_machine', 'speed': 0.2, 'idle': 2, 'attack': 6 }},
@@ -56,16 +56,16 @@ DEFENDERS_DATA = {
                  }},
     'guitarist': {'cost': 150, 'health': 300, 'damage': 20, 'cooldown': 4, 'display_name': 'Гитарист', 'category': 'defenders',
                   'projectile_speed': 5, 'description': "Атакует звуковой волной...", 'upgrades': { 'damage': {'value': 10, 'cost': 25}, 'projectile_speed': {'value': 2, 'cost': 15} },
-                  'animation_data': { 'folder': 'guitarist', 'speed': 0.15, 'idle': 3, 'attack': 2, 'hit': 2 }},
+                  'animation_data': { 'folder': 'guitarist', 'speed': 0.15, 'idle': 3, 'attack': 2, 'hit': 1 }},
     'medic': {'cost': 50, 'health': 250, 'damage': 0, 'cooldown': 1.0, 'heal_amount': 200, 'radius': CELL_SIZE_W * 2, 'display_name': 'Студент-медик', 'category': 'defenders',
               'description': "Постепенно отдает свое здоровье...", 'upgrades': { 'heal_amount': {'value': 100, 'cost': 25} },
-              'animation_data': { 'folder': 'medic', 'speed': 0.1, 'idle': 2, 'attack': 2, 'hit': 2 }},
+              'animation_data': { 'folder': 'medic', 'speed': 0.1, 'idle': 2, 'attack': 2, 'hit': 1 }},
     'artist': {'cost': 125, 'health': 300, 'damage': 10, 'cooldown': 2, 'slow_duration': 2000, 'slow_factor': 0.5, 'display_name': 'Художница', 'category': 'defenders',
                'description': "Её кляксы краски замедляют...", 'upgrades': { 'damage': {'value': 10, 'cost': 20}, 'slow_factor': {'value': -0.1, 'cost': 25} },
-               'animation_data': { 'folder': 'artist', 'speed': 0.15, 'idle': 2, 'attack': 1, 'hit': 2 }},
+               'animation_data': { 'folder': 'artist', 'speed': 0.15, 'idle': 2, 'attack': 1, 'hit': 1 }},
     'modnik': {'cost': 125, 'health': 300, 'damage': 1800, 'radius': CELL_SIZE_W * 2.5, 'speed': 1.5, 'display_name': 'Модник', 'category': 'defenders',
                'description': "Подходит к ближайшему врагу и взрывается...", 'upgrades': { 'radius': {'value': 40, 'cost': 30}, 'damage': {'value': 200, 'cost': 25} },
-               'animation_data': { 'folder': 'modnik', 'speed': 0.1, 'idle': 2, 'hit': 2 }}
+               'animation_data': { 'folder': 'modnik', 'speed': 0.1, 'idle': 2, 'hit': 1 }}
 }
 
 ENEMIES_DATA = {
@@ -84,13 +84,17 @@ NEURO_MOWERS_DATA = {
 }
 
 CALAMITIES_DATA = {
-    'epidemic': {'display_name': 'Эпидемия гриппа', 'description': 'Здоровье и урон героев падают в 2 раза.'},
-    'big_party': {'display_name': 'Великая туса', 'description': '80% ваших героев покидают поле боя.'},
-    'colloquium': {'display_name': 'Внезапный коллоквиум', 'description': 'Атаки врагов становятся в 1.5 раза сильнее.'},
-    'internet_down': {'display_name': 'Отключение интернета', 'description': 'Здоровье врагов удваивается.'}
+    'epidemic': {'display_name': 'Эпидемия гриппа', 'category': 'calamities', 'description': 'Здоровье и урон героев падают в 2 раза.'},
+    'big_party': {'display_name': 'Великая туса', 'category': 'calamities', 'description': '80% ваших героев покидают поле боя.'},
+    'colloquium': {'display_name': 'Внезапный коллоквиум', 'category': 'calamities', 'description': 'Атаки врагов становятся в 1.5 раза сильнее.'},
+    'internet_down': {'display_name': 'Отключение интернета', 'category': 'calamities', 'description': 'Здоровье врагов удваивается.'}
 }
 
 UI_ELEMENTS_DATA = {
     'stipend': {'display_name': 'Стипендия', 'category': 'ui'},
     'coffee_bean': {'display_name': 'Кофейные зернышки', 'category': 'resources'}
 }
+
+PROGRAMMER_PROJECTILE_TYPES = ['bracket_0', 'bracket_1', 'bracket_2']
+
+CALCULUS_PROJECTILE_TYPES = ['plus', 'multiply', 'divide', 'seven', 'three', 'five', 'null']

@@ -7,10 +7,10 @@ from entities.base_sprite import BaseSprite
 
 
 class Bracket(BaseSprite):
-    def __init__(self, x, y, groups, damage):
+    def __init__(self, x, y, groups, damage, image):
         super().__init__(groups)
         self.damage = damage
-        self.image = load_image('bracket.png', DEFAULT_COLORS['bracket'], (30, 30))
+        self.image = image
         self.rect = self.image.get_rect(center=(x, y))
         self.speed = 10
 
@@ -22,17 +22,16 @@ class Bracket(BaseSprite):
 
 class PaintSplat(Bracket):
     def __init__(self, x, y, groups, damage, artist):
-        super().__init__(x, y, groups, damage)
+        splat_image = load_image('projectiles/paint_splat.png', DEFAULT_COLORS['paint_splat'], (30, 30))
+        super().__init__(x, y, groups, damage, splat_image)
         self.artist = artist
-        self.image = load_image('paint_splat.png', DEFAULT_COLORS['paint_splat'], (30, 30))
 
 
 class SoundWave(BaseSprite):
     def __init__(self, center, groups, damage, row_y, speed=5):
         super().__init__(groups)
         self.damage = damage
-        self.image = pygame.Surface((20, CELL_SIZE_H - 10), pygame.SRCALPHA)
-        self.image.fill(DEFAULT_COLORS['sound_wave'])
+        self.image = load_image('projectiles/sound_wave.png', DEFAULT_COLORS['sound_wave'], (40, CELL_SIZE_H - 10))
         self.rect = self.image.get_rect(center=center)
         self.row_y = row_y
         self.speed = speed
@@ -47,7 +46,9 @@ class SoundWave(BaseSprite):
 
 
 class Integral(Bracket):
-    def __init__(self, x, y, groups, damage):
-        super().__init__(x, y, groups, damage)
-        self.image = load_image('integral.png', DEFAULT_COLORS['integral'], (30, 30))
+    def __init__(self, x, y, groups, damage, image):
+        BaseSprite.__init__(self, groups)
+        self.damage = damage
+        self.image = image
+        self.rect = self.image.get_rect(center=(x, y))
         self.speed = -5

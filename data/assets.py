@@ -6,6 +6,7 @@ from data.settings import *
 
 SOUNDS = {}
 CARD_IMAGES = {}
+PROJECTILE_IMAGES = {}
 
 
 def load_all_resources():
@@ -38,12 +39,22 @@ def load_all_resources():
                 path_to_card_img = os.path.join(category, f"{unit_type}.png")
 
         if path_to_card_img:
-            # Для иконок интерфейса и ресурсов используем их оригинальный размер
             current_size = card_size
             if unit_type in UI_ELEMENTS_DATA:
-                current_size = None  # None в load_image означает "не менять размер"
+                current_size = None
 
             CARD_IMAGES[unit_type] = load_image(path_to_card_img, DEFAULT_COLORS.get(unit_type), current_size)
+
+    projectile_size = (30, 30)
+    # Загружаем все снаряды для Матанализа
+    for p_type in CALCULUS_PROJECTILE_TYPES:
+        path = os.path.join('projectiles', 'calculus_projectiles', f'{p_type}.png')
+        PROJECTILE_IMAGES[p_type] = load_image(path, DEFAULT_COLORS['integral'], projectile_size)
+
+    # Загружаем все снаряды для Джуна
+    for p_type in PROGRAMMER_PROJECTILE_TYPES:
+        path = os.path.join('projectiles', 'programmer_projectiles', f'{p_type}.png')
+        PROJECTILE_IMAGES[p_type] = load_image(path, DEFAULT_COLORS['bracket'], projectile_size)
 
 
 def load_image(path, default_color, size=None):

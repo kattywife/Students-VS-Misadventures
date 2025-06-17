@@ -75,7 +75,6 @@ class UIManager:
             text_rect = cost_text.get_rect(center=(card_rect.centerx, card_rect.bottom - 15))
             self.shop_panel_surf.blit(cost_text, text_rect)
 
-    # ... (методы draw_shop, draw_hud, draw_grid, draw_menu, draw_main_menu, ... без изменений) ...
     def draw_shop(self, surface, selected_defender, coffee_beans):
         surface.blit(self.shop_panel_surf, (0, 0))
         pygame.draw.rect(surface, DEFAULT_COLORS['shop_border'], (0, 0, SCREEN_WIDTH, SHOP_PANEL_HEIGHT), 5)
@@ -106,20 +105,38 @@ class UIManager:
         pygame.draw.rect(surface, WHITE, (plan_x, plan_y, bar_w, bar_h), 2, border_radius=5)
         pygame.draw.rect(surface, DEFAULT_COLORS['pause_button'], self.pause_button_rect, border_radius=10)
         pygame.draw.rect(surface, WHITE, self.pause_button_rect, 2, border_radius=10)
+
+        # Вот строки, которые я пропустил. Здесь создаются bar1 и bar2
         bar1 = pygame.Rect(0, 0, 8, 30);
         bar1.center = (self.pause_button_rect.centerx - 10, self.pause_button_rect.centery)
         bar2 = pygame.Rect(0, 0, 8, 30);
         bar2.center = (self.pause_button_rect.centerx + 10, self.pause_button_rect.centery)
+
+        # А здесь они используются
         pygame.draw.rect(surface, BLACK, bar1, border_radius=3);
         pygame.draw.rect(surface, BLACK, bar2, border_radius=3)
 
         if calamity_notification:
+            # Получаем иконку из предзагруженных картинок
+            icon = CARD_IMAGES.get(calamity_notification['type'])
+            icon_rect = None
+            if icon:
+                icon = pygame.transform.scale(icon, (100, 100))
+                icon_rect = icon.get_rect(centerx=SCREEN_WIDTH / 2, centery=SCREEN_HEIGHT / 2 - 80)
+                surface.blit(icon, icon_rect)
+
             name_surf = self.font_large.render(calamity_notification['name'], True, CALAMITY_ORANGE)
             desc_surf = self.font_small.render(calamity_notification['desc'], True, WHITE)
-            name_rect = name_surf.get_rect(centerx=SCREEN_WIDTH / 2, centery=SCREEN_HEIGHT / 2 - 20)
+
+            # Смещаем текст в зависимости от того, есть ли иконка
+            name_y_pos = (icon_rect.bottom + 20) if icon_rect else (SCREEN_HEIGHT / 2 - 20)
+            name_rect = name_surf.get_rect(centerx=SCREEN_WIDTH / 2, top=name_y_pos)
             desc_rect = desc_surf.get_rect(centerx=SCREEN_WIDTH / 2, top=name_rect.bottom + 5)
+
             surface.blit(name_surf, name_rect)
             surface.blit(desc_surf, desc_rect)
+
+
 
     def draw_grid(self, surface):
         for row in range(GRID_ROWS):
