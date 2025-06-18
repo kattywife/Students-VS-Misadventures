@@ -3,13 +3,13 @@
 import pygame
 import sys
 from data.settings import *
-from entities.other_sprites import NeuroMower
 from core.ui_manager import UIManager
 from core.level_manager import LevelManager
-from data.assets import load_all_resources, SOUNDS, load_image
+from data.assets import load_all_resources, load_image
 from data.levels import LEVELS
 from core.prep_manager import PrepManager
 from core.battle_manager import BattleManager
+from core.sound_manager import SoundManager
 
 
 class Game:
@@ -23,6 +23,7 @@ class Game:
         self.clock = pygame.time.Clock();
         self.running = True
         self.ui_manager = UIManager(self.screen)
+        self.sound_manager = SoundManager()
 
         self.background = None
         self.max_level_unlocked = 1
@@ -52,7 +53,6 @@ class Game:
     def _load_resources(self):
         load_all_resources()
         self.background = load_image('background.png', DEFAULT_COLORS['background'], (SCREEN_WIDTH, SCREEN_HEIGHT))
-        if SOUNDS.get('win'): self.level_clear_duration = SOUNDS['win'].get_length() * 1000
 
     def run(self):
         while self.running:
@@ -61,6 +61,8 @@ class Game:
                 self._start_screen_loop()
             elif self.state == 'MAIN_MENU':
                 self._main_menu_loop()
+            elif self.state == 'SETTINGS':
+                self._settings_loop()
             elif self.state == 'PREPARATION':
                 self._preparation_loop()
             elif self.state == 'NEURO_PLACEMENT':
@@ -81,8 +83,9 @@ class Game:
 
     def _prepare_level(self, level_id):
         self.current_level_id = level_id
-        self.prep_manager = PrepManager(self.ui_manager, self.stipend, self.current_level_id)
+        self.prep_manager = PrepManager(self.ui_manager, self.stipend, self.current_level_id, self.sound_manager)
         self.state = 'PREPARATION'
+        self.sound_manager.play_music('prep_screen')
         self.placed_neuro_mowers.clear()
         self.dragged_mower = None
 
@@ -91,21 +94,23 @@ class Game:
             self.state = 'NEURO_PLACEMENT'
 
     def _start_battle(self):
+        # self.stipend = self.prep_manager.stipend # Траты фиксируются только после победы
         all_sprites = pygame.sprite.LayeredUpdates()
         defenders = pygame.sprite.Group()
         enemies = pygame.sprite.Group()
         projectiles = pygame.sprite.Group()
         coffee_beans = pygame.sprite.Group()
         neuro_mowers = pygame.sprite.Group()
-        level_manager = LevelManager(self.current_level_id, enemies, all_sprites)
+        level_manager = LevelManager(self.current_level_id, enemies, all_sprites, self.sound_manager)
 
         final_mower_placement = {row: info['type'] for row, info in self.placed_neuro_mowers.items()}
 
         self.battle_manager = BattleManager(all_sprites, defenders, enemies, projectiles, coffee_beans, neuro_mowers,
-                                            self.ui_manager, level_manager,
+                                            self.ui_manager, level_manager, self.sound_manager,
                                             self.prep_manager.team, self.prep_manager.upgrades,
                                             final_mower_placement)
         self.battle_manager.start()
+        self.sound_manager.play_music(f'level_{self.current_level_id}')
         self.state = 'PLAYING'
 
     def _menu_loop_template(self, title, buttons_config, next_states):
@@ -114,16 +119,18 @@ class Game:
             if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                 for text, rect in buttons_config.items():
                     if rect.collidepoint(event.pos):
-                        if SOUNDS.get('button'): SOUNDS['button'].play()
+                        self.sound_manager.play_sfx('button')
                         pygame.time.delay(100)
                         if text == "Выход":
                             self.running = False
                         else:
-                            pygame.mixer.stop()
+                            if self.state != 'LEVEL_VICTORY': self.sound_manager.stop_music()
                             if self.state == 'GAME_OVER' and text == 'Попробовать снова':
                                 self.state = "MAIN_MENU"
+                                self.sound_manager.play_music('main_team')
                             else:
                                 self.state = next_states.get(text)
+                                if self.state == "MAIN_MENU": self.sound_manager.play_music('main_team')
         self.screen.blit(self.background, (0, 0))
         self.ui_manager.draw_menu(self.screen, title, buttons_config)
 
@@ -137,19 +144,51 @@ class Game:
         self._menu_loop_template("Студенты против Злоключений", buttons, {"Начать обучение": "MAIN_MENU"})
 
     def _main_menu_loop(self):
+        if self.sound_manager.current_music != 'main_team':
+            self.sound_manager.play_music('main_team')
+
         for event in pygame.event.get():
             if event.type == pygame.QUIT: self.running = False
             if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                 for level_id, rect in self.level_select_buttons.items():
                     if rect.collidepoint(event.pos):
-                        if SOUNDS.get('button'): SOUNDS['button'].play(); self._prepare_level(level_id); return
+                        self.sound_manager.play_sfx('button');
+                        self._prepare_level(level_id);
+                        return
                 for text, rect in self.control_buttons.items():
                     if rect.collidepoint(event.pos):
-                        if SOUNDS.get('button'): SOUNDS['button'].play()
+                        self.sound_manager.play_sfx('button')
                         if text == "Выход": self.running = False
+                        if text == "Настройки": self.state = 'SETTINGS'
+
         self.screen.blit(self.background, (0, 0))
         self.level_select_buttons, self.control_buttons = self.ui_manager.draw_main_menu(self.screen,
                                                                                          self.max_level_unlocked)
+
+    def _settings_loop(self):
+        self.screen.blit(self.background, (0, 0))
+        self.ui_manager.draw_main_menu(self.screen, self.max_level_unlocked)
+
+        overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
+        overlay.fill((0, 0, 0, 180))
+        self.screen.blit(overlay, (0, 0))
+
+        buttons = self.ui_manager.draw_settings_menu(self.screen, self.sound_manager.music_enabled,
+                                                     self.sound_manager.sfx_enabled)
+
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT: self.running = False
+            if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                pos = event.pos
+                if buttons['toggle_music'].collidepoint(pos):
+                    self.sound_manager.play_sfx('button')
+                    self.sound_manager.toggle_music()
+                elif buttons['toggle_sfx'].collidepoint(pos):
+                    self.sound_manager.toggle_sfx()
+                    self.sound_manager.play_sfx('button')
+                elif buttons['close'].collidepoint(pos):
+                    self.sound_manager.play_sfx('button')
+                    self.state = 'MAIN_MENU'
 
     def _preparation_loop(self):
         for event in pygame.event.get():
@@ -159,14 +198,14 @@ class Game:
                 pos = event.pos
                 if 'start' in self.prep_buttons and self.prep_buttons['start'].collidepoint(pos):
                     if self.prep_manager.is_ready():
-                        if SOUNDS.get('button'): SOUNDS['button'].play()
+                        self.sound_manager.play_sfx('button')
                         self._start_neuro_placement()
                         return
                 if 'back' in self.prep_buttons and self.prep_buttons['back'].collidepoint(pos):
-                    if SOUNDS.get('button'): SOUNDS['button'].play()
+                    self.sound_manager.play_sfx('button')
+                    self.sound_manager.play_music('main_team')
                     self.state = 'MAIN_MENU'
                     return
-
         self.prep_buttons = self.prep_manager.draw(self.screen)
 
     def _neuro_placement_loop(self):
@@ -181,7 +220,7 @@ class Game:
                 if self.dragged_mower is None:
                     for index, rect in unplaced_rects.items():
                         if rect.collidepoint(event.pos):
-                            if SOUNDS.get('purchase'): SOUNDS['purchase'].play()
+                            self.sound_manager.play_sfx('purchase')
                             self.dragged_mower = {'type': self.prep_manager.purchased_mowers[index],
                                                   'original_index': index, 'pos': event.pos}
                             return
@@ -194,14 +233,14 @@ class Game:
                             GRID_START_Y + row * CELL_SIZE_H + CELL_SIZE_H / 2)
 
                         if mower_rect.collidepoint(event.pos):
-                            if SOUNDS.get('purchase'): SOUNDS['purchase'].play()
+                            self.sound_manager.play_sfx('purchase')
                             self.dragged_mower = self.placed_neuro_mowers.pop(row)
                             self.dragged_mower['pos'] = event.pos
                             return
 
                 if start_rect.collidepoint(event.pos) and len(self.prep_manager.purchased_mowers) == len(
                         self.placed_neuro_mowers):
-                    if SOUNDS.get('button'): SOUNDS['button'].play()
+                    self.sound_manager.play_sfx('button')
                     self._start_battle()
                     return
 
@@ -217,7 +256,7 @@ class Game:
                     if placement_area_rect.collidepoint(pos):
                         row = (pos[1] - GRID_START_Y) // CELL_SIZE_H
                         if 0 <= row < GRID_ROWS and row not in self.placed_neuro_mowers:
-                            if SOUNDS.get('purchase'): SOUNDS['purchase'].play()
+                            self.sound_manager.play_sfx('purchase')
                             self.placed_neuro_mowers[row] = {'type': self.dragged_mower['type'],
                                                              'original_index': self.dragged_mower['original_index']}
 
@@ -228,41 +267,48 @@ class Game:
             if event.type == pygame.QUIT: self.running = False
             action = self.battle_manager.handle_event(event)
             if action == 'PAUSE':
-                if SOUNDS.get('button'): SOUNDS['button'].play()
+                self.sound_manager.play_sfx('button')
                 pygame.time.delay(100)
-                pygame.mixer.pause()
+                pygame.mixer.pause()  # Пауза для всей музыки и звуков
+                pygame.mixer.music.pause()
                 self.state = 'PAUSED'
 
         self.battle_manager.update()
         self.battle_manager.draw(self.screen)
 
         if self.battle_manager.level_manager.is_complete():
-            self.stipend = self.prep_manager.stipend  # Сначала фиксируем траты
-            self.stipend += 150  # Затем начисляем награду
+            self.stipend = self.prep_manager.stipend
+            self.stipend += 150
             if self.current_level_id == self.max_level_unlocked and self.max_level_unlocked < len(LEVELS):
                 self.max_level_unlocked += 1
             self.state = 'LEVEL_CLEAR'
             self.level_clear_timer = pygame.time.get_ticks()
             self.victory_sound_played = False
         elif self.battle_manager.is_game_over:
-            pygame.mixer.stop()  # Останавливаем все звуки
-            if SOUNDS.get('lose'):
-                SOUNDS['lose'].play()  # Проигрываем звук поражения
+            self.sound_manager.stop_all_sfx()
+            self.sound_manager.stop_music()
+            self.sound_manager.play_sfx('lose')
             self.state = 'GAME_OVER'
 
     def _paused_loop(self):
         for event in pygame.event.get():
             if event.type == pygame.QUIT: self.running = False
-            if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE: pygame.mixer.unpause(); self.state = "PLAYING"
+            if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+                pygame.mixer.unpause();
+                pygame.mixer.music.unpause()
+                self.state = "PLAYING"
             if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                 for text, rect in self.pause_menu_buttons.items():
                     if rect.collidepoint(event.pos):
-                        if SOUNDS.get('button'): SOUNDS['button'].play(); pygame.time.delay(100)
+                        self.sound_manager.play_sfx('button');
+                        pygame.time.delay(100)
                         if text == "Продолжить":
                             pygame.mixer.unpause();
+                            pygame.mixer.music.unpause()
                             self.state = "PLAYING"
                         else:
-                            pygame.mixer.stop();
+                            self.sound_manager.stop_music()
+                            self.sound_manager.play_music('main_team')
                             self.state = "MAIN_MENU"
         self.battle_manager.draw_world(self.screen)
         self.ui_manager.draw_shop(self.screen, self.battle_manager.selected_defender, self.battle_manager.coffee)
@@ -277,11 +323,17 @@ class Game:
     def _level_clear_loop(self):
         now = pygame.time.get_ticks()
         if not self.victory_sound_played and now - self.level_clear_timer > self.victory_initial_delay:
-            pygame.mixer.stop();
-            if SOUNDS.get('win'): SOUNDS['win'].play()
-            self.victory_sound_played = True;
+            self.sound_manager.stop_all_sfx()
+            self.sound_manager.stop_music()
+            self.sound_manager.play_sfx('win')
+            self.victory_sound_played = True
             self.level_clear_timer = pygame.time.get_ticks()
-        if self.victory_sound_played and now - self.level_clear_timer > self.level_clear_duration:
+
+        level_clear_duration = 3000  # Стандартное время, если звук не загружен
+        if self.sound_manager.sfx_enabled:
+            level_clear_duration = self.sound_manager.get_sfx_length('win') * 1000
+
+        if self.victory_sound_played and now - self.level_clear_timer > level_clear_duration:
             if self.current_level_id >= len(LEVELS):
                 self.state = "GAME_VICTORY"
             else:

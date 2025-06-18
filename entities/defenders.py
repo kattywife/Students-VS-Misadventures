@@ -4,7 +4,8 @@ import pygame
 import os
 import random
 from data.settings import *
-from data.assets import SOUNDS, load_image, PROJECTILE_IMAGES
+# --- ИЗМЕНЕНИЕ ЗДЕСЬ: Добавляем 'load_image' в импорт ---
+from data.assets import PROJECTILE_IMAGES, load_image
 from data.settings import PROGRAMMER_PROJECTILE_TYPES
 from entities.base_sprite import BaseSprite, ExplosionEffect, BookAttackEffect
 from entities.projectiles import Bracket, PaintSplat, SoundWave
@@ -12,8 +13,9 @@ from entities.other_sprites import CoffeeBean, AuraEffect
 
 
 class Defender(BaseSprite):
-    def __init__(self, x, y, groups, data):
+    def __init__(self, x, y, groups, data, sound_manager):
         super().__init__(groups)
+        self.sound_manager = sound_manager
         self.data = data
         self.max_health = self.data['health']
         self.health = self.max_health
@@ -35,7 +37,7 @@ class Defender(BaseSprite):
             self.rect = self.image.get_rect(center=(x, y))
 
         self.last_anim_update = pygame.time.get_ticks()
-        self.anim_speed = self.data.get('animation_data', {}).get('speed', 0.2)
+        self.anim_speed = self.data.get('animation_data', {}).get('speed', 0.3)
 
         self._layer = self.rect.bottom
         self.is_animate = 'animation_data' in self.data
@@ -110,13 +112,10 @@ class Defender(BaseSprite):
             self.kill()
 
     def manage_scream_sound(self):
-        scream_sound = SOUNDS.get('scream')
-        if not scream_sound: return
-        if self.is_being_eaten and not (self.scream_channel and self.scream_channel.get_busy()):
-            self.scream_channel = pygame.mixer.find_channel()
-            if self.scream_channel: self.scream_channel.play(scream_sound, -1)
-        elif not self.is_being_eaten and self.scream_channel:
-            self.stop_scream()
+        if self.is_being_eaten:
+            if not (self.scream_channel and self.scream_channel.get_busy()):
+                self.sound_manager.play_sfx('scream')
+        # Остановка крика теперь в is_being_eaten = False
 
     def stop_scream(self):
         if self.scream_channel:
@@ -133,17 +132,15 @@ class Defender(BaseSprite):
         if not self.alive():
             return
 
-        if self.is_animate and SOUNDS.get('hero_dead'):
-            SOUNDS['hero_dead'].play()
-
-        self.stop_scream()
+        if self.is_animate:
+            self.sound_manager.play_sfx('hero_dead')
 
         super().kill()
 
 
 class ProgrammerBoy(Defender):
-    def __init__(self, x, y, groups, data, all_sprites, projectile_group, enemies_group):
-        super().__init__(x, y, groups, data)
+    def __init__(self, x, y, groups, data, sound_manager, all_sprites, projectile_group, enemies_group):
+        super().__init__(x, y, groups, data, sound_manager)
         self.all_sprites = all_sprites
         self.projectile_group = projectile_group
         self.enemies_group = enemies_group
@@ -169,8 +166,8 @@ class ProgrammerBoy(Defender):
 
 
 class BotanistGirl(Defender):
-    def __init__(self, x, y, groups, data, all_sprites, enemies_group):
-        super().__init__(x, y, groups, data)
+    def __init__(self, x, y, groups, data, sound_manager, all_sprites, enemies_group):
+        super().__init__(x, y, groups, data, sound_manager)
         self.all_sprites = all_sprites
         self.enemies_group = enemies_group
         self.attack_cooldown = self.data['cooldown'] * 1000
@@ -196,15 +193,17 @@ class BotanistGirl(Defender):
     def attack(self, target):
         damage = self.get_final_damage(self.data['damage'])
         explosion_center = target.rect.center
-        BookAttackEffect(explosion_center, self.all_sprites, self.explosion_radius * 2)
+
+        pixel_radius = self.explosion_radius * CELL_SIZE_W
+        BookAttackEffect(explosion_center, self.all_sprites, pixel_radius * 2)
         for enemy in self.enemies_group:
-            if pygame.math.Vector2(enemy.rect.center).distance_to(explosion_center) <= self.explosion_radius:
+            if pygame.math.Vector2(enemy.rect.center).distance_to(explosion_center) <= pixel_radius:
                 enemy.get_hit(damage)
 
 
 class CoffeeMachine(Defender):
-    def __init__(self, x, y, groups, data, all_sprites, coffee_bean_group):
-        super().__init__(x, y, groups, data)
+    def __init__(self, x, y, groups, data, sound_manager, all_sprites, coffee_bean_group):
+        super().__init__(x, y, groups, data, sound_manager)
         self.all_sprites = all_sprites
         self.coffee_bean_group = coffee_bean_group
         self.production_cooldown = self.data['cooldown'] * 1000
@@ -236,15 +235,15 @@ class CoffeeMachine(Defender):
 
 
 class Activist(Defender):
-    def __init__(self, x, y, groups, data, all_sprites):
-        super().__init__(x, y, groups, data)
+    def __init__(self, x, y, groups, data, sound_manager, all_sprites):
+        super().__init__(x, y, groups, data, sound_manager)
         self.all_sprites = all_sprites
         AuraEffect((self.all_sprites,), self)
 
 
 class Guitarist(Defender):
-    def __init__(self, x, y, groups, data, all_sprites, enemies_group):
-        super().__init__(x, y, groups, data)
+    def __init__(self, x, y, groups, data, sound_manager, all_sprites, enemies_group):
+        super().__init__(x, y, groups, data, sound_manager)
         self.all_sprites = all_sprites
         self.enemies_group = enemies_group
         self.attack_cooldown = self.data['cooldown'] * 1000
@@ -266,8 +265,8 @@ class Guitarist(Defender):
 
 
 class Medic(Defender):
-    def __init__(self, x, y, groups, data, defenders_group):
-        super().__init__(x, y, groups, data)
+    def __init__(self, x, y, groups, data, sound_manager, defenders_group):
+        super().__init__(x, y, groups, data, sound_manager)
         self.defenders_group = defenders_group
         self.heal_pool = self.data['heal_amount']
         self.heal_radius = self.data['radius']
@@ -289,12 +288,11 @@ class Medic(Defender):
             self.kill()
 
     def find_most_wounded_ally_in_range(self):
-        most_wounded = None
-        min_health_ratio = 1.0
+        pixel_radius = self.heal_radius * CELL_SIZE_W
         allies_in_range = [
             d for d in self.defenders_group
             if d.alive() and d is not self and d.health < d.max_health and
-               pygame.math.Vector2(self.rect.center).distance_to(d.rect.center) <= self.heal_radius
+               pygame.math.Vector2(self.rect.center).distance_to(d.rect.center) <= pixel_radius
         ]
         if not allies_in_range:
             return None
@@ -309,8 +307,8 @@ class Medic(Defender):
 
 
 class Artist(Defender):
-    def __init__(self, x, y, groups, data, all_sprites, projectile_group, enemies_group):
-        super().__init__(x, y, groups, data)
+    def __init__(self, x, y, groups, data, sound_manager, all_sprites, projectile_group, enemies_group):
+        super().__init__(x, y, groups, data, sound_manager)
         self.all_sprites = all_sprites
         self.projectile_group = projectile_group
         self.enemies_group = enemies_group
@@ -330,8 +328,8 @@ class Artist(Defender):
 
 
 class Fashionista(Defender):
-    def __init__(self, x, y, groups, data, all_sprites, enemies_group):
-        super().__init__(x, y, groups, data)
+    def __init__(self, x, y, groups, data, sound_manager, all_sprites, enemies_group):
+        super().__init__(x, y, groups, data, sound_manager)
         self.all_sprites = all_sprites
         self.enemies_group = enemies_group
         self.speed = data['speed']
@@ -369,10 +367,11 @@ class Fashionista(Defender):
         return closest_enemy
 
     def explode(self):
-        if SOUNDS.get('explosion'):
-            SOUNDS['explosion'].play()
-        ExplosionEffect(self.rect.center, self.explosion_radius, self.all_sprites)
+        self.sound_manager.play_sfx('explosion')
+
+        pixel_radius = self.explosion_radius * CELL_SIZE_W
+        ExplosionEffect(self.rect.center, pixel_radius, self.all_sprites)
         for enemy in self.enemies_group:
-            if pygame.math.Vector2(self.rect.center).distance_to(enemy.rect.center) <= self.explosion_radius:
+            if pygame.math.Vector2(self.rect.center).distance_to(enemy.rect.center) <= pixel_radius:
                 enemy.get_hit(self.damage)
         self.kill()

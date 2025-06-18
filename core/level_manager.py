@@ -8,13 +8,14 @@ from data.settings import *
 
 
 class LevelManager:
-    def __init__(self, level_id, enemy_group, all_sprites_group):
+    def __init__(self, level_id, enemy_group, all_sprites_group, sound_manager=None):
         self.level_data = LEVELS.get(level_id, LEVELS[1])
         self.enemy_spawn_list = self.level_data['enemies'].copy()
         random.shuffle(self.enemy_spawn_list)
 
         self.enemy_group = enemy_group
         self.all_sprites_group = all_sprites_group
+        self.sound_manager = sound_manager
         self.calamities = self.level_data.get('calamities', [])
 
         self.is_running = False
@@ -86,9 +87,9 @@ class LevelManager:
         enemy_class = enemy_map.get(enemy_type)
 
         if enemy_class:
-            enemy_class(row, groups)
+            enemy_class(row, groups, self.sound_manager)
         else:
-            Enemy(row, groups, enemy_type)
+            Enemy(row, groups, enemy_type, self.sound_manager)
 
     def is_complete(self):
         all_spawned = len(self.enemy_spawn_list) == 0

@@ -25,36 +25,29 @@ class CoffeeBean(BaseSprite):
 
 class AuraEffect(BaseSprite):
     def __init__(self, groups, parent):
-        # Не добавляем сразу в группу, чтобы контролировать слой
         super().__init__()
         self.parent = parent
         self.groups_tuple = groups
-
         self.radius = self.parent.data['radius']
-
         self.animations = []
         self.load_animations()
-
         self.frame_index = 0
         self.image = self.animations[0]
         self.rect = self.image.get_rect(center=self.parent.rect.center)
-
         self.anim_speed = 0.1
         self.last_anim_update = pygame.time.get_ticks()
-
-        # Устанавливаем слой и добавляем в группы
         self._layer = self.parent._layer - 1
         self.add(self.groups_tuple)
 
     def load_animations(self):
-        size = (self.radius * 2, self.radius * 2)
+        pixel_radius = self.radius * CELL_SIZE_W
+        size = (pixel_radius * 2, pixel_radius * 2)
         path = os.path.join(IMAGES_DIR, 'effects', 'activist_aura')
         if os.path.exists(path):
             filenames = sorted([f for f in os.listdir(path) if f.startswith('aura_') and f.endswith('.png')])
             for filename in filenames:
                 img_path = os.path.join('effects', 'activist_aura', filename)
                 self.animations.append(load_image(img_path, (0, 0, 0, 0), size))
-
         if not self.animations:
             fallback_surface = pygame.Surface(size, pygame.SRCALPHA)
             fallback_surface.fill((0, 0, 0, 0))
@@ -64,16 +57,12 @@ class AuraEffect(BaseSprite):
         if not self.parent.alive():
             self.kill()
             return
-
         now = pygame.time.get_ticks()
         if now - self.last_anim_update > self.anim_speed * 1000:
             self.last_anim_update = now
             self.frame_index = (self.frame_index + 1) % len(self.animations)
             self.image = self.animations[self.frame_index]
-
         self.rect.center = self.parent.rect.center
-
-        # Чтобы слой корректно обновлялся, нужно передобавить спрайт в группу
         if self._layer != self.parent._layer - 1:
             self.remove(self.groups_tuple)
             self._layer = self.parent._layer - 1
@@ -85,12 +74,10 @@ class CalamityAuraEffect(BaseSprite):
         super().__init__()
         self.parent = parent
         self.groups_tuple = groups
-
         path = os.path.join('effects', f'{calamity_type}_aura.png')
         size = (CELL_SIZE_W + 10, CELL_SIZE_H + 20)
         self.image = load_image(path, (0, 0, 0, 0), size)
         self.rect = self.image.get_rect(center=self.parent.rect.center)
-
         self._layer = self.parent._layer - 1
         self.add(self.groups_tuple)
 
@@ -98,18 +85,19 @@ class CalamityAuraEffect(BaseSprite):
         if not self.parent.alive():
             self.kill()
             return
-
         self.rect.center = self.parent.rect.center
-
         if self._layer != self.parent._layer - 1:
             self.remove(self.groups_tuple)
             self._layer = self.parent._layer - 1
             self.add(self.groups_tuple)
 
 
+# entities/other_sprites.py
+
 class NeuroMower(BaseSprite):
-    def __init__(self, row, groups, mower_type):
+    def __init__(self, row, groups, mower_type, sound_manager):
         super().__init__(groups)
+        self.sound_manager = sound_manager
         self.mower_type = mower_type
         self.data = NEURO_MOWERS_DATA[mower_type]
         self.image = load_image(f'systems/{mower_type}.png', DEFAULT_COLORS[mower_type],
@@ -122,9 +110,9 @@ class NeuroMower(BaseSprite):
     def activate(self, enemies_group):
         if self.is_active: return
         self.is_active = True
+        self.sound_manager.play_sfx('tuning') # Добавляем звук активации
 
         if self.mower_type == 'deepseek':
-            # Фильтруем врагов, чтобы не было ошибки, если их меньше 3
             targets = sorted(list(enemies_group), key=lambda e: e.rect.left)[:3]
             for enemy in targets:
                 enemy.kill()
@@ -141,6 +129,7 @@ class NeuroMower(BaseSprite):
 
             enemies_on_line = kwargs.get('enemies_group')
             if enemies_on_line:
+                # Враги умирают и проигрывают звук смерти через свой собственный метод kill
                 pygame.sprite.spritecollide(self, enemies_on_line, True)
 
         elif self.is_active and self.mower_type != 'chat_gpt':

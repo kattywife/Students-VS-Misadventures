@@ -3,15 +3,15 @@
 import pygame
 import random
 from data.settings import *
-from data.assets import SOUNDS
 from data.levels import LEVELS
 
 
 class PrepManager:
-    def __init__(self, ui_manager, stipend, level_id):
+    def __init__(self, ui_manager, stipend, level_id, sound_manager):
         self.ui_manager = ui_manager
         self.stipend = stipend
         self.level_id = level_id
+        self.sound_manager = sound_manager
         self.level_data = LEVELS.get(level_id, LEVELS[1])
 
         self.team_slots = MAX_TEAM_SIZE
@@ -34,7 +34,7 @@ class PrepManager:
             self.handle_click(event.pos)
 
     def randomize_team(self):
-        if SOUNDS.get('taking'): SOUNDS['taking'].play()
+        self.sound_manager.play_sfx('taking')
         for hero_type, upgraded_stats in self.upgrades.items():
             for stat in upgraded_stats:
                 cost = DEFENDERS_DATA[hero_type]['upgrades'][stat]['cost']
@@ -46,7 +46,7 @@ class PrepManager:
         self.team = available_heroes[:self.team_slots]
 
     def randomize_neuro(self):
-        if SOUNDS.get('taking'): SOUNDS['taking'].play()
+        self.sound_manager.play_sfx('taking')
         for mower_type in self.purchased_mowers:
             self.stipend += NEURO_MOWERS_DATA[mower_type]['cost']
         self.purchased_mowers.clear()
@@ -72,18 +72,18 @@ class PrepManager:
             for key, rect in self.info_panel_buttons.items():
                 if rect.collidepoint(pos):
                     if key.startswith('upgrade_'):
-                        # FIX: Корректно извлекаем название стата, даже если в нём есть '_'
                         stat_to_upgrade = key.split('_', 1)[1]
                         self.try_upgrade_hero(card_type, stat_to_upgrade)
                         return
                     if key.startswith('revert_'):
-                        # FIX: Корректно извлекаем название стата, даже если в нём есть '_'
                         stat_to_revert = key.split('_', 1)[1]
                         self.revert_upgrade(card_type, stat_to_revert)
                         return
 
             if 'close' in self.info_panel_buttons and self.info_panel_buttons['close'].collidepoint(pos):
-                if SOUNDS.get('cards'): SOUNDS['cards'].play(); self.selected_card_info = None; return
+                self.sound_manager.play_sfx('cards');
+                self.selected_card_info = None;
+                return
             if 'take' in self.info_panel_buttons and self.info_panel_buttons['take'].collidepoint(pos):
                 self.try_take_card(card_type);
                 self.selected_card_info = None;
@@ -109,7 +109,6 @@ class PrepManager:
         for source, group in all_clickable_cards_with_source.items():
             for card_key, rect in group.items():
                 if rect.collidepoint(pos):
-                    # FIX: Новая, более надежная логика извлечения базового имени юнита
                     key_parts = card_key.split('_')
                     base_type = card_key
                     if len(key_parts) > 1 and key_parts[-1].isdigit():
@@ -121,17 +120,20 @@ class PrepManager:
     def try_take_card(self, card_type):
         if card_type in self.all_defenders:
             if len(self.team) < self.team_slots and card_type not in self.team:
-                if SOUNDS.get('taking'): SOUNDS['taking'].play(); self.team.append(card_type)
+                self.sound_manager.play_sfx('taking');
+                self.team.append(card_type)
         elif card_type in self.all_neuro_mowers:
             if len(self.purchased_mowers) >= self.neuro_mower_slots: return
             if card_type == 'chat_gpt' and self.purchased_mowers.count('chat_gpt') >= self.chat_gpt_limit: return
             cost = NEURO_MOWERS_DATA[card_type]['cost']
             if self.stipend >= cost:
-                if SOUNDS.get('taking'): SOUNDS['taking'].play(); self.stipend -= cost; self.purchased_mowers.append(
+                self.sound_manager.play_sfx('taking');
+                self.stipend -= cost;
+                self.purchased_mowers.append(
                     card_type)
 
     def kick_unit_from_team(self, unit_type):
-        if SOUNDS.get('taking'): SOUNDS['taking'].play()
+        self.sound_manager.play_sfx('taking')
         if unit_type in self.team:
             self.team.remove(unit_type)
             if unit_type in self.upgrades:
@@ -140,14 +142,13 @@ class PrepManager:
                     self.stipend += cost
                 del self.upgrades[unit_type]
         elif unit_type in self.purchased_mowers:
-            # Нужно найти первое вхождение и удалить его, чтобы не удалить не ту нейронку
             try:
                 index_to_remove = self.purchased_mowers.index(unit_type)
                 self.purchased_mowers.pop(index_to_remove)
                 cost = NEURO_MOWERS_DATA[unit_type].get('cost', 0)
                 self.stipend += cost
             except ValueError:
-                pass # Если по какой-то причине юнита нет в списке
+                pass
 
     def try_upgrade_hero(self, hero_type, stat):
         upgrade_info = DEFENDERS_DATA[hero_type].get('upgrades', {}).get(stat)
@@ -155,7 +156,7 @@ class PrepManager:
 
         cost = upgrade_info['cost']
         if self.stipend >= cost:
-            if SOUNDS.get('tuning'): SOUNDS['tuning'].play()
+            self.sound_manager.play_sfx('tuning')
             self.stipend -= cost
             if hero_type not in self.upgrades:
                 self.upgrades[hero_type] = set()
@@ -163,7 +164,7 @@ class PrepManager:
 
     def revert_upgrade(self, hero_type, stat):
         if hero_type in self.upgrades and stat in self.upgrades[hero_type]:
-            if SOUNDS.get('tuning'): SOUNDS['tuning'].play()
+            self.sound_manager.play_sfx('tuning')
             self.upgrades[hero_type].remove(stat)
             if not self.upgrades[hero_type]:
                 del self.upgrades[hero_type]
@@ -172,7 +173,7 @@ class PrepManager:
             self.stipend += cost
 
     def show_card_info(self, card_type, source):
-        if SOUNDS.get('cards'): SOUNDS['cards'].play()
+        self.sound_manager.play_sfx('cards')
         data_source = {}
         if card_type in DEFENDERS_DATA:
             data_source = DEFENDERS_DATA

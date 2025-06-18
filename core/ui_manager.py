@@ -2,7 +2,7 @@
 
 import pygame
 from data.settings import *
-from data.assets import CARD_IMAGES, load_image
+from data.assets import CARD_IMAGES, load_image, UI_IMAGES
 from data.levels import LEVELS
 from core.level_manager import LevelManager
 
@@ -146,6 +146,44 @@ class UIManager:
             text = self.font.render(name, True, WHITE);
             surface.blit(text, text.get_rect(center=rect.center))
 
+    def draw_settings_menu(self, surface, music_enabled, sfx_enabled):
+        panel_w, panel_h = 600, 400
+        panel_rect = pygame.Rect((SCREEN_WIDTH - panel_w) / 2, (SCREEN_HEIGHT - panel_h) / 2, panel_w, panel_h)
+        pygame.draw.rect(surface, DEFAULT_COLORS['shop_panel'], panel_rect, border_radius=15)
+        pygame.draw.rect(surface, WHITE, panel_rect, 3, border_radius=15)
+
+        title_surf = self.font_large.render("Настройки", True, WHITE)
+        surface.blit(title_surf, title_surf.get_rect(centerx=panel_rect.centerx, top=panel_rect.top + 30))
+
+        buttons = {}
+
+        # --- Отрисовка переключателя музыки ---
+        music_label_surf = self.font.render("Фоновая музыка", True, WHITE)
+        music_label_rect = music_label_surf.get_rect(midleft=(panel_rect.left + 50, panel_rect.centery - 50))
+        surface.blit(music_label_surf, music_label_rect)
+
+        music_toggle_img = UI_IMAGES['toggle_on'] if music_enabled else UI_IMAGES['toggle_off']
+        music_toggle_rect = music_toggle_img.get_rect(midright=(panel_rect.right - 50, music_label_rect.centery))
+        surface.blit(music_toggle_img, music_toggle_rect)
+        buttons['toggle_music'] = music_toggle_rect
+
+        # --- Отрисовка переключателя звуковых эффектов ---
+        sfx_label_surf = self.font.render("Звуковые эффекты", True, WHITE)
+        sfx_label_rect = sfx_label_surf.get_rect(midleft=(panel_rect.left + 50, panel_rect.centery + 50))
+        surface.blit(sfx_label_surf, sfx_label_rect)
+
+        sfx_toggle_img = UI_IMAGES['toggle_on'] if sfx_enabled else UI_IMAGES['toggle_off']
+        sfx_toggle_rect = sfx_toggle_img.get_rect(midright=(panel_rect.right - 50, sfx_label_rect.centery))
+        surface.blit(sfx_toggle_img, sfx_toggle_rect)
+        buttons['toggle_sfx'] = sfx_toggle_rect
+
+        close_rect = pygame.Rect(panel_rect.right - 45, panel_rect.top + 10, 35, 35)
+        pygame.draw.line(surface, WHITE, close_rect.topleft, close_rect.bottomright, 3)
+        pygame.draw.line(surface, WHITE, close_rect.topright, close_rect.bottomleft, 3)
+        buttons['close'] = close_rect
+
+        return buttons
+
     def draw_main_menu(self, surface, max_level_unlocked):
         panel_rect = pygame.Rect(100, (SCREEN_HEIGHT - 600) / 2, 500, 600)
         pygame.draw.rect(surface, DEFAULT_COLORS['shop_panel'], panel_rect, border_radius=15);
@@ -198,7 +236,7 @@ class UIManager:
         surface.fill(DEFAULT_COLORS['background'])
 
         random_buttons = self._draw_team_panel(surface, self.team_panel_rect, team,
-                                                                     upgrades, purchased_mowers, neuro_slots)
+                                               upgrades, purchased_mowers, neuro_slots)
         self.selection_cards_rects = self._draw_selection_panel(surface, self.selection_panel_rect, upgrades,
                                                                 current_team, current_mowers)
         self.plan_cards_rects = self._draw_plan_panel(surface, self.plan_panel_rect, level_id)
@@ -226,6 +264,7 @@ class UIManager:
                                                         upgrades, purchased_mowers, neuro_slots)
 
         return prep_buttons, random_buttons, info_buttons
+
     def _draw_unit_card(self, surface, unit_type, rect, data, is_upgraded=False, is_selected=False):
         pygame.draw.rect(surface, DEFAULT_COLORS['shop_card'], rect, border_radius=10)
         if is_upgraded:
@@ -263,9 +302,6 @@ class UIManager:
 
     def _draw_team_panel(self, surface, panel_rect, team, upgrades, purchased_mowers, neuro_slots):
         self._draw_panel_with_title(surface, panel_rect, "Твоя команда")
-        # БЫЛО:
-        # team_card_rects, random_buttons = {}, {}
-        # СТАЛО (убираем лишнюю локальную переменную):
         random_buttons = {}
 
         hero_slots_bottom_y = self._render_hero_slots(surface, panel_rect, team, upgrades)
@@ -279,8 +315,8 @@ class UIManager:
         random_neuro_rect.center = (panel_rect.centerx, neuro_slots_bottom_y + 30)
         self._draw_button(surface, "Случайные нейросети", random_neuro_rect, BLUE, WHITE)
         random_buttons['neuro'] = random_neuro_rect
-
         return random_buttons
+
     def _render_hero_slots(self, surface, panel_rect, team, upgrades):
         self._render_text_with_title(surface, "Одногруппники:", self.font_small, YELLOW, panel_rect.centerx,
                                      panel_rect.top + 70)
@@ -314,7 +350,6 @@ class UIManager:
             if i < len(purchased_mowers):
                 mower_type = purchased_mowers[i]
                 self._draw_unit_card(surface, mower_type, rect, NEURO_MOWERS_DATA[mower_type])
-                # FIX: Создаем уникальный ключ для каждой карточки, чтобы можно было кликнуть на дубликаты
                 unique_key = f"{mower_type}_{i}"
                 self.team_card_rects[unique_key] = rect
             else:
@@ -337,7 +372,7 @@ class UIManager:
 
     def _draw_plan_panel(self, surface, panel_rect, level_id):
         self._draw_panel_with_title(surface, panel_rect, "Учебный план")
-        temp_level_manager = LevelManager(level_id, None, None)
+        temp_level_manager = LevelManager(level_id, None, None, None)
         enemy_types = temp_level_manager.get_enemy_types_for_level();
         calamity_types = temp_level_manager.get_calamity_types_for_level()
         self._render_text_with_title(surface, "Ожидаемые враги:", self.font_small, WHITE, panel_rect.centerx,
@@ -357,7 +392,6 @@ class UIManager:
 
         card_size, padding, cols = 80, 15, 4
 
-        # FIX: Центрирование карточек
         items_in_row = min(len(types), cols)
         total_width = items_in_row * card_size + (items_in_row - 1) * padding
         start_x_base = panel_rect.left + (panel_rect.width - total_width) / 2
@@ -369,7 +403,6 @@ class UIManager:
             card_rect = pygame.Rect(x, y, card_size, card_size)
             if item_type in data_source:
                 is_upgraded = upgrades and item_type in upgrades
-                # FIX: Проверка, выбрана ли карточка
                 is_selected = (current_team and item_type in current_team) or \
                               (current_mowers and item_type in current_mowers)
                 self._draw_unit_card(surface, item_type, card_rect, data_source[item_type], is_upgraded, is_selected)
@@ -426,7 +459,6 @@ class UIManager:
         line_height, line_y = 35, start_y
 
         for key, title in STAT_DISPLAY_NAMES.items():
-            # FIX: Прекращаем рисовать, если выходим за пределы панели
             if line_y > self.desc_panel_rect.bottom - 150:
                 break
             if key in unit_data:
@@ -457,7 +489,7 @@ class UIManager:
             base_value += unit_data['upgrades'][key]['value']
             value_color = AURA_PINK
         if key == 'radius':
-            value_str = f"{round(base_value / CELL_SIZE_W, 1)} кл."
+            value_str = f"{base_value} кл."
         elif key == "slow_factor":
             value_str = f"{1 - base_value:.0%}"
         elif key == "slow_duration":
@@ -482,6 +514,7 @@ class UIManager:
         else:
             bonus = upgrade_info['value']
             bonus_str = f"+{bonus:.1f}".replace('.0', '') if bonus > 0 else f"{bonus:.1f}".replace('.0', '')
+            if key == 'radius': bonus_str = f"+{int(bonus)}"
             btn_text = f"Улучшить ({bonus_str}) ({cost}$)"
             btn_rect = pygame.Rect(0, 0, 250, line_height - 5)
             btn_rect.midleft = (right_margin - btn_rect.width, line_y + line_height / 2)

@@ -3,8 +3,7 @@
 import pygame
 import random
 from data.settings import *
-from data.assets import SOUNDS, load_image
-from data.assets import SOUNDS
+from data.assets import load_image
 from entities.defenders import Defender, ProgrammerBoy, BotanistGirl, CoffeeMachine, Activist, Guitarist, Medic, Artist, \
     Fashionista
 from entities.enemies import Enemy, StuffyProf
@@ -14,7 +13,7 @@ from entities.other_sprites import NeuroMower, CoffeeBean
 
 class BattleManager:
     def __init__(self, all_sprites, defenders, enemies, projectiles, coffee_beans, neuro_mowers, ui_manager,
-                 level_manager, team, upgrades, placed_mowers):
+                 level_manager, sound_manager, team, upgrades, placed_mowers):
         self.all_sprites = all_sprites;
         self.defenders = defenders;
         self.enemies = enemies;
@@ -23,6 +22,7 @@ class BattleManager:
         self.neuro_mowers = neuro_mowers;
         self.ui_manager = ui_manager
         self.level_manager = level_manager;
+        self.sound_manager = sound_manager
         self.is_game_over = False;
         self.team_data = team
         self.upgrades = upgrades;
@@ -49,7 +49,7 @@ class BattleManager:
 
     def place_neuro_mowers(self):
         for row, mower_type in self.placed_mowers_data.items():
-            NeuroMower(row, (self.all_sprites, self.neuro_mowers), mower_type)
+            NeuroMower(row, (self.all_sprites, self.neuro_mowers), mower_type, self.sound_manager)
 
     def handle_event(self, event):
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
@@ -62,12 +62,12 @@ class BattleManager:
     def handle_click(self, pos):
         clicked_shop_item = self.ui_manager.handle_shop_click(pos)
         if clicked_shop_item:
-            if SOUNDS.get('purchase'): SOUNDS['purchase'].play()
+            self.sound_manager.play_sfx('purchase')
             self.selected_defender = clicked_shop_item if self.selected_defender != clicked_shop_item else None
             return
         for bean in list(self.coffee_beans):
             if bean.alive() and bean.rect.collidepoint(pos):
-                if SOUNDS.get('money'): SOUNDS['money'].play()
+                self.sound_manager.play_sfx('money')
                 self.coffee += bean.value;
                 bean.kill();
                 return
@@ -93,7 +93,7 @@ class BattleManager:
         return any(d.alive() and d.rect.collidepoint(center_x, center_y) for d in self.defenders)
 
     def _place_defender(self, grid_pos):
-        if SOUNDS.get('purchase'): SOUNDS['purchase'].play()
+        self.sound_manager.play_sfx('purchase')
         col, row = grid_pos
         x = GRID_START_X + col * CELL_SIZE_W + CELL_SIZE_W / 2;
         y = GRID_START_Y + row * CELL_SIZE_H + CELL_SIZE_H / 2
@@ -112,7 +112,7 @@ class BattleManager:
                     'activist': Activist, 'guitarist': Guitarist, 'medic': Medic, 'artist': Artist,
                     'modnik': Fashionista}
         constructor = unit_map[defender_type];
-        common_args = {'x': x, 'y': y, 'groups': groups, 'data': data}
+        common_args = {'x': x, 'y': y, 'groups': groups, 'data': data, 'sound_manager': self.sound_manager}
 
         specific_args = {'programmer': {'all_sprites': self.all_sprites, 'projectile_group': self.projectiles,
                                         'enemies_group': self.enemies},
@@ -132,18 +132,15 @@ class BattleManager:
         now = pygame.time.get_ticks()
         enemies_before_update = len(self.enemies)
 
-        # Обновляем спрайты
         self.all_sprites.update(self.defenders, self.all_sprites, self.projectiles, enemies_group=self.enemies)
         self.apply_auras();
         self.check_collisions()
         self._check_calamity_triggers(now)
 
-        # Убитые враги
         enemies_after_update = len(self.enemies)
         killed_this_frame = enemies_before_update - enemies_after_update
         for _ in range(killed_this_frame): self.level_manager.enemy_killed()
 
-        # Спавн новых врагов и применение к ним эффектов
         enemies_before_spawn = set(self.enemies.sprites())
         self.level_manager.update()
         enemies_after_spawn = set(self.enemies.sprites())
@@ -153,7 +150,6 @@ class BattleManager:
             for enemy in newly_spawned:
                 enemy.apply_calamity_effect(self.active_calamity)
 
-        # Проверка на проигрыш (враги дошли до конца)
         for enemy in list(self.enemies):
             if enemy.alive() and enemy.rect.right < GRID_START_X:
                 mower_activated = False
@@ -171,7 +167,6 @@ class BattleManager:
                         break
                 if not mower_activated: self.is_game_over = True; return
 
-        # Таймеры уведомлений и напастей
         if self.calamity_notification and now > self.calamity_notification_timer: self.calamity_notification = None
         if self.active_calamity and now > self.calamity_end_time: self._end_calamity()
 
@@ -189,7 +184,7 @@ class BattleManager:
         self.active_calamity = self.pending_calamities.pop()
         calamity_data = CALAMITIES_DATA[self.active_calamity]
 
-        if SOUNDS.get('misfortune'): SOUNDS['misfortune'].play()
+        self.sound_manager.play_sfx('misfortune')
 
         self.calamity_notification = {'type': self.active_calamity, 'name': calamity_data['display_name'],
                                       'desc': calamity_data['description']}
@@ -203,9 +198,8 @@ class BattleManager:
                 heroes_to_remove = random.sample(heroes_to_consider, k=min(num_to_remove, len(heroes_to_consider)))
                 for hero in heroes_to_remove:
                     hero.kill()
-            self.active_calamity = None  # Эффект мгновенный, состояние не сохраняем
+            self.active_calamity = None
         else:
-            # Применяем эффекты ко всем существующим спрайтам
             for sprite in self.all_sprites:
                 if hasattr(sprite, 'apply_calamity_effect'): sprite.apply_calamity_effect(self.active_calamity)
 
@@ -224,7 +218,7 @@ class BattleManager:
             if not isinstance(proj, Integral):
                 debuff = 1.0
                 for prof in professors:
-                    aura_rect = prof.rect.inflate(prof.data['radius'], prof.data['radius'])
+                    aura_rect = prof.rect.inflate(prof.data['radius'] * CELL_SIZE_W, prof.data['radius'] * CELL_SIZE_W)
                     if aura_rect.colliderect(proj.rect):
                         debuff = prof.data['debuff']
                         break
@@ -258,8 +252,7 @@ class BattleManager:
 
         for activist in [s for s in self.defenders if isinstance(s, Activist) and s.alive()]:
             for defender in self.defenders:
-                if pygame.math.Vector2(activist.rect.center).distance_to(defender.rect.center) < activist.data[
-                    'radius']:
+                if pygame.math.Vector2(activist.rect.center).distance_to(defender.rect.center) < activist.data['radius'] * CELL_SIZE_W:
                     defender.buff_multiplier *= activist.data['buff']
 
     def draw(self, surface):

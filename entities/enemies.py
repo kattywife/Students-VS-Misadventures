@@ -4,8 +4,7 @@ import pygame
 import random
 import os
 from data.settings import *
-from data.assets import load_image, SOUNDS, PROJECTILE_IMAGES
-from data.settings import CALCULUS_PROJECTILE_TYPES
+from data.assets import load_image, PROJECTILE_IMAGES
 from entities.base_sprite import BaseSprite
 from entities.projectiles import Integral
 from entities.defenders import CoffeeMachine
@@ -13,8 +12,9 @@ from entities.other_sprites import CalamityAuraEffect
 
 
 class Enemy(BaseSprite):
-    def __init__(self, row, groups, enemy_type):
+    def __init__(self, row, groups, enemy_type, sound_manager):
         super().__init__(groups)
+        self.sound_manager = sound_manager
         self.data = ENEMIES_DATA[enemy_type]
         self.enemy_type = enemy_type
         self.max_health = self.data['health']
@@ -37,7 +37,7 @@ class Enemy(BaseSprite):
         self.rect = self.image.get_rect(center=(SCREEN_WIDTH, y))
         self._layer = self.rect.bottom
 
-        self.anim_speed = self.data.get('animation_data', {}).get('speed', 0.2)
+        self.anim_speed = self.data.get('animation_data', {}).get('speed', 0.3)
         self.last_anim_update = pygame.time.get_ticks()
 
         self.attack_cooldown = self.data['cooldown'] * 1000 if self.data['cooldown'] else 1000
@@ -103,7 +103,7 @@ class Enemy(BaseSprite):
 
     def get_hit(self, damage):
         self.health -= damage
-        if SOUNDS.get('damage'): SOUNDS['damage'].play()
+        self.sound_manager.play_sfx('damage') # Используем self.sound_manager, который уже есть
         if 'hit' in self.animations and self.animations['hit']:
             self.set_animation('hit')
 
@@ -130,9 +130,26 @@ class Enemy(BaseSprite):
             self.aura_effect.kill()
             self.aura_effect = None
 
-    def update_movement(self, target_found):
-        if not target_found:
-            self.rect.x -= self.speed
+    def get_melee_target(self, defenders_group):
+        for defender in defenders_group:
+            if defender.alive() and self.rect.colliderect(defender.rect) and defender.rect.centery == self.rect.centery:
+                return defender
+        return None
+
+    def perform_melee_attack(self, target):
+        self.is_attacking = True
+        if self.current_target != target:
+            if self.current_target:
+                self.current_target.is_being_eaten = False
+            self.current_target = target
+
+        self.current_target.is_being_eaten = True
+
+        now = pygame.time.get_ticks()
+        if now - self.last_attack_time > self.attack_cooldown:
+            self.sound_manager.play_sfx('eating')
+            self.last_attack_time = now
+            target.health -= self.damage * self.damage_multiplier
 
     def update(self, defenders_group, *args, **kwargs):
         self.animate()
@@ -146,36 +163,16 @@ class Enemy(BaseSprite):
             self.speed = self.original_speed
             self.is_slowed = False
 
-        target_found = self.find_and_attack_target(defenders_group)
-        if not target_found:
+        target = self.get_melee_target(defenders_group)
+        if target:
+            self.perform_melee_attack(target)
+        else:
             self.is_attacking = False
             self.stop_eating_sound()
             if self.current_target:
                 self.current_target.is_being_eaten = False
                 self.current_target = None
-
-        self.update_movement(target_found)
-
-    def find_and_attack_target(self, defenders_group):
-        collided_defenders = [d for d in defenders_group if
-                              self.rect.colliderect(d.rect) and d.rect.centery == self.rect.centery]
-        if not collided_defenders:
-            return False
-
-        target = collided_defenders[0]
-        self.is_attacking = True
-        if self.current_target != target:
-            if self.current_target:
-                self.current_target.is_being_eaten = False
-            self.current_target = target
-        self.current_target.is_being_eaten = True
-
-        now = pygame.time.get_ticks()
-        if now - self.last_attack_time > self.attack_cooldown:
-            self.play_eating_sound()
-            self.last_attack_time = now
-            target.health -= self.damage * self.damage_multiplier
-        return True
+            self.rect.x -= self.speed
 
     def kill(self):
         if self.alive():
@@ -183,24 +180,20 @@ class Enemy(BaseSprite):
                 self.aura_effect.kill()
                 self.aura_effect = None
 
-            if SOUNDS.get('enemy_dead'):
-                SOUNDS['enemy_dead'].play()
+            self.sound_manager.play_sfx('enemy_dead')
             self.stop_eating_sound()
             if self.current_target:
                 self.current_target.is_being_eaten = False
             super().kill()
 
     def play_eating_sound(self):
-        eating_sound = SOUNDS.get('eating')
-        if eating_sound and not (self.eating_channel and self.eating_channel.get_busy()):
-            self.eating_channel = pygame.mixer.find_channel()
-            if self.eating_channel:
-                self.eating_channel.play(eating_sound)
+        # Этот метод больше не нужен, так как звук проигрывается через sound_manager
+        # но оставим его для совместимости, если где-то остался вызов
+        self.sound_manager.play_sfx('eating')
 
     def stop_eating_sound(self):
-        if self.eating_channel:
-            self.eating_channel.stop()
-            self.eating_channel = None
+        # Этот метод больше не нужен
+        pass
 
     def slow_down(self, factor, duration):
         if not self.is_slowed:
@@ -210,8 +203,8 @@ class Enemy(BaseSprite):
 
 
 class Calculus(Enemy):
-    def __init__(self, row, groups):
-        super().__init__(row, groups, 'calculus')
+    def __init__(self, row, groups, sound_manager):
+        super().__init__(row, groups, 'calculus', sound_manager)
         self.last_shot = pygame.time.get_ticks()
 
     def update(self, defenders_group, all_sprites, projectiles, *args, **kwargs):
@@ -235,13 +228,16 @@ class Calculus(Enemy):
 
 
 class StuffyProf(Enemy):
-    def __init__(self, row, groups):
-        super().__init__(row, groups, 'professor')
+    def __init__(self, row, groups, sound_manager):
+        super().__init__(row, groups, 'professor', sound_manager)
+
+    def update(self, defenders_group, *args, **kwargs):
+        super().update(defenders_group, *args, **kwargs)
 
 
 class MathTeacher(Enemy):
-    def __init__(self, row, groups):
-        super().__init__(row, groups, 'math_teacher')
+    def __init__(self, row, groups, sound_manager):
+        super().__init__(row, groups, 'math_teacher', sound_manager)
         self.has_jumped = False
 
     def update(self, defenders_group, *args, **kwargs):
@@ -256,8 +252,8 @@ class MathTeacher(Enemy):
 
 
 class Addict(Enemy):
-    def __init__(self, row, groups, enemy_type='addict'):
-        super().__init__(row, groups, enemy_type)
+    def __init__(self, row, groups, sound_manager):
+        super().__init__(row, groups, 'addict', sound_manager)
         self.state = 'SEEKING'
         self.target_defender = None
         self.victim = None
@@ -297,12 +293,12 @@ class Addict(Enemy):
                 self.victim.is_being_eaten = True
 
         elif self.state == 'GRABBING':
-            self.victim.rect.center = self.rect.center
+            self.victim.rect.midleft = self.rect.midright
             self.state = 'ESCAPING'
 
         elif self.state == 'ESCAPING':
             self.rect.x += self.speed * 2
-            self.victim.rect.center = self.rect.center
+            self.victim.rect.midleft = self.rect.midright
             if self.rect.left > SCREEN_WIDTH:
                 self.victim.kill()
                 self.kill()
@@ -310,15 +306,15 @@ class Addict(Enemy):
     def kill(self):
         if hasattr(self, 'victim') and self.victim:
             self.victim.is_being_eaten = False
-        super().kill()
+        super(Enemy, self).kill()
 
 
 class Thief(Enemy):
-    def __init__(self, row, groups):
-        super().__init__(row, groups, 'thief')
-        self.state = 'INITIALIZING'  # Состояния: INITIALIZING, SEEKING_MACHINE, CHASING_MACHINE, GRABBING_MACHINE, ESCAPING, BASIC_ATTACK_MODE, ESCAPING_EMPTY
-        self.target_machine = None
-        self.has_stolen = False
+    def __init__(self, row, groups, sound_manager):
+        super().__init__(row, groups, 'thief', sound_manager)
+        self.state = 'PLANNING'
+        self.machine_targets = []
+        self.current_target_machine = None
         self.stealing_damage = self.damage
         self.damage = ENEMIES_DATA['alarm_clock']['damage']
 
@@ -329,70 +325,51 @@ class Thief(Enemy):
             self.kill()
             return
 
-        coffee_machines = [d for d in defenders_group if isinstance(d, CoffeeMachine) and d.alive()]
-
-        if self.state == 'INITIALIZING':
-            if coffee_machines:
-                self.state = 'SEEKING_MACHINE'
+        if self.state == 'PLANNING':
+            self.machine_targets = [d for d in defenders_group if isinstance(d, CoffeeMachine) and d.alive()]
+            if self.machine_targets:
+                self.machine_targets.sort(
+                    key=lambda m: pygame.math.Vector2(self.rect.center).distance_to(m.rect.center))
+                self.state = 'SEEKING'
             else:
-                self.state = 'BASIC_ATTACK_MODE'
+                self.state = 'BASIC_ATTACK_MODE'  # Машин нет с самого начала, переходим в режим атаки
 
-        elif self.state == 'SEEKING_MACHINE':
-            self.is_attacking = False
-            self.stop_eating_sound()
-
-            if coffee_machines:
-                self.target_machine = min(coffee_machines, key=lambda m: pygame.math.Vector2(self.rect.center).distance_to(m.rect.center))
-                self.state = 'CHASING_MACHINE'
+        elif self.state == 'SEEKING':
+            if self.machine_targets:
+                self.current_target_machine = self.machine_targets.pop(0)
+                self.state = 'CHASING'
             else:
-                if self.has_stolen:
-                    self.state = 'ESCAPING_EMPTY'
+                self.state = 'ESCAPING'
+
+        elif self.state == 'CHASING':
+            if self.current_target_machine and self.current_target_machine.alive():
+                direction = pygame.math.Vector2(self.current_target_machine.rect.center) - pygame.math.Vector2(
+                    self.rect.center)
+                if direction.length() < 10:
+                    self.state = 'STEALING'
                 else:
-                    self.state = 'BASIC_ATTACK_MODE'
-
-        elif self.state == 'CHASING_MACHINE':
-            if not self.target_machine or not self.target_machine.alive():
-                self.state = 'SEEKING_MACHINE'
-                return
-
-            direction = pygame.math.Vector2(self.target_machine.rect.center) - pygame.math.Vector2(self.rect.center)
-            if direction.length() < 10:
-                self.state = 'GRABBING_MACHINE'
+                    norm_dir = direction.normalize()
+                    self.rect.x += norm_dir.x * self.speed
+                    self.rect.y += norm_dir.y * self.speed
             else:
-                norm_dir = direction.normalize()
-                self.rect.x += norm_dir.x * self.speed
-                self.rect.y += norm_dir.y * self.speed
+                self.state = 'SEEKING'
 
-        elif self.state == 'GRABBING_MACHINE':
+        elif self.state == 'STEALING':
             self.is_attacking = True
-            self.current_target = self.target_machine
-            self.play_eating_sound()
-            self.current_target.is_being_eaten = True
-            self.current_target.health -= self.stealing_damage
-            self.has_stolen = True
-            self.state = 'ESCAPING'
+            if self.current_target_machine and self.current_target_machine.alive():
+                self.current_target_machine.health = 0
+                self.sound_manager.play_sfx('eating')
+            self.is_attacking = False
+            self.state = 'SEEKING'
 
         elif self.state == 'ESCAPING':
-            self.rect.x += self.speed * 2
-            if self.current_target and self.current_target.alive():
-                 self.current_target.rect.center = self.rect.center
-
-            if self.rect.left > SCREEN_WIDTH:
-                if self.current_target:
-                    self.current_target.kill()
-                self.current_target = None
-                self.target_machine = None
-                self.state = 'SEEKING_MACHINE'
-
-        elif self.state == 'ESCAPING_EMPTY':
             self.rect.x += self.speed * 2
             if self.rect.left > SCREEN_WIDTH:
                 self.kill()
 
         elif self.state == 'BASIC_ATTACK_MODE':
+            # Вызываем родительский метод для атаки героев
             super().update(defenders_group, *args, **kwargs)
 
     def kill(self):
-        if self.current_target:
-            self.current_target.is_being_eaten = False
-        super().kill()
+        super(Enemy, self).kill()
