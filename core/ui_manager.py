@@ -246,44 +246,58 @@ class UIManager:
         buttons['close'] = close_rect
 
         return buttons
-
     def draw_main_menu(self, surface, max_level_unlocked):
+        # Отрисовка левой панели с выбором уровней (без изменений)
         panel_rect = pygame.Rect(100, (SCREEN_HEIGHT - 600) / 2, 500, 600)
-        pygame.draw.rect(surface, DEFAULT_COLORS['shop_panel'], panel_rect, border_radius=15);
+        pygame.draw.rect(surface, DEFAULT_COLORS['shop_panel'], panel_rect, border_radius=15)
         pygame.draw.rect(surface, WHITE, panel_rect, 3, border_radius=15)
-        title = self.font_large.render("Главное меню", True, WHITE);
+        title = self.font_large.render("Главное меню", True, WHITE)
         surface.blit(title, title.get_rect(center=(panel_rect.centerx, panel_rect.top + 70)))
         level_buttons = {}
         for level_id, data in LEVELS.items():
+            if level_id == 0: continue  # Пропускаем тестовый уровень в этом списке
             is_unlocked = level_id <= max_level_unlocked
-            button_rect = pygame.Rect(0, 0, 400, 70);
+            button_rect = pygame.Rect(0, 0, 400, 70)
             button_rect.center = (panel_rect.centerx, panel_rect.top + 180 + (level_id - 1) * 85)
             color = YELLOW if is_unlocked else GREY
-            pygame.draw.rect(surface, color, button_rect, border_radius=10);
+            pygame.draw.rect(surface, color, button_rect, border_radius=10)
             pygame.draw.rect(surface, WHITE, button_rect, 2, border_radius=10)
-            text_surf = self.font.render(data['name'], True, BLACK);
+            text_surf = self.font.render(data['name'], True, BLACK)
             surface.blit(text_surf, text_surf.get_rect(center=button_rect.center))
             if is_unlocked: level_buttons[level_id] = button_rect
-        control_buttons = {}
-        btn_width, btn_height = 300, 90;
-        btn_x = SCREEN_WIDTH - btn_width - 150
 
-        settings_rect = pygame.Rect(btn_x, 250, btn_width, btn_height)
-        pygame.draw.rect(surface, DEFAULT_COLORS['shop_panel'], settings_rect, border_radius=10)
-        pygame.draw.rect(surface, WHITE, settings_rect, 2, border_radius=10)
-        settings_text = self.font.render("Настройки", True, WHITE)
-        surface.blit(settings_text, settings_text.get_rect(center=settings_rect.center))
+        # --- НАЧАЛО ИЗМЕНЕНИЙ: Новая компоновка правых кнопок ---
+        control_buttons = {}
+        # Задаем размеры для новых кнопок
+        btn_width, btn_height = 200, 80
+        gap = 20
+
+        # Рассчитываем позиции
+        base_x = SCREEN_WIDTH - 150 - btn_width
+        settings_x = base_x - (btn_width / 2 + gap / 2)
+        test_x = base_x + (btn_width / 2 + gap / 2)
+        top_y = 250
+
+        # Кнопка "Настройки"
+        settings_rect = pygame.Rect(0, 0, btn_width, btn_height)
+        settings_rect.center = (settings_x, top_y)
+        self._draw_button(surface, "Настройки", settings_rect, DEFAULT_COLORS['shop_panel'], WHITE)
         control_buttons["Настройки"] = settings_rect
 
-        exit_rect = pygame.Rect(btn_x, settings_rect.bottom + 30, btn_width, btn_height)
-        pygame.draw.rect(surface, DEFAULT_COLORS['shop_panel'], exit_rect, border_radius=10)
-        pygame.draw.rect(surface, WHITE, exit_rect, 2, border_radius=10)
-        exit_text = self.font.render("Выход", True, WHITE)
-        surface.blit(exit_text, exit_text.get_rect(center=exit_rect.center))
+        # Новая кнопка "Тест"
+        test_rect = pygame.Rect(0, 0, btn_width, btn_height)
+        test_rect.center = (test_x, top_y)
+        self._draw_button(surface, "Тест", test_rect, DEFAULT_COLORS['shop_panel'], WHITE)
+        control_buttons["Тест"] = test_rect
+
+        # Кнопка "Выход" теперь ниже
+        exit_rect = pygame.Rect(0, 0, btn_width * 2 + gap, btn_height)
+        exit_rect.center = (base_x, top_y + btn_height + gap)
+        self._draw_button(surface, "Выход", exit_rect, DEFAULT_COLORS['shop_panel'], WHITE)
         control_buttons["Выход"] = exit_rect
+        # --- КОНЕЦ ИЗМЕНЕНИЙ ---
 
         return level_buttons, control_buttons
-
     def draw_level_clear_message(self, surface):
         text_surf = self.font_huge.render("БРС: 100/100", True, YELLOW)
         shadow_surf = self.font_huge.render("БРС: 100/100", True, BLACK)

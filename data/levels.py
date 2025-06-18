@@ -1,16 +1,51 @@
 # data/levels.py
 
 LEVELS = {
+    0: {
+        'name': "Тестовая площадка",
+        'start_coffee': 5000,
+        'neuro_slots': 4,
+        'calamities': ['epidemic', 'big_party', 'colloquium', 'internet_down'],
+        'enemies': [
+            # --- ВОЛНА 1: Знакомство с каждым врагом ---
+            ('alarm_clock', 0),   # Базовый
+            ('calculus', 1),      # Дальнобойный
+            ('math_teacher', 2),  # Прыгун
+            ('addict', 3),        # Охотник за сильными
+            ('thief', 4),         # Охотник за кофемашинами
+
+            # --- ВОЛНА 2: Проверка парных взаимодействий ---
+            ('alarm_clock', 0),
+            ('calculus', 0),      # Два врага на одной линии
+            ('math_teacher', 3),
+            ('thief', 3),         # Прыгун и вор на одной линии
+
+            # --- ВОЛНА 3: Стресс-тест и хаос ---
+            ('alarm_clock', 0),
+            ('alarm_clock', 1),
+            ('calculus', 2),
+            ('math_teacher', 3),
+            ('addict', 4),
+            ('thief', 0),         # Вор в толпе
+            ('calculus', 1),
+            ('alarm_clock', 2),
+            ('addict', 3),        # Второй охотник
+            ('math_teacher', 4),
+            ('calculus', 3),
+            ('thief', 2),
+            ('alarm_clock', 1),
+            ('alarm_clock', 4),
+        ]
+    },
     1: {
         'name': "Курс 1",
         'start_coffee': 150,
         'neuro_slots': 2,
-        'calamities': ['epidemic'], # Только одна, самая простая напасть
+        'calamities': ['epidemic'],
         'enemies': [
-            # Вводим базовых врагов
             ('alarm_clock', 2),
             ('alarm_clock', 2),
-            ('calculus', 3), # Вводим дальнобойного врага
+            ('calculus', 3),
             ('alarm_clock', 1),
             ('alarm_clock', 3),
             ('calculus', 2),
@@ -26,7 +61,7 @@ LEVELS = {
         'enemies': [
             ('alarm_clock', 1),
             ('calculus', 3),
-            ('math_teacher', 2), # Вводим нового врага - прыгуна
+            ('math_teacher', 2),
             ('alarm_clock', 2),
             ('alarm_clock', 4),
             ('calculus', 1),
@@ -45,11 +80,11 @@ LEVELS = {
         'calamities': ['colloquium', 'internet_down'],
         'enemies': [
             ('calculus', 1),
-            ('thief', 3), # Вводим вора, угрозу для экономики
+            ('thief', 3),
             ('math_teacher', 2),
             ('alarm_clock', 4),
             ('calculus', 0),
-            ('thief', 2), # Второй вор для усиления давления
+            ('thief', 2),
             ('alarm_clock', 1),
             ('math_teacher', 0),
             ('alarm_clock', 3),
@@ -68,11 +103,11 @@ LEVELS = {
         'enemies': [
             ('math_teacher', 1),
             ('math_teacher', 3),
-            ('addict', 2), # Вводим убийцу, который охотится на сильных героев
+            ('addict', 2),
             ('thief', 4),
             ('calculus', 0),
             ('alarm_clock', 2),
-            ('addict', 3), # Второй убийца для хаоса
+            ('addict', 3),
             ('calculus', 1),
             ('thief', 0),
             ('math_teacher', 4),
@@ -88,13 +123,12 @@ LEVELS = {
         'name': "Защита Диплома",
         'start_coffee': 400,
         'neuro_slots': 4,
-        'calamities': ['epidemic', 'big_party', 'colloquium', 'internet_down'], # Все напасти возможны
+        'calamities': ['epidemic', 'big_party', 'colloquium', 'internet_down'],
         'enemies': [
-            # Финальный уровень - все вместе и в большом количестве
             ('calculus', 0), ('calculus', 4),
             ('alarm_clock', 1), ('alarm_clock', 2), ('alarm_clock', 3),
             ('math_teacher', 2),
-            ('thief', 0), ('addict', 4), # Одновременная атака на экономику и сильных юнитов
+            ('thief', 0), ('addict', 4),
             ('alarm_clock', 0), ('alarm_clock', 4),
             ('calculus', 1), ('calculus', 3),
             ('math_teacher', 0), ('math_teacher', 4),
@@ -104,7 +138,7 @@ LEVELS = {
             ('thief', 3),
             ('addict', 1),
             ('math_teacher', 1), ('math_teacher', 3),
-            ('alarm_clock', 0), ('alarm_clock', 1), ('alarm_clock', 2), ('alarm_clock', 3), ('alarm_clock', 4), # Финальная волна
+            ('alarm_clock', 0), ('alarm_clock', 1), ('alarm_clock', 2), ('alarm_clock', 3), ('alarm_clock', 4),
         ]
     }
 }

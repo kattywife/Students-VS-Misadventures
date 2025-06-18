@@ -167,6 +167,9 @@ class Game:
         self.screen.blit(self.background, (0, 0))
         # 2. Поверх фона вызываем специальный метод, который НЕ рисует затемнение
         self.ui_manager.draw_start_screen(self.screen, "Студенты против Злоключений", buttons)
+
+        # core/game_manager.py
+
     def _main_menu_loop(self):
         if self.sound_manager.current_music != 'main_team':
             self.sound_manager.play_music('main_team')
@@ -174,17 +177,27 @@ class Game:
         for event in pygame.event.get():
             if event.type == pygame.QUIT: self.running = False
             if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                # Обработка кликов по кнопкам выбора уровня (слева)
                 for level_id, rect in self.level_select_buttons.items():
                     if rect.collidepoint(event.pos):
                         self.sound_manager.play_sfx('button');
                         self._prepare_level(level_id);
                         return
+
+                # Обработка кликов по управляющим кнопкам (справа)
                 for text, rect in self.control_buttons.items():
                     if rect.collidepoint(event.pos):
                         self.sound_manager.play_sfx('button')
-                        if text == "Выход": self.running = False
-                        if text == "Настройки": self.state = 'SETTINGS'
+                        if text == "Выход":
+                            self.running = False
+                        elif text == "Настройки":
+                            self.state = 'SETTINGS'
+                        elif text == "Тест":
+                            # Загружаем наш специальный тестовый уровень с ID 0
+                            self._prepare_level(0)
+                            return  # Возвращаемся, чтобы избежать дальнейших проверок
 
+        # Отрисовка главного меню
         self.screen.blit(self.background, (0, 0))
         self.level_select_buttons, self.control_buttons = self.ui_manager.draw_main_menu(self.screen,
                                                                                          self.max_level_unlocked)
