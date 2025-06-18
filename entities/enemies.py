@@ -35,7 +35,7 @@ class Enemy(BaseSprite):
         self.image = self.animations.get(self.current_animation, [pygame.Surface((0, 0))])[0]
 
         y = GRID_START_Y + row * CELL_SIZE_H + CELL_SIZE_H / 2
-        self.rect = self.image.get_rect(midleft=(SCREEN_WIDTH - 1, y))
+        self.rect = self.image.get_rect(center=(SCREEN_WIDTH, y))
         self._layer = self.rect.bottom
 
         self.anim_speed = self.data.get('animation_data', {}).get('speed', 0.2)

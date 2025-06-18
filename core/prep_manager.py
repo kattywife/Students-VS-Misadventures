@@ -72,11 +72,13 @@ class PrepManager:
             for key, rect in self.info_panel_buttons.items():
                 if rect.collidepoint(pos):
                     if key.startswith('upgrade_'):
-                        stat_to_upgrade = key.split('_')[1]
+                        # FIX: Корректно извлекаем название стата, даже если в нём есть '_'
+                        stat_to_upgrade = key.split('_', 1)[1]
                         self.try_upgrade_hero(card_type, stat_to_upgrade)
                         return
                     if key.startswith('revert_'):
-                        stat_to_revert = key.split('_')[1]
+                        # FIX: Корректно извлекаем название стата, даже если в нём есть '_'
+                        stat_to_revert = key.split('_', 1)[1]
                         self.revert_upgrade(card_type, stat_to_revert)
                         return
 
@@ -105,9 +107,15 @@ class PrepManager:
             'plan': self.ui_manager.plan_cards_rects
         }
         for source, group in all_clickable_cards_with_source.items():
-            for card_type, rect in group.items():
+            for card_key, rect in group.items():
                 if rect.collidepoint(pos):
-                    self.show_card_info(card_type, source)
+                    # FIX: Новая, более надежная логика извлечения базового имени юнита
+                    key_parts = card_key.split('_')
+                    base_type = card_key
+                    if len(key_parts) > 1 and key_parts[-1].isdigit():
+                        base_type = '_'.join(key_parts[:-1])
+
+                    self.show_card_info(base_type, source)
                     return
 
     def try_take_card(self, card_type):
@@ -132,9 +140,14 @@ class PrepManager:
                     self.stipend += cost
                 del self.upgrades[unit_type]
         elif unit_type in self.purchased_mowers:
-            self.purchased_mowers.remove(unit_type)
-            cost = NEURO_MOWERS_DATA[unit_type].get('cost', 0)
-            self.stipend += cost
+            # Нужно найти первое вхождение и удалить его, чтобы не удалить не ту нейронку
+            try:
+                index_to_remove = self.purchased_mowers.index(unit_type)
+                self.purchased_mowers.pop(index_to_remove)
+                cost = NEURO_MOWERS_DATA[unit_type].get('cost', 0)
+                self.stipend += cost
+            except ValueError:
+                pass # Если по какой-то причине юнита нет в списке
 
     def try_upgrade_hero(self, hero_type, stat):
         upgrade_info = DEFENDERS_DATA[hero_type].get('upgrades', {}).get(stat)
@@ -182,7 +195,8 @@ class PrepManager:
         prep_buttons, self.random_buttons_rects, self.info_panel_buttons = self.ui_manager.draw_preparation_screen(
             surface, self.stipend, self.team, self.upgrades, self.purchased_mowers,
             self.all_defenders, self.all_neuro_mowers,
-            self.level_id, self.selected_card_info, self.neuro_mower_slots
+            self.level_id, self.selected_card_info, self.neuro_mower_slots,
+            self.team, self.purchased_mowers
         )
         return prep_buttons
 
