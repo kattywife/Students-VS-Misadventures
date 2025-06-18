@@ -366,9 +366,17 @@ class UIManager:
 
         cost = data.get('cost')
         if cost is not None:
-            cost_surf = self.font_tiny.render(str(cost), True, YELLOW)
-            surface.blit(cost_surf, cost_surf.get_rect(bottomright=(rect.right - 5, rect.bottom - 2)))
+            # --- НАЧАЛО ИЗМЕНЕНИЙ: Умный выбор цвета ---
+            # По умолчанию, цена отображается цветом кофе
+            cost_color = COFFEE_COST_COLOR
 
+            # Но если это нейросеть, то цена отображается желтым (цвет стипендии)
+            if unit_type in NEURO_MOWERS_DATA:
+                cost_color = YELLOW
+
+            cost_surf = self.font_tiny.render(str(cost), True, cost_color)
+            surface.blit(cost_surf, cost_surf.get_rect(bottomright=(rect.right - 5, rect.bottom - 2)))
+            # --- КОНЕЦ ИЗМЕНЕНИЙ ---
     def _draw_desc_panel_header(self, surface, card_type, name):
         img_size = 120
         img = CARD_IMAGES.get(card_type)
@@ -393,13 +401,13 @@ class UIManager:
         hero_slots_bottom_y = self._render_hero_slots(surface, panel_rect, team, upgrades)
         random_team_rect = pygame.Rect(0, 0, 220, 40)
         random_team_rect.center = (panel_rect.centerx, hero_slots_bottom_y + 35)
-        self._draw_button(surface, "Случайная команда", random_team_rect, BLUE, WHITE)
+        self._draw_button(surface, "Случайная команда", random_team_rect, RANDOM_BUTTON_COLOR, WHITE)
         random_buttons['team'] = random_team_rect
         neuro_slots_bottom_y = self._render_neuro_slots(surface, panel_rect, purchased_mowers, neuro_slots,
                                                         random_team_rect.bottom + 30)
         random_neuro_rect = pygame.Rect(0, 0, 220, 40)
         random_neuro_rect.center = (panel_rect.centerx, neuro_slots_bottom_y + 30)
-        self._draw_button(surface, "Случайные нейросети", random_neuro_rect, BLUE, WHITE)
+        self._draw_button(surface, "Случайные нейросети", random_neuro_rect, RANDOM_BUTTON_COLOR, WHITE)
         random_buttons['neuro'] = random_neuro_rect
         return random_buttons
 

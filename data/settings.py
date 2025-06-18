@@ -27,7 +27,8 @@ TITLE_BROWN = (89, 57, 42) # <-- ДОБАВЬ ЭТУ СТРОКУ
 EXIT_BUTTON_RED = (188, 74, 60)
 CALAMITY_PANEL_BG = (70, 45, 30, 220) # Тот же коричневый, но с альфа-каналом 220 (почти непрозрачный)
 CALAMITY_BORDER_RED = (188, 74, 60)
-
+COFFEE_COST_COLOR = (205, 133, 63) # Яркий, "карамельный" коричневый
+RANDOM_BUTTON_COLOR = (0, 139, 139) # Темно-бирюзовый для кнопок рандома
 
 DEFAULT_COLORS = {
     'programmer': (60, 179, 113), 'botanist': (255, 105, 180), 'coffee_machine': (255, 215, 0),
