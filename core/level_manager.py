@@ -73,6 +73,8 @@ class LevelManager:
             self.spawn_enemy(enemy_type, row)
             self.enemies_spawned += 1
 
+        # core/level_manager.py
+
     def spawn_enemy(self, enemy_type, row):
         groups = (self.enemy_group, self.all_sprites_group)
 
@@ -86,8 +88,11 @@ class LevelManager:
         enemy_class = enemy_map.get(enemy_type)
 
         if enemy_class:
-            enemy_class(row, groups, self.sound_manager)
+            # --- ИСПРАВЛЕНИЕ ЗДЕСЬ ---
+            # Передаем все 4 необходимых аргумента
+            enemy_class(row, groups, enemy_type, self.sound_manager)
         else:
+            # Для базового врага вызов был правильным
             Enemy(row, groups, enemy_type, self.sound_manager)
 
     def is_complete(self):

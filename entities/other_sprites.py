@@ -107,12 +107,13 @@ class NeuroMower(BaseSprite):
         self.is_active = False
         self.speed = 12
 
-    def activate(self, enemies_group):
+    def activate(self, enemies_group, activator):
         if self.is_active: return
         self.is_active = True
-        self.sound_manager.play_sfx('tuning') # Добавляем звук активации
+        self.sound_manager.play_sfx('tuning')
 
         if self.mower_type == 'deepseek':
+            # Сначала определяем цели, потом убиваем, чтобы не было конфликтов
             targets = sorted(list(enemies_group), key=lambda e: e.rect.left)[:3]
             for enemy in targets:
                 enemy.kill()
@@ -120,6 +121,10 @@ class NeuroMower(BaseSprite):
             targets = sorted(list(enemies_group), key=lambda e: e.health, reverse=True)[:4]
             for enemy in targets:
                 enemy.kill()
+
+        # Уничтожаем врага, который активировал газонокосилку, если он еще жив
+        if activator.alive():
+            activator.kill()
 
     def update(self, *args, **kwargs):
         if self.is_active and self.mower_type == 'chat_gpt':

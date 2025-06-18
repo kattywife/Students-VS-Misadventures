@@ -226,11 +226,13 @@ class BattleManager:
 
         # core/battle_manager.py
 
+        # core/battle_manager.py
+
     def check_collisions(self):
+        # Логика столкновений снарядов...
         for proj in list(self.projectiles):
             if not proj.alive(): continue
 
-            # Логика для снарядов героев
             if not isinstance(proj, Integral):
                 hits = pygame.sprite.spritecollide(proj, self.enemies, False)
                 if hits:
@@ -238,25 +240,39 @@ class BattleManager:
                     if target.alive():
                         if isinstance(proj, PaintSplat):
                             target.slow_down(proj.artist.data['slow_factor'], proj.artist.data['slow_duration'])
-                        # Урон наносится без ослабления
                         target.get_hit(proj.damage)
                         proj.kill()
-            # Логика для снарядов врагов
             elif isinstance(proj, Integral):
                 if pygame.sprite.spritecollide(proj, self.defenders, True):
                     proj.kill()
 
+        # Логика столкновений звуковой волны...
         for wave in [s for s in self.all_sprites if isinstance(s, SoundWave)]:
             for enemy in self.enemies:
                 if wave.rect.colliderect(enemy.rect) and enemy not in wave.hit_enemies:
                     enemy.get_hit(wave.damage)
                     wave.hit_enemies.add(enemy)
 
+        # --- ИЗМЕНЕНИЕ ЗДЕСЬ: Логика столкновений с нейросетями ---
         for mower in list(self.neuro_mowers):
             if not mower.is_active:
                 colliding_enemies = pygame.sprite.spritecollide(mower, self.enemies, False)
                 if colliding_enemies:
+                    # Запоминаем врагов до активации
+                    enemies_before_activation = set(self.enemies.sprites())
+
+                    # Активируем нейросеть, которая убьет врагов
                     mower.activate(self.enemies, colliding_enemies[0])
+
+                    # Смотрим, кто остался после
+                    enemies_after_activation = set(self.enemies.sprites())
+
+                    # Считаем, сколько было убито
+                    killed_by_mower = len(enemies_before_activation - enemies_after_activation)
+
+                    # "Сообщаем бухгалтеру" о каждом убийстве
+                    for _ in range(killed_by_mower):
+                        self.level_manager.enemy_killed()
 
     def apply_auras(self):
         for d in self.defenders:
