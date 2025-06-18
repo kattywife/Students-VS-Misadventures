@@ -75,6 +75,8 @@ def load_all_resources():
         PROJECTILE_IMAGES[p_type] = load_image(path, DEFAULT_COLORS['bracket'], projectile_size)
 
 
+# data/assets.py
+
 def load_image(path, default_color, size=None):
     full_path = os.path.join(IMAGES_DIR, path)
     try:
@@ -83,13 +85,19 @@ def load_image(path, default_color, size=None):
             image = pygame.transform.scale(image, size)
         return image
     except (pygame.error, FileNotFoundError):
-        print(f"Warning: Image '{full_path}' not found. Using fallback color.")
+        print(f"Warning: Image '{full_path}' not found. Using fallback surface.")
         if size is None:
             size = (CELL_SIZE_W, CELL_SIZE_H)
         fallback_surface = pygame.Surface(size)
-        fallback_surface.fill(default_color)
-        return fallback_surface
 
+        # --- ИЗМЕНЕНИЕ: Проверяем, есть ли цвет, перед заливкой ---
+        if default_color:
+            fallback_surface.fill(default_color)
+        else:
+            # Если цвета нет, заливаем ярким цветом для отладки
+            fallback_surface.fill((255, 0, 255))
+
+        return fallback_surface
 
 def load_sound(name, filename):
     path = os.path.join(ASSETS_DIR, 'sounds', filename)

@@ -18,14 +18,21 @@ class Game:
         pygame.init();
         pygame.mixer.init();
         pygame.mixer.set_num_channels(32)
+
+        # --- ИЗМЕНЕНИЕ: Меняем порядок ---
+        # 1. Сначала создаем экран
         self.screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT));
         pygame.display.set_caption(TITLE)
+
+        # 2. И только потом загружаем все ресурсы
+        load_all_resources()
+
         self.clock = pygame.time.Clock();
         self.running = True
         self.ui_manager = UIManager(self.screen)
         self.sound_manager = SoundManager()
+        self.background = load_image('menu_background.png', DEFAULT_COLORS['background'], (SCREEN_WIDTH, SCREEN_HEIGHT))
 
-        self.background = None
         self.max_level_unlocked = 1
         self.current_level_id = 1
         self.stipend = 150
@@ -35,8 +42,14 @@ class Game:
         self.level_select_buttons = {};
         self.control_buttons = {};
         self.prep_buttons = {}
-        self.pause_menu_buttons = {"Продолжить": pygame.Rect(0, 0, 300, 80), "Главное меню": pygame.Rect(0, 0, 400, 80)}
-        self.pause_menu_buttons["Продолжить"].center = (SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2);
+
+        self.pause_menu_buttons = {
+            "Продолжить": pygame.Rect(0, 0, 400, 80),
+            "Рестарт": pygame.Rect(0, 0, 400, 80),
+            "Главное меню": pygame.Rect(0, 0, 400, 80)
+        }
+        self.pause_menu_buttons["Продолжить"].center = (SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2 - 100)
+        self.pause_menu_buttons["Рестарт"].center = (SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2)
         self.pause_menu_buttons["Главное меню"].center = (SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2 + 100)
 
         self.state = 'START_SCREEN'
@@ -47,8 +60,6 @@ class Game:
 
         self.placed_neuro_mowers = {}
         self.dragged_mower = None
-
-        self._load_resources()
 
     def _load_resources(self):
         load_all_resources()
@@ -335,6 +346,8 @@ class Game:
             self.sound_manager.play_sfx('lose')
             self.state = 'GAME_OVER'
 
+        # core/game_manager.py
+
     def _paused_loop(self):
         for event in pygame.event.get():
             if event.type == pygame.QUIT: self.running = False
@@ -347,16 +360,25 @@ class Game:
                     if rect.collidepoint(event.pos):
                         self.sound_manager.play_sfx('button');
                         pygame.time.delay(100)
+
+                        # --- БЛОК С ИЗМЕНЕНИЯМИ ---
                         if text == "Продолжить":
                             pygame.mixer.unpause();
                             pygame.mixer.music.unpause()
                             self.state = "PLAYING"
-                        else:
+                        elif text == "Рестарт":
+                            pygame.mixer.unpause()
+                            pygame.mixer.music.unpause()
+                            self._prepare_level(self.current_level_id)
+                        elif text == "Главное меню":
                             self.sound_manager.stop_music()
                             self.sound_manager.play_music('main_team')
                             self.state = "MAIN_MENU"
+                        # --- КОНЕЦ БЛОКА С ИЗМЕНЕНИЯМИ ---
+
         self.battle_manager.draw_world(self.screen)
-        self.ui_manager.draw_shop(self.screen, self.battle_manager.selected_defender, self.battle_manager.coffee, self.battle_manager.upgrades)
+        self.ui_manager.draw_shop(self.screen, self.battle_manager.selected_defender, self.battle_manager.coffee,
+                                  self.battle_manager.upgrades)
         spawn_progress = self.battle_manager.level_manager.get_spawn_progress();
         kill_progress = self.battle_manager.level_manager.get_kill_progress()
         spawn_data = self.battle_manager.level_manager.get_spawn_count_data();
