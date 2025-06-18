@@ -285,7 +285,7 @@ class BattleManager:
 
     def draw(self, surface):
         self.draw_world(surface)
-        self.ui_manager.draw_shop(surface, self.selected_defender, self.coffee)
+        self.ui_manager.draw_shop(surface, self.selected_defender, self.coffee, self.upgrades)
         spawn_progress = self.level_manager.get_spawn_progress()
         kill_progress = self.level_manager.get_kill_progress()
         spawn_data = self.level_manager.get_spawn_count_data()
@@ -296,10 +296,6 @@ class BattleManager:
     def draw_world(self, surface):
         surface.blit(self.background_image, (0, 0))
         self.ui_manager.draw_grid(surface)
-
-        for sprite in self.all_sprites:
-            if hasattr(sprite, 'draw_aura'):
-                sprite.draw_aura(surface)
 
         for sprite in sorted(self.all_sprites, key=lambda s: s._layer):
             surface.blit(sprite.image, sprite.rect)

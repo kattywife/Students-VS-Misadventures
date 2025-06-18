@@ -88,6 +88,7 @@ class UIManager:
         self.shop_items = team
         self.shop_rects = {}
         self.shop_panel_surf.fill(DEFAULT_COLORS['shop_panel'])
+
         coffee_area_width = 180
         coffee_area_rect = pygame.Rect(0, 0, coffee_area_width, SHOP_PANEL_HEIGHT)
         pygame.draw.rect(self.shop_panel_surf, DEFAULT_COLORS['shop_card'], coffee_area_rect.inflate(-10, -10),
@@ -104,28 +105,39 @@ class UIManager:
             card_y = (SHOP_PANEL_HEIGHT - SHOP_CARD_SIZE) / 2
             card_rect = pygame.Rect(card_x, card_y, SHOP_CARD_SIZE, SHOP_CARD_SIZE)
             self.shop_rects[item_name] = card_rect
+
             pygame.draw.rect(self.shop_panel_surf, DEFAULT_COLORS['shop_card'], card_rect, border_radius=5)
             pygame.draw.rect(self.shop_panel_surf, DEFAULT_COLORS['shop_border'], card_rect, 3, border_radius=5)
+
+    def draw_shop(self, surface, selected_defender, coffee_beans, upgrades):
+        surface.blit(self.shop_panel_surf, (0, 0))
+        pygame.draw.rect(surface, DEFAULT_COLORS['shop_border'], (0, 0, SCREEN_WIDTH, SHOP_PANEL_HEIGHT), 5)
+
+        coffee_text = self.font.render(f"{coffee_beans}", True, WHITE)
+        text_rect = coffee_text.get_rect(midleft=(90, SHOP_PANEL_HEIGHT / 2))
+        surface.blit(coffee_text, text_rect)
+
+        for hero_type in self.shop_items:
+            if hero_type in upgrades:
+                rect = self.shop_rects[hero_type]
+                pygame.draw.rect(surface, AURA_PINK, rect, 4, border_radius=5)
+
+        if selected_defender:
+            rect = self.shop_rects[selected_defender]
+            pygame.draw.rect(surface, YELLOW, rect, 4, border_radius=5)
+
+        for item_name in self.shop_items:
+            card_rect = self.shop_rects[item_name]
 
             item_image = CARD_IMAGES.get(item_name)
             if item_image:
                 img_rect = item_image.get_rect(center=card_rect.center)
                 img_rect.y -= 10
-                self.shop_panel_surf.blit(item_image, img_rect)
+                surface.blit(item_image, img_rect)
 
             cost_text = self.font_small.render(f"{DEFENDERS_DATA[item_name]['cost']}", True, WHITE)
             text_rect = cost_text.get_rect(center=(card_rect.centerx, card_rect.bottom - 15))
-            self.shop_panel_surf.blit(cost_text, text_rect)
-
-    def draw_shop(self, surface, selected_defender, coffee_beans):
-        surface.blit(self.shop_panel_surf, (0, 0))
-        pygame.draw.rect(surface, DEFAULT_COLORS['shop_border'], (0, 0, SCREEN_WIDTH, SHOP_PANEL_HEIGHT), 5)
-        coffee_text = self.font.render(f"{coffee_beans}", True, WHITE)
-        text_rect = coffee_text.get_rect(midleft=(90, SHOP_PANEL_HEIGHT / 2))
-        surface.blit(coffee_text, text_rect)
-        if selected_defender:
-            rect = self.shop_rects[selected_defender]
-            pygame.draw.rect(surface, YELLOW, rect, 4, border_radius=5)
+            surface.blit(cost_text, text_rect)
 
     def draw_hud(self, surface, spawn_progress, kill_progress, spawn_count_data, kill_count_data,
                  calamity_notification):
@@ -246,8 +258,8 @@ class UIManager:
         buttons['close'] = close_rect
 
         return buttons
+
     def draw_main_menu(self, surface, max_level_unlocked):
-        # Отрисовка левой панели с выбором уровней (без изменений)
         panel_rect = pygame.Rect(100, (SCREEN_HEIGHT - 600) / 2, 500, 600)
         pygame.draw.rect(surface, DEFAULT_COLORS['shop_panel'], panel_rect, border_radius=15)
         pygame.draw.rect(surface, WHITE, panel_rect, 3, border_radius=15)
@@ -255,7 +267,7 @@ class UIManager:
         surface.blit(title, title.get_rect(center=(panel_rect.centerx, panel_rect.top + 70)))
         level_buttons = {}
         for level_id, data in LEVELS.items():
-            if level_id == 0: continue  # Пропускаем тестовый уровень в этом списке
+            if level_id == 0: continue
             is_unlocked = level_id <= max_level_unlocked
             button_rect = pygame.Rect(0, 0, 400, 70)
             button_rect.center = (panel_rect.centerx, panel_rect.top + 180 + (level_id - 1) * 85)
@@ -266,38 +278,32 @@ class UIManager:
             surface.blit(text_surf, text_surf.get_rect(center=button_rect.center))
             if is_unlocked: level_buttons[level_id] = button_rect
 
-        # --- НАЧАЛО ИЗМЕНЕНИЙ: Новая компоновка правых кнопок ---
         control_buttons = {}
-        # Задаем размеры для новых кнопок
         btn_width, btn_height = 200, 80
         gap = 20
 
-        # Рассчитываем позиции
         base_x = SCREEN_WIDTH - 150 - btn_width
         settings_x = base_x - (btn_width / 2 + gap / 2)
         test_x = base_x + (btn_width / 2 + gap / 2)
         top_y = 250
 
-        # Кнопка "Настройки"
         settings_rect = pygame.Rect(0, 0, btn_width, btn_height)
         settings_rect.center = (settings_x, top_y)
         self._draw_button(surface, "Настройки", settings_rect, DEFAULT_COLORS['shop_panel'], WHITE)
         control_buttons["Настройки"] = settings_rect
 
-        # Новая кнопка "Тест"
         test_rect = pygame.Rect(0, 0, btn_width, btn_height)
         test_rect.center = (test_x, top_y)
         self._draw_button(surface, "Тест", test_rect, DEFAULT_COLORS['shop_panel'], WHITE)
         control_buttons["Тест"] = test_rect
 
-        # Кнопка "Выход" теперь ниже
         exit_rect = pygame.Rect(0, 0, btn_width * 2 + gap, btn_height)
         exit_rect.center = (base_x, top_y + btn_height + gap)
         self._draw_button(surface, "Выход", exit_rect, DEFAULT_COLORS['shop_panel'], WHITE)
         control_buttons["Выход"] = exit_rect
-        # --- КОНЕЦ ИЗМЕНЕНИЙ ---
 
         return level_buttons, control_buttons
+
     def draw_level_clear_message(self, surface):
         text_surf = self.font_huge.render("БРС: 100/100", True, YELLOW)
         shadow_surf = self.font_huge.render("БРС: 100/100", True, BLACK)
@@ -523,7 +529,19 @@ class UIManager:
         card_type = card_data['type']
         img_rect = self._draw_desc_panel_header(surface, card_type, card_data['name'])
         buttons, current_y = self._draw_desc_panel_stats(surface, card_type, team, upgrades, img_rect.bottom + 25)
-        self._draw_desc_panel_description(surface, card_data['description'], current_y + 15)
+
+        # --- ИСПРАВЛЕНИЕ: Используем _render_text_wrapped для описания ---
+        left_margin = self.desc_panel_rect.left + 30
+        desc_title_surf = self.font_small_bold.render("Описание:", True, WHITE)
+        surface.blit(desc_title_surf, (left_margin, current_y + 15))
+
+        current_y_desc = current_y + 50  # Немного отступаем от заголовка "Описание"
+        wrapped_lines = self._render_text_wrapped(card_data['description'], self.font_small, WHITE,
+                                                  self.desc_panel_rect.width - 60)
+        for line_surf in wrapped_lines:
+            surface.blit(line_surf, (left_margin, current_y_desc))
+            current_y_desc += line_surf.get_height()
+
         action_buttons = self._draw_desc_panel_actions(surface, card_data, team, purchased_mowers, neuro_slots)
         buttons.update(action_buttons)
         return buttons
@@ -601,17 +619,6 @@ class UIManager:
             self._draw_button(surface, btn_text, btn_rect, GREEN, BLACK, self.font_tiny)
             buttons[f'upgrade_{key}'] = btn_rect
         return buttons
-
-    def _draw_desc_panel_description(self, surface, description, start_y):
-        left_margin = self.desc_panel_rect.left + 30
-        desc_title_surf = self.font_small_bold.render("Описание:", True, WHITE)
-        surface.blit(desc_title_surf, (left_margin, start_y))
-        current_y = start_y + 35
-        wrapped_lines = self._render_text_wrapped(description, self.font_small, WHITE, self.desc_panel_rect.width - 60)
-        for line_surf in wrapped_lines:
-            surface.blit(line_surf, (left_margin, current_y));
-            current_y += line_surf.get_height()
-        return current_y
 
     def _draw_desc_panel_actions(self, surface, card_data, team, purchased_mowers, neuro_slots):
         buttons = {}

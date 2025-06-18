@@ -356,7 +356,7 @@ class Game:
                             self.sound_manager.play_music('main_team')
                             self.state = "MAIN_MENU"
         self.battle_manager.draw_world(self.screen)
-        self.ui_manager.draw_shop(self.screen, self.battle_manager.selected_defender, self.battle_manager.coffee)
+        self.ui_manager.draw_shop(self.screen, self.battle_manager.selected_defender, self.battle_manager.coffee, self.battle_manager.upgrades)
         spawn_progress = self.battle_manager.level_manager.get_spawn_progress();
         kill_progress = self.battle_manager.level_manager.get_kill_progress()
         spawn_data = self.battle_manager.level_manager.get_spawn_count_data();
