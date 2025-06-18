@@ -3,7 +3,6 @@
 import pygame
 import random
 import os
-# --- ИЗМЕНЕНИЕ ЗДЕСЬ: Добавляем IMAGES_DIR в импорт ---
 from data.settings import *
 from data.assets import load_image, SOUNDS, PROJECTILE_IMAGES
 from data.settings import CALCULUS_PROJECTILE_TYPES
@@ -317,31 +316,83 @@ class Addict(Enemy):
 class Thief(Enemy):
     def __init__(self, row, groups):
         super().__init__(row, groups, 'thief')
+        self.state = 'INITIALIZING'  # Состояния: INITIALIZING, SEEKING_MACHINE, CHASING_MACHINE, GRABBING_MACHINE, ESCAPING, BASIC_ATTACK_MODE, ESCAPING_EMPTY
+        self.target_machine = None
+        self.has_stolen = False
+        self.stealing_damage = self.damage
+        self.damage = ENEMIES_DATA['alarm_clock']['damage']
 
     def update(self, defenders_group, *args, **kwargs):
-        coffee_machines = [d for d in defenders_group if isinstance(d, CoffeeMachine) and d.alive()]
-        if not coffee_machines:
-            super().update(defenders_group, *args, **kwargs)
-            return
-
         self.animate()
         self._layer = self.rect.bottom
-        if self.health <= 0: self.kill(); return
+        if self.health <= 0:
+            self.kill()
+            return
 
-        closest_machine = min(coffee_machines,
-                              key=lambda m: pygame.math.Vector2(self.rect.center).distance_to(m.rect.center))
-        target_found = self.rect.colliderect(closest_machine)
+        coffee_machines = [d for d in defenders_group if isinstance(d, CoffeeMachine) and d.alive()]
 
-        if target_found:
-            self.find_and_attack_target([closest_machine])
-        else:
+        if self.state == 'INITIALIZING':
+            if coffee_machines:
+                self.state = 'SEEKING_MACHINE'
+            else:
+                self.state = 'BASIC_ATTACK_MODE'
+
+        elif self.state == 'SEEKING_MACHINE':
             self.is_attacking = False
             self.stop_eating_sound()
-            if self.current_target: self.current_target.is_being_eaten = False
-            self.current_target = None
 
-            direction = pygame.math.Vector2(closest_machine.rect.center) - pygame.math.Vector2(self.rect.center)
-            if direction.length() > 0:
+            if coffee_machines:
+                self.target_machine = min(coffee_machines, key=lambda m: pygame.math.Vector2(self.rect.center).distance_to(m.rect.center))
+                self.state = 'CHASING_MACHINE'
+            else:
+                if self.has_stolen:
+                    self.state = 'ESCAPING_EMPTY'
+                else:
+                    self.state = 'BASIC_ATTACK_MODE'
+
+        elif self.state == 'CHASING_MACHINE':
+            if not self.target_machine or not self.target_machine.alive():
+                self.state = 'SEEKING_MACHINE'
+                return
+
+            direction = pygame.math.Vector2(self.target_machine.rect.center) - pygame.math.Vector2(self.rect.center)
+            if direction.length() < 10:
+                self.state = 'GRABBING_MACHINE'
+            else:
                 norm_dir = direction.normalize()
                 self.rect.x += norm_dir.x * self.speed
                 self.rect.y += norm_dir.y * self.speed
+
+        elif self.state == 'GRABBING_MACHINE':
+            self.is_attacking = True
+            self.current_target = self.target_machine
+            self.play_eating_sound()
+            self.current_target.is_being_eaten = True
+            self.current_target.health -= self.stealing_damage
+            self.has_stolen = True
+            self.state = 'ESCAPING'
+
+        elif self.state == 'ESCAPING':
+            self.rect.x += self.speed * 2
+            if self.current_target and self.current_target.alive():
+                 self.current_target.rect.center = self.rect.center
+
+            if self.rect.left > SCREEN_WIDTH:
+                if self.current_target:
+                    self.current_target.kill()
+                self.current_target = None
+                self.target_machine = None
+                self.state = 'SEEKING_MACHINE'
+
+        elif self.state == 'ESCAPING_EMPTY':
+            self.rect.x += self.speed * 2
+            if self.rect.left > SCREEN_WIDTH:
+                self.kill()
+
+        elif self.state == 'BASIC_ATTACK_MODE':
+            super().update(defenders_group, *args, **kwargs)
+
+    def kill(self):
+        if self.current_target:
+            self.current_target.is_being_eaten = False
+        super().kill()

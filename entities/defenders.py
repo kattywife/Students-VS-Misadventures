@@ -107,8 +107,6 @@ class Defender(BaseSprite):
         if self.is_animate:
             self.manage_scream_sound()
         if self.health <= 0:
-            if self.is_animate and SOUNDS.get('hero_dead'): SOUNDS['hero_dead'].play()
-            self.stop_scream()
             self.kill()
 
     def manage_scream_sound(self):
@@ -130,6 +128,17 @@ class Defender(BaseSprite):
             aura_surf = pygame.Surface(self.rect.size, pygame.SRCALPHA)
             pygame.draw.ellipse(aura_surf, AURA_PINK, aura_surf.get_rect())
             surface.blit(aura_surf, self.rect.topleft)
+
+    def kill(self):
+        if not self.alive():
+            return
+
+        if self.is_animate and SOUNDS.get('hero_dead'):
+            SOUNDS['hero_dead'].play()
+
+        self.stop_scream()
+
+        super().kill()
 
 
 class ProgrammerBoy(Defender):
@@ -203,15 +212,13 @@ class CoffeeMachine(Defender):
         self.is_producing = False
         self.producing_timer = 0
         self.producing_duration = 500
-        # Исправляем возможную ошибку если у кофемашины нет анимации атаки
         self.producing_frame = self.animations.get('attack', [None])[0] or self.animations.get('idle', [None])[0]
 
     def animate(self):
-        # Кофемашина может иметь особую логику анимации
         if self.is_producing and self.producing_frame:
             self.image = self.producing_frame
         else:
-            super().animate()  # Используем стандартную анимацию idle
+            super().animate()
 
     def update(self, *args, **kwargs):
         self.animate()

@@ -23,6 +23,7 @@ def load_all_resources():
     load_sound('win', 'win.mp3')
     load_sound('misfortune', 'misfortune.mp3')
     load_sound('tuning', 'tuning.mp3')
+    load_sound('lose', 'lose.mp3')
 
     all_units = {**DEFENDERS_DATA, **ENEMIES_DATA, **NEURO_MOWERS_DATA, **CALAMITIES_DATA, **UI_ELEMENTS_DATA}
     card_size = (SHOP_CARD_SIZE - 10, SHOP_CARD_SIZE - 10)
