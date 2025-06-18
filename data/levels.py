@@ -7,10 +7,10 @@ LEVELS = {
         'neuro_slots': 4,
         'calamities': ['epidemic', 'big_party', 'colloquium', 'internet_down'],
         'enemies': [
-            ('alarm_clock', 0), ('calculus', 1), ('professor', 2),
-            ('math_teacher', 3), ('thief', 4), ('addict', 0),
-            ('alarm_clock', 1), ('calculus', 2), ('professor', 3),
-            ('math_teacher', 4), ('thief', 0), ('addict', 1)
+            ('alarm_clock', 0), ('calculus', 1), ('professor', 0),
+            #('math_teacher', 3), ('thief', 4), ('addict', 0),
+            #('alarm_clock', 1), ('calculus', 2), ('professor', 3),
+            #('math_teacher', 4), ('thief', 0), ('addict', 1)
         ]
     },
     2: {

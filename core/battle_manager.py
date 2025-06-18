@@ -6,7 +6,7 @@ from data.settings import *
 from data.assets import load_image
 from entities.defenders import Defender, ProgrammerBoy, BotanistGirl, CoffeeMachine, Activist, Guitarist, Medic, Artist, \
     Fashionista
-from entities.enemies import Enemy, StuffyProf
+from entities.enemies import Enemy
 from entities.projectiles import Integral, PaintSplat, SoundWave
 from entities.other_sprites import NeuroMower, CoffeeBean
 
@@ -128,23 +128,38 @@ class BattleManager:
         defender = constructor(**all_args)
         if defender_type in self.upgrades: defender.is_upgraded = True
 
+        # core/battle_manager.py
+
     def update(self):
         now = pygame.time.get_ticks()
-        enemies_before_update = len(self.enemies)
 
-        self.all_sprites.update(self.defenders, self.all_sprites, self.projectiles, enemies_group=self.enemies)
-        self.apply_auras();
-        self.check_collisions()
-        self._check_calamity_triggers(now)
+        # Создаем словарь с аргументами для всех обновлений
+        update_args = {
+            'defenders_group': self.defenders,
+            'enemies_group': self.enemies,
+            'all_sprites': self.all_sprites,
+            'projectiles': self.projectiles,
+            'coffee_beans': self.coffee_beans,
+            'neuro_mowers': self.neuro_mowers
+        }
 
-        enemies_after_update = len(self.enemies)
-        killed_this_frame = enemies_before_update - enemies_after_update
-        for _ in range(killed_this_frame): self.level_manager.enemy_killed()
-
+        # Сначала спавним врагов
         enemies_before_spawn = set(self.enemies.sprites())
         self.level_manager.update()
-        enemies_after_spawn = set(self.enemies.sprites())
-        newly_spawned = enemies_after_spawn - enemies_before_spawn
+        newly_spawned = set(self.enemies.sprites()) - enemies_before_spawn
+
+        # Потом обновляем все спрайты, используя подготовленный словарь
+        enemies_before_update = len(self.enemies)
+        self.all_sprites.update(**update_args)  # <-- ВОТ КЛЮЧЕВОЕ ИСПРАВЛЕНИЕ
+        enemies_after_update = len(self.enemies)
+
+        killed_this_frame = enemies_before_update - enemies_after_update
+        for _ in range(killed_this_frame):
+            self.level_manager.enemy_killed()
+
+        self.apply_auras()
+        self.check_collisions()
+        self._check_calamity_triggers(now)
 
         if self.active_calamity:
             for enemy in newly_spawned:
@@ -156,16 +171,16 @@ class BattleManager:
                 for mower in self.neuro_mowers:
                     if mower.rect.centery == enemy.rect.centery and not mower.is_active:
                         enemies_before_activation = set(self.enemies.sprites())
-                        mower.activate(self.enemies)
-                        if mower.mower_type == 'chat_gpt':
-                            enemy.kill()
+                        mower.activate(self.enemies, enemy)
                         enemies_after_activation = set(self.enemies.sprites())
                         killed_by_mower = len(enemies_before_activation - enemies_after_activation)
                         for _ in range(killed_by_mower):
                             self.level_manager.enemy_killed()
                         mower_activated = True
                         break
-                if not mower_activated: self.is_game_over = True; return
+                if not mower_activated:
+                    self.is_game_over = True
+                    return
 
         if self.calamity_notification and now > self.calamity_notification_timer: self.calamity_notification = None
         if self.active_calamity and now > self.calamity_end_time: self._end_calamity()
@@ -209,28 +224,24 @@ class BattleManager:
             if hasattr(sprite, 'revert_calamity_effect'): sprite.revert_calamity_effect(self.active_calamity)
         self.active_calamity = None
 
-    def check_collisions(self):
-        professors = [e for e in self.enemies if isinstance(e, StuffyProf) and e.alive()]
+        # core/battle_manager.py
 
+    def check_collisions(self):
         for proj in list(self.projectiles):
             if not proj.alive(): continue
 
+            # Логика для снарядов героев
             if not isinstance(proj, Integral):
-                debuff = 1.0
-                for prof in professors:
-                    aura_rect = prof.rect.inflate(prof.data['radius'] * CELL_SIZE_W, prof.data['radius'] * CELL_SIZE_W)
-                    if aura_rect.colliderect(proj.rect):
-                        debuff = prof.data['debuff']
-                        break
-
                 hits = pygame.sprite.spritecollide(proj, self.enemies, False)
                 if hits:
                     target = hits[0]
                     if target.alive():
                         if isinstance(proj, PaintSplat):
                             target.slow_down(proj.artist.data['slow_factor'], proj.artist.data['slow_duration'])
-                        target.get_hit(proj.damage * debuff)
+                        # Урон наносится без ослабления
+                        target.get_hit(proj.damage)
                         proj.kill()
+            # Логика для снарядов врагов
             elif isinstance(proj, Integral):
                 if pygame.sprite.spritecollide(proj, self.defenders, True):
                     proj.kill()
@@ -243,8 +254,9 @@ class BattleManager:
 
         for mower in list(self.neuro_mowers):
             if not mower.is_active:
-                if pygame.sprite.spritecollide(mower, self.enemies, False):
-                    mower.activate(self.enemies)
+                colliding_enemies = pygame.sprite.spritecollide(mower, self.enemies, False)
+                if colliding_enemies:
+                    mower.activate(self.enemies, colliding_enemies[0])
 
     def apply_auras(self):
         for d in self.defenders:

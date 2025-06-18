@@ -227,14 +227,6 @@ class Calculus(Enemy):
             self.rect.x -= self.speed
 
 
-class StuffyProf(Enemy):
-    def __init__(self, row, groups, sound_manager):
-        super().__init__(row, groups, 'professor', sound_manager)
-
-    def update(self, defenders_group, *args, **kwargs):
-        super().update(defenders_group, *args, **kwargs)
-
-
 class MathTeacher(Enemy):
     def __init__(self, row, groups, sound_manager):
         super().__init__(row, groups, 'math_teacher', sound_manager)

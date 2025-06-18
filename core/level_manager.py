@@ -3,7 +3,7 @@
 import pygame
 import random
 from data.levels import LEVELS
-from entities.enemies import Enemy, Calculus, StuffyProf, MathTeacher, Addict, Thief
+from entities.enemies import Enemy, Calculus, MathTeacher, Addict, Thief
 from data.settings import *
 
 
@@ -78,7 +78,6 @@ class LevelManager:
 
         enemy_map = {
             'calculus': Calculus,
-            'professor': StuffyProf,
             'math_teacher': MathTeacher,
             'addict': Addict,
             'thief': Thief
