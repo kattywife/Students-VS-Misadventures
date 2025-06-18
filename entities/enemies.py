@@ -193,9 +193,12 @@ class Enemy(BaseSprite):
             super().kill()
 
     def slow_down(self, factor, duration):
+        # Если враг еще не замедлен, применяем эффект к его оригинальной скорости
         if not self.is_slowed:
-            self.speed *= factor
+            self.speed = self.original_speed * factor  # <-- КЛЮЧЕВОЕ ИЗМЕНЕНИЕ
             self.is_slowed = True
+
+        # В любом случае обновляем таймер замедления
         self.slow_timer = pygame.time.get_ticks() + duration
 
 

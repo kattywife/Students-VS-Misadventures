@@ -27,6 +27,8 @@ class PaintSplat(Bracket):
         self.artist = artist
 
 
+# entities/projectiles.py
+
 class SoundWave(BaseSprite):
     def __init__(self, center, groups, damage, row_y, speed=5):
         super().__init__(groups)
@@ -37,9 +39,9 @@ class SoundWave(BaseSprite):
         self.speed = speed
         self.hit_enemies = set()
         self.spawn_time = pygame.time.get_ticks()
-        self.lifetime = 2000
+        self.lifetime = 5000  # <-- ИЗМЕНЕНО С 2000 НА 5000
 
-    def update(self, *args, **kwargs):
+    def update(self, **kwargs):
         self.rect.x += self.speed
         if pygame.time.get_ticks() - self.spawn_time > self.lifetime or self.rect.left > SCREEN_WIDTH:
             self.kill()
