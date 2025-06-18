@@ -23,6 +23,10 @@ class UIManager:
         self.font_tiny = pygame.font.SysFont('Arial', 18)
         self.font_large = pygame.font.SysFont('Arial', 60)
         self.font_huge = pygame.font.SysFont('Impact', 120)
+
+        self.prep_background_image = load_image('prep_background.png', DEFAULT_COLORS['background'],
+                                                (SCREEN_WIDTH, SCREEN_HEIGHT))
+
         margin = 20
         panel_width = (SCREEN_WIDTH - 4 * margin) / 3
         panel_height = SCREEN_HEIGHT - 150
@@ -38,6 +42,33 @@ class UIManager:
         self.shop_rects = {}
         self.shop_panel_surf = pygame.Surface((SCREEN_WIDTH, SHOP_PANEL_HEIGHT), pygame.SRCALPHA)
         self.pause_button_rect = pygame.Rect(SCREEN_WIDTH - 120, (SHOP_PANEL_HEIGHT - 60) / 2, 60, 60)
+
+    def draw_start_screen(self, surface, title_text, buttons):
+        plaque_img = UI_IMAGES.get('title_plaque')
+        if plaque_img:
+            plaque_rect = plaque_img.get_rect(center=(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 4))
+            surface.blit(plaque_img, plaque_rect)
+
+            title_font = pygame.font.SysFont('Georgia', 55)
+            title_surf = title_font.render(title_text, True, TITLE_BROWN)
+            title_rect = title_surf.get_rect(center=(plaque_rect.centerx, plaque_rect.centery + 5))
+            surface.blit(title_surf, title_rect)
+        else:
+            title = self.font_large.render(title_text, True, WHITE)
+            surface.blit(title, title.get_rect(center=(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 4)))
+
+        for name, rect in buttons.items():
+            button_color = DEFAULT_COLORS['button']
+            if name == "Начать обучение":
+                button_color = START_BUTTON_GREEN
+            elif name == "Выход":
+                button_color = EXIT_BUTTON_RED
+
+            pygame.draw.rect(surface, button_color, rect, border_radius=10)
+
+            pygame.draw.rect(surface, WHITE, rect, 2, border_radius=10)
+            text = self.font.render(name, True, WHITE)
+            surface.blit(text, text.get_rect(center=rect.center))
 
     def create_battle_shop(self, team):
         self.shop_items = team
@@ -131,7 +162,7 @@ class UIManager:
                 rect = pygame.Rect(GRID_START_X + col * CELL_SIZE_W, GRID_START_Y + row * CELL_SIZE_H, CELL_SIZE_W,
                                    CELL_SIZE_H)
                 s = pygame.Surface((CELL_SIZE_W, CELL_SIZE_H), pygame.SRCALPHA)
-                pygame.draw.rect(s, (255, 255, 255, 30), s.get_rect(), 1)
+                pygame.draw.rect(s, GRID_COLOR, s.get_rect(), 1)
                 surface.blit(s, (rect.x, rect.y))
 
     def draw_menu(self, surface, title_text, buttons):
@@ -157,7 +188,6 @@ class UIManager:
 
         buttons = {}
 
-        # --- Отрисовка переключателя музыки ---
         music_label_surf = self.font.render("Фоновая музыка", True, WHITE)
         music_label_rect = music_label_surf.get_rect(midleft=(panel_rect.left + 50, panel_rect.centery - 50))
         surface.blit(music_label_surf, music_label_rect)
@@ -167,7 +197,6 @@ class UIManager:
         surface.blit(music_toggle_img, music_toggle_rect)
         buttons['toggle_music'] = music_toggle_rect
 
-        # --- Отрисовка переключателя звуковых эффектов ---
         sfx_label_surf = self.font.render("Звуковые эффекты", True, WHITE)
         sfx_label_rect = sfx_label_surf.get_rect(midleft=(panel_rect.left + 50, panel_rect.centery + 50))
         surface.blit(sfx_label_surf, sfx_label_rect)
@@ -204,18 +233,21 @@ class UIManager:
         control_buttons = {}
         btn_width, btn_height = 300, 90;
         btn_x = SCREEN_WIDTH - btn_width - 150
+
         settings_rect = pygame.Rect(btn_x, 250, btn_width, btn_height)
-        pygame.draw.rect(surface, DEFAULT_COLORS['button'], settings_rect, border_radius=10);
+        pygame.draw.rect(surface, DEFAULT_COLORS['shop_panel'], settings_rect, border_radius=10)
         pygame.draw.rect(surface, WHITE, settings_rect, 2, border_radius=10)
-        settings_text = self.font.render("Настройки", True, WHITE);
-        surface.blit(settings_text, settings_text.get_rect(center=settings_rect.center));
+        settings_text = self.font.render("Настройки", True, WHITE)
+        surface.blit(settings_text, settings_text.get_rect(center=settings_rect.center))
         control_buttons["Настройки"] = settings_rect
+
         exit_rect = pygame.Rect(btn_x, settings_rect.bottom + 30, btn_width, btn_height)
-        pygame.draw.rect(surface, DEFAULT_COLORS['button'], exit_rect, border_radius=10);
+        pygame.draw.rect(surface, DEFAULT_COLORS['shop_panel'], exit_rect, border_radius=10)
         pygame.draw.rect(surface, WHITE, exit_rect, 2, border_radius=10)
-        exit_text = self.font.render("Выход", True, WHITE);
-        surface.blit(exit_text, exit_text.get_rect(center=exit_rect.center));
+        exit_text = self.font.render("Выход", True, WHITE)
+        surface.blit(exit_text, exit_text.get_rect(center=exit_rect.center))
         control_buttons["Выход"] = exit_rect
+
         return level_buttons, control_buttons
 
     def draw_level_clear_message(self, surface):
@@ -233,7 +265,7 @@ class UIManager:
     def draw_preparation_screen(self, surface, stipend, team, upgrades, purchased_mowers,
                                 all_defenders, all_neuro_mowers, level_id, selected_card_info, neuro_slots,
                                 current_team, current_mowers):
-        surface.fill(DEFAULT_COLORS['background'])
+        surface.blit(self.prep_background_image, (0, 0))
 
         random_buttons = self._draw_team_panel(surface, self.team_panel_rect, team,
                                                upgrades, purchased_mowers, neuro_slots)
@@ -600,12 +632,43 @@ class UIManager:
         text_surf = font.render(text, True, color)
         surface.blit(text_surf, text_surf.get_rect(centerx=center_x, top=top_y))
 
+    def _draw_placement_grid(self, surface):
+        """Рисует увеличенную сетку для экрана расстановки."""
+        for row in range(GRID_ROWS):
+            for col in range(GRID_COLS):
+                rect = pygame.Rect(PLACEMENT_GRID_START_X + col * PLACEMENT_GRID_CELL_W,
+                                   PLACEMENT_GRID_START_Y + row * PLACEMENT_GRID_CELL_H,
+                                   PLACEMENT_GRID_CELL_W, PLACEMENT_GRID_CELL_H)
+                s = pygame.Surface(rect.size, pygame.SRCALPHA)
+                pygame.draw.rect(s, GRID_COLOR, s.get_rect(), 1)
+                surface.blit(s, rect.topleft)
+
+    def _draw_placement_slots(self, surface):
+        """Рисует увеличенные слоты для экрана расстановки."""
+        for row in range(GRID_ROWS):
+            slot_rect = pygame.Rect(PLACEMENT_ZONE_X, PLACEMENT_GRID_START_Y + row * PLACEMENT_GRID_CELL_H,
+                                    PLACEMENT_GRID_CELL_W, PLACEMENT_GRID_CELL_H)
+            pygame.draw.rect(surface, (20, 20, 20, 200), slot_rect, border_radius=10)
+            pygame.draw.rect(surface, WHITE, slot_rect, 2, border_radius=10)
+
+    def _draw_placement_mower(self, surface, row, info):
+        """Рисует нейросеть в увеличенном слоте."""
+        img = CARD_IMAGES.get(info['type'])
+        if img:
+            img = pygame.transform.scale(img, (PLACEMENT_GRID_CELL_W - 10, PLACEMENT_GRID_CELL_H - 10))
+            rect = img.get_rect(
+                centerx=PLACEMENT_ZONE_X + PLACEMENT_GRID_CELL_W / 2,
+                centery=PLACEMENT_GRID_START_Y + row * PLACEMENT_GRID_CELL_H + PLACEMENT_GRID_CELL_H / 2
+            )
+            surface.blit(img, rect)
+
     def draw_neuro_placement_screen(self, surface, purchased_mowers, placed_mowers, dragged_mower_info):
-        surface.blit(load_image('background.png', DEFAULT_COLORS['background'], (SCREEN_WIDTH, SCREEN_HEIGHT)), (0, 0))
-        self.draw_grid(surface)
-        self._draw_neuro_placement_slots(surface)
+        surface.blit(self.prep_background_image, (0, 0))
+        self._draw_placement_grid(surface)
+        self._draw_placement_slots(surface)
         for row, info in placed_mowers.items():
-            self._draw_placed_mower(surface, row, info)
+            self._draw_placement_mower(surface, row, info)
+
         unplaced_mowers_rects, start_button_rect = self._draw_neuro_selection_panel(surface, purchased_mowers,
                                                                                     placed_mowers)
         if dragged_mower_info:
@@ -613,50 +676,40 @@ class UIManager:
             rect = pygame.Rect(0, 0, 100, 100)
             rect.center = pos
             self._draw_unit_card(surface, mower_type, rect, NEURO_MOWERS_DATA[mower_type])
+
         return unplaced_mowers_rects, start_button_rect
 
-    def _draw_neuro_placement_slots(self, surface):
-        placement_zone_width = CELL_SIZE_W + 20
-        placement_zone_x = GRID_START_X - placement_zone_width
-        for row in range(GRID_ROWS):
-            slot_center_x = placement_zone_x + placement_zone_width / 2
-            slot_center_y = GRID_START_Y + row * CELL_SIZE_H + CELL_SIZE_H / 2
-            slot_rect = pygame.Rect(0, 0, CELL_SIZE_W, CELL_SIZE_H)
-            slot_rect.center = (slot_center_x, slot_center_y)
-            pygame.draw.rect(surface, (20, 20, 20, 200), slot_rect, border_radius=10)
-            pygame.draw.rect(surface, WHITE, slot_rect, 2, border_radius=10)
-
-    def _draw_placed_mower(self, surface, row, info):
-        placement_zone_width = CELL_SIZE_W + 20
-        placement_zone_x = GRID_START_X - placement_zone_width
-        y = GRID_START_Y + row * CELL_SIZE_H + CELL_SIZE_H / 2
-        x = placement_zone_x + placement_zone_width / 2
-        img = CARD_IMAGES.get(info['type'])
-        if img:
-            img = pygame.transform.scale(img, (CELL_SIZE_W - 10, CELL_SIZE_H - 10))
-            surface.blit(img, img.get_rect(center=(x, y)))
-
     def _draw_neuro_selection_panel(self, surface, purchased_mowers, placed_mowers):
-        panel_w, panel_h = 600, 550
-        panel_x = (SCREEN_WIDTH - panel_w) / 2 + 100
-        panel_y = (SCREEN_HEIGHT - panel_h) / 2
-        panel_rect = pygame.Rect(panel_x, panel_y, panel_w, panel_h)
-        self._draw_panel_with_title(surface, panel_rect, "Расставьте нейросети по рядам")
-        card_size, padding, cols = 100, 20, 4
         unplaced_mowers_rects = {}
         placed_indices = [info.get('original_index') for info in placed_mowers.values()]
         unplaced_mower_list_with_indices = [(i, m) for i, m in enumerate(purchased_mowers) if i not in placed_indices]
-        start_x = panel_rect.left + (panel_rect.width - (cols * card_size + (cols - 1) * padding)) / 2
-        start_y = panel_rect.top + 100
-        for i, (original_index, mower_type) in enumerate(unplaced_mower_list_with_indices):
-            row, col = divmod(i, cols)
-            x, y = start_x + col * (card_size + padding), start_y + row * (card_size + padding)
-            rect = pygame.Rect(x, y, card_size, card_size)
-            self._draw_unit_card(surface, mower_type, rect, NEURO_MOWERS_DATA[mower_type])
-            unplaced_mowers_rects[original_index] = rect
+
+        # --- ИСПРАВЛЕНИЕ: Логика отрисовки панели и кнопки ---
         can_start = len(purchased_mowers) == len(placed_mowers)
+
+        # Рисуем панель, только если есть что расставлять
+        if unplaced_mower_list_with_indices:
+            panel_w, panel_h = 600, 250  # Панель стала меньше
+            panel_x = (SCREEN_WIDTH - panel_w) / 2
+            panel_y = 20  # Панель теперь сверху
+            panel_rect = pygame.Rect(panel_x, panel_y, panel_w, panel_h)
+            self._draw_panel_with_title(surface, panel_rect, "Перетащите нейросети в слоты слева")
+
+            card_size, padding, cols = 100, 20, 4
+            start_x = panel_rect.left + (panel_rect.width - (cols * card_size + (cols - 1) * padding)) / 2
+            start_y = panel_rect.top + 100
+            for i, (original_index, mower_type) in enumerate(unplaced_mower_list_with_indices):
+                row, col = divmod(i, cols)
+                x, y = start_x + col * (card_size + padding), start_y + row * (card_size + padding)
+                rect = pygame.Rect(x, y, card_size, card_size)
+                self._draw_unit_card(surface, mower_type, rect, NEURO_MOWERS_DATA[mower_type])
+                unplaced_mowers_rects[original_index] = rect
+
+        # Кнопка "В бой" рисуется всегда, но меняет цвет
         start_button_rect = pygame.Rect(0, 0, 300, 70)
-        start_button_rect.center = (panel_rect.centerx, panel_rect.bottom - 60)
+        start_button_rect.center = (SCREEN_WIDTH / 2, SCREEN_HEIGHT - 60)
         color = GREEN if can_start else GREY
-        self._draw_button(surface, "В Бой!", start_button_rect, color, BLACK, self.font_large)
+        text_color = BLACK if can_start else DARK_GREY
+        self._draw_button(surface, "В Бой!", start_button_rect, color, text_color, self.font_large)
+
         return unplaced_mowers_rects, start_button_rect

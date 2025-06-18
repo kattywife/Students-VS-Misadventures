@@ -52,7 +52,7 @@ class Game:
 
     def _load_resources(self):
         load_all_resources()
-        self.background = load_image('background.png', DEFAULT_COLORS['background'], (SCREEN_WIDTH, SCREEN_HEIGHT))
+        self.background = load_image('menu_background.png', DEFAULT_COLORS['background'], (SCREEN_WIDTH, SCREEN_HEIGHT))
 
     def run(self):
         while self.running:
@@ -134,15 +134,39 @@ class Game:
         self.screen.blit(self.background, (0, 0))
         self.ui_manager.draw_menu(self.screen, title, buttons_config)
 
+        # core/game_manager.py
+
     def _start_screen_loop(self):
-        buttons_data = {"Начать обучение": (400, 80), "Выход": (400, 80)};
+        # Определяем кнопки для стартового экрана
+        buttons_data = {"Начать обучение": (400, 80), "Выход": (400, 80)}
         buttons = {}
         for i, (text, size) in enumerate(buttons_data.items()):
-            rect = pygame.Rect(0, 0, size[0], size[1]);
-            rect.center = (SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2 + i * 120);
+            rect = pygame.Rect(0, 0, size[0], size[1])
+            # Немного опускаем кнопки, чтобы не перекрывать плашку
+            rect.center = (SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2 + 50 + i * 120)
             buttons[text] = rect
-        self._menu_loop_template("Студенты против Злоключений", buttons, {"Начать обучение": "MAIN_MENU"})
 
+        # Цикл обработки событий
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT: self.running = False
+            if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                for text, rect in buttons.items():
+                    if rect.collidepoint(event.pos):
+                        self.sound_manager.play_sfx('button')
+                        pygame.time.delay(100)
+                        if text == "Выход":
+                            self.running = False
+                        else:
+                            # Переходим в главное меню
+                            self.sound_manager.stop_music()
+                            self.state = "MAIN_MENU"
+                            self.sound_manager.play_music('main_team')
+
+        # Отрисовка (самое важное)
+        # 1. Сначала рисуем яркий фон
+        self.screen.blit(self.background, (0, 0))
+        # 2. Поверх фона вызываем специальный метод, который НЕ рисует затемнение
+        self.ui_manager.draw_start_screen(self.screen, "Студенты против Злоключений", buttons)
     def _main_menu_loop(self):
         if self.sound_manager.current_music != 'main_team':
             self.sound_manager.play_music('main_team')
@@ -218,27 +242,31 @@ class Game:
             if event.type == pygame.QUIT: self.running = False
             if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                 if self.dragged_mower is None:
+                    # Клик по нерасставленным нейросетям в панели
                     for index, rect in unplaced_rects.items():
                         if rect.collidepoint(event.pos):
                             self.sound_manager.play_sfx('purchase')
                             self.dragged_mower = {'type': self.prep_manager.purchased_mowers[index],
                                                   'original_index': index, 'pos': event.pos}
                             return
+                    # Клик по уже расставленным нейросетям, чтобы их забрать
                     for row, info in list(self.placed_neuro_mowers.items()):
-                        placement_zone_width = CELL_SIZE_W + 20
-                        placement_zone_x = GRID_START_X - placement_zone_width
-                        mower_rect = pygame.Rect(0, 0, CELL_SIZE_W, CELL_SIZE_H)
-                        mower_rect.center = (
-                            placement_zone_x + placement_zone_width / 2,
-                            GRID_START_Y + row * CELL_SIZE_H + CELL_SIZE_H / 2)
-
+                        mower_rect = pygame.Rect(
+                            PLACEMENT_ZONE_X,
+                            PLACEMENT_GRID_START_Y + row * PLACEMENT_GRID_CELL_H,
+                            PLACEMENT_GRID_CELL_W,
+                            PLACEMENT_GRID_CELL_H
+                        )
                         if mower_rect.collidepoint(event.pos):
                             self.sound_manager.play_sfx('purchase')
                             self.dragged_mower = self.placed_neuro_mowers.pop(row)
                             self.dragged_mower['pos'] = event.pos
                             return
 
-                if start_rect.collidepoint(event.pos) and len(self.prep_manager.purchased_mowers) == len(
+                # --- ИСПРАВЛЕНИЕ ЗДЕСЬ ---
+                # Используем правильное имя переменной: self.placed_neuro_mowers
+                if start_rect and start_rect.collidepoint(event.pos) and len(
+                        self.prep_manager.purchased_mowers) == len(
                         self.placed_neuro_mowers):
                     self.sound_manager.play_sfx('button')
                     self._start_battle()
@@ -250,11 +278,15 @@ class Game:
             if event.type == pygame.MOUSEBUTTONUP and event.button == 1:
                 if self.dragged_mower:
                     pos = event.pos
-                    placement_area_rect = pygame.Rect(GRID_START_X - CELL_SIZE_W - 20, GRID_START_Y,
-                                                      CELL_SIZE_W + 20, GRID_ROWS * CELL_SIZE_H)
+                    # Обновленная зона для расстановки
+                    placement_area_rect = pygame.Rect(
+                        PLACEMENT_ZONE_X, PLACEMENT_GRID_START_Y,
+                        PLACEMENT_GRID_CELL_W, GRID_ROWS * PLACEMENT_GRID_CELL_H
+                    )
 
                     if placement_area_rect.collidepoint(pos):
-                        row = (pos[1] - GRID_START_Y) // CELL_SIZE_H
+                        # Расчет ряда по новым координатам
+                        row = int((pos[1] - PLACEMENT_GRID_START_Y) // PLACEMENT_GRID_CELL_H)
                         if 0 <= row < GRID_ROWS and row not in self.placed_neuro_mowers:
                             self.sound_manager.play_sfx('purchase')
                             self.placed_neuro_mowers[row] = {'type': self.dragged_mower['type'],

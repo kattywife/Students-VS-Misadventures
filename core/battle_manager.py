@@ -14,34 +14,37 @@ from entities.other_sprites import NeuroMower, CoffeeBean
 class BattleManager:
     def __init__(self, all_sprites, defenders, enemies, projectiles, coffee_beans, neuro_mowers, ui_manager,
                  level_manager, sound_manager, team, upgrades, placed_mowers):
-        self.all_sprites = all_sprites;
-        self.defenders = defenders;
-        self.enemies = enemies;
+        self.all_sprites = all_sprites
+        self.defenders = defenders
+        self.enemies = enemies
         self.projectiles = projectiles
-        self.coffee_beans = coffee_beans;
-        self.neuro_mowers = neuro_mowers;
+        self.coffee_beans = coffee_beans
+        self.neuro_mowers = neuro_mowers
         self.ui_manager = ui_manager
-        self.level_manager = level_manager;
+        self.level_manager = level_manager
         self.sound_manager = sound_manager
-        self.is_game_over = False;
+        self.is_game_over = False
         self.team_data = team
-        self.upgrades = upgrades;
+        self.upgrades = upgrades
         self.placed_mowers_data = placed_mowers
-        self.coffee = level_manager.level_data.get('start_coffee', 150);
+        self.coffee = level_manager.level_data.get('start_coffee', 150)
         self.selected_defender = None
 
-        self.ui_manager.create_battle_shop(self.team_data);
+        # --- ИЗМЕНЕНИЕ №1: Загружаем фон один раз при создании ---
+        self.background_image = load_image('battle_background.png', DEFAULT_COLORS['background'], (SCREEN_WIDTH, SCREEN_HEIGHT))
+
+        self.ui_manager.create_battle_shop(self.team_data)
         self.place_neuro_mowers()
 
-        self.pending_calamities = self.level_manager.calamities.copy();
+        self.pending_calamities = self.level_manager.calamities.copy()
         random.shuffle(self.pending_calamities)
         self.calamity_triggers = [0.3, 0.7]
-        self.calamity_notification = None;
-        self.calamity_notification_timer = 0;
+        self.calamity_notification = None
+        self.calamity_notification_timer = 0
         self.notification_duration = 3000
 
-        self.active_calamity = None;
-        self.calamity_end_time = 0;
+        self.active_calamity = None
+        self.calamity_end_time = 0
         self.calamity_duration = 15000
 
     def start(self):
@@ -68,16 +71,16 @@ class BattleManager:
         for bean in list(self.coffee_beans):
             if bean.alive() and bean.rect.collidepoint(pos):
                 self.sound_manager.play_sfx('money')
-                self.coffee += bean.value;
-                bean.kill();
+                self.coffee += bean.value
+                bean.kill()
                 return
         if self.selected_defender:
             cost = DEFENDERS_DATA[self.selected_defender]['cost']
             if self.coffee >= cost:
                 grid_pos = self._get_grid_cell(pos)
                 if grid_pos and not self._is_cell_occupied(grid_pos):
-                    self.coffee -= cost;
-                    self._place_defender(grid_pos);
+                    self.coffee -= cost
+                    self._place_defender(grid_pos)
                     self.selected_defender = None
 
     def _get_grid_cell(self, pos):
@@ -86,20 +89,30 @@ class BattleManager:
             return (x - GRID_START_X) // CELL_SIZE_W, (y - GRID_START_Y) // CELL_SIZE_H
         return None
 
+        # core/battle_manager.py
+
     def _is_cell_occupied(self, grid_pos):
         col, row = grid_pos
-        center_x = GRID_START_X + col * CELL_SIZE_W + CELL_SIZE_W / 2
-        center_y = GRID_START_Y + row * CELL_SIZE_H + CELL_SIZE_H / 2
-        return any(d.alive() and d.rect.collidepoint(center_x, center_y) for d in self.defenders)
-
+        # Создаем полный прямоугольник для ячейки, в которую хотим поставить героя
+        new_defender_rect = pygame.Rect(
+            GRID_START_X + col * CELL_SIZE_W,
+            GRID_START_Y + row * CELL_SIZE_H,
+            CELL_SIZE_W,
+            CELL_SIZE_H
+        )
+        # Проверяем, не пересекается ли (colliderect) этот прямоугольник с кем-то из уже стоящих
+        for defender in self.defenders:
+            if defender.alive() and defender.rect.colliderect(new_defender_rect):
+                return True  # Если нашли пересечение - ячейка занята
+        return False  # Если ни с кем не пересеклись - свободна
     def _place_defender(self, grid_pos):
         self.sound_manager.play_sfx('purchase')
         col, row = grid_pos
-        x = GRID_START_X + col * CELL_SIZE_W + CELL_SIZE_W / 2;
+        x = GRID_START_X + col * CELL_SIZE_W + CELL_SIZE_W / 2
         y = GRID_START_Y + row * CELL_SIZE_H + CELL_SIZE_H / 2
-        groups = (self.all_sprites, self.defenders);
+        groups = (self.all_sprites, self.defenders)
         defender_type = self.selected_defender
-        data = DEFENDERS_DATA[defender_type].copy();
+        data = DEFENDERS_DATA[defender_type].copy()
         data['type'] = defender_type
 
         if defender_type in self.upgrades:
@@ -111,29 +124,29 @@ class BattleManager:
         unit_map = {'programmer': ProgrammerBoy, 'botanist': BotanistGirl, 'coffee_machine': CoffeeMachine,
                     'activist': Activist, 'guitarist': Guitarist, 'medic': Medic, 'artist': Artist,
                     'modnik': Fashionista}
-        constructor = unit_map[defender_type];
+        constructor = unit_map[defender_type]
         common_args = {'x': x, 'y': y, 'groups': groups, 'data': data, 'sound_manager': self.sound_manager}
 
-        specific_args = {'programmer': {'all_sprites': self.all_sprites, 'projectile_group': self.projectiles,
-                                        'enemies_group': self.enemies},
-                         'botanist': {'all_sprites': self.all_sprites, 'enemies_group': self.enemies},
-                         'coffee_machine': {'all_sprites': self.all_sprites, 'coffee_bean_group': self.coffee_beans},
-                         'activist': {'all_sprites': self.all_sprites},
-                         'guitarist': {'all_sprites': self.all_sprites, 'enemies_group': self.enemies},
-                         'medic': {'defenders_group': self.defenders},
-                         'artist': {'all_sprites': self.all_sprites, 'projectile_group': self.projectiles,
-                                    'enemies_group': self.enemies},
-                         'modnik': {'all_sprites': self.all_sprites, 'enemies_group': self.enemies}}
-        all_args = {**common_args, **specific_args.get(defender_type, {})};
+        specific_args = {
+            'programmer': {'all_sprites': self.all_sprites, 'projectile_group': self.projectiles,
+                           'enemies_group': self.enemies},
+            'botanist': {'all_sprites': self.all_sprites, 'enemies_group': self.enemies},
+            'coffee_machine': {'all_sprites': self.all_sprites, 'coffee_bean_group': self.coffee_beans},
+            'activist': {'all_sprites': self.all_sprites},
+            'guitarist': {'all_sprites': self.all_sprites, 'enemies_group': self.enemies},
+            'medic': {'defenders_group': self.defenders},
+            'artist': {'all_sprites': self.all_sprites, 'projectile_group': self.projectiles,
+                       'enemies_group': self.enemies},
+            'modnik': {'all_sprites': self.all_sprites, 'enemies_group': self.enemies}
+        }
+        all_args = {**common_args, **specific_args.get(defender_type, {})}
+
         defender = constructor(**all_args)
         if defender_type in self.upgrades: defender.is_upgraded = True
-
-        # core/battle_manager.py
 
     def update(self):
         now = pygame.time.get_ticks()
 
-        # Создаем словарь с аргументами для всех обновлений
         update_args = {
             'defenders_group': self.defenders,
             'enemies_group': self.enemies,
@@ -143,14 +156,12 @@ class BattleManager:
             'neuro_mowers': self.neuro_mowers
         }
 
-        # Сначала спавним врагов
         enemies_before_spawn = set(self.enemies.sprites())
         self.level_manager.update()
         newly_spawned = set(self.enemies.sprites()) - enemies_before_spawn
 
-        # Потом обновляем все спрайты, используя подготовленный словарь
         enemies_before_update = len(self.enemies)
-        self.all_sprites.update(**update_args)  # <-- ВОТ КЛЮЧЕВОЕ ИСПРАВЛЕНИЕ
+        self.all_sprites.update(**update_args)
         enemies_after_update = len(self.enemies)
 
         killed_this_frame = enemies_before_update - enemies_after_update
@@ -190,8 +201,8 @@ class BattleManager:
         spawn_progress = self.level_manager.get_spawn_progress()
         for trigger_point in self.calamity_triggers:
             if spawn_progress >= trigger_point:
-                self.calamity_triggers.remove(trigger_point);
-                self._trigger_random_calamity(now);
+                self.calamity_triggers.remove(trigger_point)
+                self._trigger_random_calamity(now)
                 break
 
     def _trigger_random_calamity(self, now):
@@ -224,12 +235,7 @@ class BattleManager:
             if hasattr(sprite, 'revert_calamity_effect'): sprite.revert_calamity_effect(self.active_calamity)
         self.active_calamity = None
 
-        # core/battle_manager.py
-
-        # core/battle_manager.py
-
     def check_collisions(self):
-        # Логика столкновений снарядов...
         for proj in list(self.projectiles):
             if not proj.alive(): continue
 
@@ -246,31 +252,20 @@ class BattleManager:
                 if pygame.sprite.spritecollide(proj, self.defenders, True):
                     proj.kill()
 
-        # Логика столкновений звуковой волны...
         for wave in [s for s in self.all_sprites if isinstance(s, SoundWave)]:
             for enemy in self.enemies:
                 if wave.rect.colliderect(enemy.rect) and enemy not in wave.hit_enemies:
                     enemy.get_hit(wave.damage)
                     wave.hit_enemies.add(enemy)
 
-        # --- ИЗМЕНЕНИЕ ЗДЕСЬ: Логика столкновений с нейросетями ---
         for mower in list(self.neuro_mowers):
             if not mower.is_active:
                 colliding_enemies = pygame.sprite.spritecollide(mower, self.enemies, False)
                 if colliding_enemies:
-                    # Запоминаем врагов до активации
                     enemies_before_activation = set(self.enemies.sprites())
-
-                    # Активируем нейросеть, которая убьет врагов
                     mower.activate(self.enemies, colliding_enemies[0])
-
-                    # Смотрим, кто остался после
                     enemies_after_activation = set(self.enemies.sprites())
-
-                    # Считаем, сколько было убито
                     killed_by_mower = len(enemies_before_activation - enemies_after_activation)
-
-                    # "Сообщаем бухгалтеру" о каждом убийстве
                     for _ in range(killed_by_mower):
                         self.level_manager.enemy_killed()
 
@@ -280,7 +275,8 @@ class BattleManager:
 
         for activist in [s for s in self.defenders if isinstance(s, Activist) and s.alive()]:
             for defender in self.defenders:
-                if pygame.math.Vector2(activist.rect.center).distance_to(defender.rect.center) < activist.data['radius'] * CELL_SIZE_W:
+                if pygame.math.Vector2(activist.rect.center).distance_to(defender.rect.center) < activist.data[
+                    'radius'] * CELL_SIZE_W:
                     defender.buff_multiplier *= activist.data['buff']
 
     def draw(self, surface):
@@ -294,7 +290,7 @@ class BattleManager:
                                  self.calamity_notification)
 
     def draw_world(self, surface):
-        surface.blit(load_image('background.png', DEFAULT_COLORS['background'], (SCREEN_WIDTH, SCREEN_HEIGHT)), (0, 0))
+        surface.blit(self.background_image, (0, 0))
         self.ui_manager.draw_grid(surface)
 
         for sprite in self.all_sprites:

@@ -37,6 +37,7 @@ def load_all_resources():
 
     UI_IMAGES['toggle_on'] = load_image('ui/toggle_on.png', GREEN, (120, 60))
     UI_IMAGES['toggle_off'] = load_image('ui/toggle_off.png', GREY, (120, 60))
+    UI_IMAGES['title_plaque'] = load_image('ui/title_plaque.png', None, (900, 180))
 
     all_units = {**DEFENDERS_DATA, **ENEMIES_DATA, **NEURO_MOWERS_DATA, **CALAMITIES_DATA, **UI_ELEMENTS_DATA}
     card_size = (SHOP_CARD_SIZE - 10, SHOP_CARD_SIZE - 10)

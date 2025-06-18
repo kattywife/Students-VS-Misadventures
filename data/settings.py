@@ -2,7 +2,6 @@
 
 import pygame
 
-# ... (Цвета и константы остаются без изменений)
 SCREEN_WIDTH = 1280
 SCREEN_HEIGHT = 720
 FPS = 60
@@ -13,6 +12,11 @@ GREEN = (0, 255, 0); RED = (255, 0, 0); BLUE = (0, 0, 255); YELLOW = (255, 255, 
 BROWN = (139, 69, 19); PROGRESS_BLUE = (30, 144, 255); DESCRIPTION_PANEL_COLOR = (20, 20, 20, 220)
 AURA_GREEN = (0, 255, 0, 50); AURA_RED = (255, 0, 0, 50); AURA_PINK = (255, 105, 180, 100)
 CALAMITY_ORANGE = (255, 140, 0)
+GRID_COLOR = (139, 69, 19)
+TITLE_BROWN = (89, 57, 42) # <-- ДОБАВЬ ЭТУ СТРОКУ
+START_BUTTON_GREEN = (46, 139, 87)
+EXIT_BUTTON_RED = (188, 74, 60)
+
 DEFAULT_COLORS = {
     'programmer': (60, 179, 113), 'botanist': (255, 105, 180), 'coffee_machine': (255, 215, 0),
     'activist': (0, 128, 128), 'guitarist': (218, 112, 214), 'medic': (240, 255, 255), 'artist': (255, 165, 0),
@@ -24,13 +28,21 @@ DEFAULT_COLORS = {
     'math_teacher': (210, 105, 30), 'addict': (0, 100, 0), 'thief': (139, 0, 0),
     'chat_gpt': (0, 168, 150), 'deepseek': (20, 20, 40), 'gemini': (106, 90, 205),
     'epidemic': (152, 251, 152, 100), 'big_party': (255, 20, 147, 100), 'colloquium': (255, 69, 0, 100), 'internet_down': (75, 0, 130, 100),
-    'background': (48, 124, 55), 'shop_panel': (54, 45, 33), 'shop_card': (87, 72, 54),
+    'background': (48, 124, 55), 'shop_panel': (70, 45, 30), 'shop_card': (87, 72, 54),
     'shop_border': (34, 28, 21), 'button': (100, 100, 100), 'pause_button': (200, 200, 200)
 }
 GRID_ROWS = 5; GRID_COLS = 9; CELL_SIZE_W = 110; CELL_SIZE_H = 110; GRID_START_X = 150
 GRID_START_Y = 150; GRID_WIDTH = GRID_COLS * CELL_SIZE_W; GRID_HEIGHT = GRID_ROWS * CELL_SIZE_H
 SHOP_PANEL_HEIGHT = 140; SHOP_CARD_SIZE = 100; SHOP_ITEM_PADDING = 20
 ASSETS_DIR = 'assets'; IMAGES_DIR = f'{ASSETS_DIR}/images'
+
+# Константы для экрана расстановки нейросетей (увеличенная сетка)
+PLACEMENT_GRID_CELL_W = 125
+PLACEMENT_GRID_CELL_H = 120
+PLACEMENT_GRID_START_Y = (SCREEN_HEIGHT - GRID_ROWS * PLACEMENT_GRID_CELL_H) / 2
+PLACEMENT_ZONE_X = 20
+PLACEMENT_GRID_START_X = PLACEMENT_ZONE_X + PLACEMENT_GRID_CELL_W + 20
+
 
 DEFENDERS_DATA = {
     'programmer': {'cost': 100, 'health': 300, 'damage': 25, 'cooldown': 1.5, 'display_name': 'Мальчик-джун', 'category': 'defenders',
