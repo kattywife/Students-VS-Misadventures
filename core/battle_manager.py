@@ -30,7 +30,6 @@ class BattleManager:
         self.coffee = level_manager.level_data.get('start_coffee', 150)
         self.selected_defender = None
 
-        # --- ИЗМЕНЕНИЕ №1: Загружаем фон один раз при создании ---
         self.background_image = load_image('battle_background.png', DEFAULT_COLORS['background'], (SCREEN_WIDTH, SCREEN_HEIGHT))
 
         self.ui_manager.create_battle_shop(self.team_data)
@@ -62,6 +61,8 @@ class BattleManager:
         if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE: return 'PAUSE'
         return None
 
+        # core/battle_manager.py
+
     def handle_click(self, pos):
         clicked_shop_item = self.ui_manager.handle_shop_click(pos)
         if clicked_shop_item:
@@ -76,35 +77,38 @@ class BattleManager:
                 return
         if self.selected_defender:
             cost = DEFENDERS_DATA[self.selected_defender]['cost']
+            # --- НАЧАЛО ИЗМЕНЕНИЙ ---
             if self.coffee >= cost:
                 grid_pos = self._get_grid_cell(pos)
                 if grid_pos and not self._is_cell_occupied(grid_pos):
                     self.coffee -= cost
                     self._place_defender(grid_pos)
                     self.selected_defender = None
-
+            else:
+                # Если кофе не хватает, проигрываем звук отказа
+                self.sound_manager.play_sfx('no_money')
+                # И сбрасываем выбор, чтобы игрок не спамил кликами
+                self.selected_defender = None
+            # --- КОНЕЦ ИЗМЕНЕНИЙ ---
     def _get_grid_cell(self, pos):
         x, y = pos
         if GRID_START_X <= x < GRID_START_X + GRID_WIDTH and GRID_START_Y <= y < GRID_START_Y + GRID_HEIGHT:
             return (x - GRID_START_X) // CELL_SIZE_W, (y - GRID_START_Y) // CELL_SIZE_H
         return None
 
-        # core/battle_manager.py
-
     def _is_cell_occupied(self, grid_pos):
         col, row = grid_pos
-        # Создаем полный прямоугольник для ячейки, в которую хотим поставить героя
         new_defender_rect = pygame.Rect(
             GRID_START_X + col * CELL_SIZE_W,
             GRID_START_Y + row * CELL_SIZE_H,
             CELL_SIZE_W,
             CELL_SIZE_H
         )
-        # Проверяем, не пересекается ли (colliderect) этот прямоугольник с кем-то из уже стоящих
         for defender in self.defenders:
             if defender.alive() and defender.rect.colliderect(new_defender_rect):
-                return True  # Если нашли пересечение - ячейка занята
-        return False  # Если ни с кем не пересеклись - свободна
+                return True
+        return False
+
     def _place_defender(self, grid_pos):
         self.sound_manager.play_sfx('purchase')
         col, row = grid_pos

@@ -7,15 +7,27 @@ SCREEN_HEIGHT = 720
 FPS = 60
 TITLE = "Студенты против Злоключений"
 MAX_TEAM_SIZE = 6
-BLACK = (0, 0, 0); WHITE = (255, 255, 255); GREY = (128, 128, 128); DARK_GREY = (50, 50, 50)
-GREEN = (0, 255, 0); RED = (255, 0, 0); BLUE = (0, 0, 255); YELLOW = (255, 255, 0)
-BROWN = (139, 69, 19); PROGRESS_BLUE = (30, 144, 255); DESCRIPTION_PANEL_COLOR = (20, 20, 20, 220)
-AURA_GREEN = (0, 255, 0, 50); AURA_RED = (255, 0, 0, 50); AURA_PINK = (255, 105, 180, 100)
+BLACK = (0, 0, 0);
+WHITE = (255, 255, 255);
+GREY = (128, 128, 128);
+DARK_GREY = (50, 50, 50)
+GREEN = (0, 255, 0);
+RED = (255, 0, 0);
+BLUE = (0, 0, 255);
+YELLOW = (255, 255, 0)
+BROWN = (139, 69, 19);
+PROGRESS_BLUE = (30, 144, 255);
+DESCRIPTION_PANEL_COLOR = (20, 20, 20, 220)
+AURA_GREEN = (0, 255, 0, 50);
+AURA_RED = (255, 0, 0, 50);
+AURA_PINK = (255, 105, 180, 100)
 CALAMITY_ORANGE = (255, 140, 0)
-GRID_COLOR = (139, 69, 19)
+GRID_COLOR = (200, 200, 200, 100) # Был коричневый, стал полупрозрачный белый/серый
 TITLE_BROWN = (89, 57, 42) # <-- ДОБАВЬ ЭТУ СТРОКУ
-START_BUTTON_GREEN = (46, 139, 87)
 EXIT_BUTTON_RED = (188, 74, 60)
+CALAMITY_PANEL_BG = (70, 45, 30, 220) # Тот же коричневый, но с альфа-каналом 220 (почти непрозрачный)
+CALAMITY_BORDER_RED = (188, 74, 60)
+
 
 DEFAULT_COLORS = {
     'programmer': (60, 179, 113), 'botanist': (255, 105, 180), 'coffee_machine': (255, 215, 0),

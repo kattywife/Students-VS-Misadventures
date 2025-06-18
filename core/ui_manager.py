@@ -43,6 +43,20 @@ class UIManager:
         self.shop_panel_surf = pygame.Surface((SCREEN_WIDTH, SHOP_PANEL_HEIGHT), pygame.SRCALPHA)
         self.pause_button_rect = pygame.Rect(SCREEN_WIDTH - 120, (SHOP_PANEL_HEIGHT - 60) / 2, 60, 60)
 
+    def _render_text_wrapped(self, text, font, color, max_width):
+        words = text.split(' ')
+        lines = []
+        current_line = ""
+        for word in words:
+            test_line = current_line + word + " "
+            if font.size(test_line)[0] < max_width:
+                current_line = test_line
+            else:
+                lines.append(font.render(current_line, True, color))
+                current_line = word + " "
+        lines.append(font.render(current_line, True, color))
+        return lines
+
     def draw_start_screen(self, surface, title_text, buttons):
         plaque_img = UI_IMAGES.get('title_plaque')
         if plaque_img:
@@ -60,7 +74,7 @@ class UIManager:
         for name, rect in buttons.items():
             button_color = DEFAULT_COLORS['button']
             if name == "Начать обучение":
-                button_color = START_BUTTON_GREEN
+                button_color = GREEN
             elif name == "Выход":
                 button_color = EXIT_BUTTON_RED
 
@@ -131,6 +145,7 @@ class UIManager:
         plan_text_surf = self.font_tiny.render(f"Учебный план: {enemies_spawned} / {total_spawn}", True, WHITE);
         surface.blit(plan_text_surf, plan_text_surf.get_rect(center=(plan_x + bar_w / 2, plan_y + bar_h / 2)))
         pygame.draw.rect(surface, WHITE, (plan_x, plan_y, bar_w, bar_h), 2, border_radius=5)
+
         pygame.draw.rect(surface, DEFAULT_COLORS['pause_button'], self.pause_button_rect, border_radius=10)
         pygame.draw.rect(surface, WHITE, self.pause_button_rect, 2, border_radius=10)
         bar1 = pygame.Rect(0, 0, 8, 30);
@@ -141,20 +156,39 @@ class UIManager:
         pygame.draw.rect(surface, BLACK, bar2, border_radius=3)
 
         if calamity_notification:
+            panel_w, panel_h = 800, 250
+            panel_rect = pygame.Rect(0, 0, panel_w, panel_h)
+            panel_rect.center = (SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2)
+
+            panel_surf = pygame.Surface(panel_rect.size, pygame.SRCALPHA)
+            panel_surf.fill(CALAMITY_PANEL_BG)
+
+            surface.blit(panel_surf, panel_rect.topleft)
+            pygame.draw.rect(surface, CALAMITY_BORDER_RED, panel_rect, 5, border_radius=15)
+
             icon = CARD_IMAGES.get(calamity_notification['type'])
             icon_rect = None
             if icon:
-                icon = pygame.transform.scale(icon, (100, 100))
-                icon_rect = icon.get_rect(centerx=SCREEN_WIDTH / 2, centery=SCREEN_HEIGHT / 2 - 80)
+                icon = pygame.transform.scale(icon, (120, 120))
+                icon_rect = icon.get_rect(centery=panel_rect.centery, left=panel_rect.left + 40)
                 surface.blit(icon, icon_rect)
 
+            text_area_left_margin = icon_rect.right + 40 if icon_rect else panel_rect.left + 40
+            max_text_width = (panel_rect.right - 40) - text_area_left_margin
+
             name_surf = self.font_large.render(calamity_notification['name'], True, CALAMITY_ORANGE)
-            desc_surf = self.font_small.render(calamity_notification['desc'], True, WHITE)
-            name_y_pos = (icon_rect.bottom + 20) if icon_rect else (SCREEN_HEIGHT / 2 - 20)
-            name_rect = name_surf.get_rect(centerx=SCREEN_WIDTH / 2, top=name_y_pos)
-            desc_rect = desc_surf.get_rect(centerx=SCREEN_WIDTH / 2, top=name_rect.bottom + 5)
+            name_rect = name_surf.get_rect(left=text_area_left_margin, top=panel_rect.top + 40)
             surface.blit(name_surf, name_rect)
-            surface.blit(desc_surf, desc_rect)
+
+            wrapped_lines = self._render_text_wrapped(
+                calamity_notification['desc'], self.font_small, WHITE, max_text_width
+            )
+
+            current_y = name_rect.bottom + 15
+            for line_surf in wrapped_lines:
+                line_rect = line_surf.get_rect(left=text_area_left_margin, top=current_y)
+                surface.blit(line_surf, line_rect)
+                current_y += line_surf.get_height()
 
     def draw_grid(self, surface):
         for row in range(GRID_ROWS):
@@ -609,20 +643,6 @@ class UIManager:
         buttons['close'] = close_rect
         return buttons
 
-    def _render_text_wrapped(self, text, font, color, max_width):
-        words = text.split(' ');
-        lines = [];
-        current_line = ""
-        for word in words:
-            test_line = current_line + word + " ";
-            if font.size(test_line)[0] < max_width:
-                current_line = test_line
-            else:
-                lines.append(font.render(current_line, True, color));
-                current_line = word + " "
-        lines.append(font.render(current_line, True, color));
-        return lines
-
     def _draw_panel_with_title(self, surface, rect, title):
         pygame.draw.rect(surface, DEFAULT_COLORS['shop_panel'], rect, border_radius=15)
         pygame.draw.rect(surface, WHITE, rect, 3, border_radius=15)
@@ -633,7 +653,6 @@ class UIManager:
         surface.blit(text_surf, text_surf.get_rect(centerx=center_x, top=top_y))
 
     def _draw_placement_grid(self, surface):
-        """Рисует увеличенную сетку для экрана расстановки."""
         for row in range(GRID_ROWS):
             for col in range(GRID_COLS):
                 rect = pygame.Rect(PLACEMENT_GRID_START_X + col * PLACEMENT_GRID_CELL_W,
@@ -644,7 +663,6 @@ class UIManager:
                 surface.blit(s, rect.topleft)
 
     def _draw_placement_slots(self, surface):
-        """Рисует увеличенные слоты для экрана расстановки."""
         for row in range(GRID_ROWS):
             slot_rect = pygame.Rect(PLACEMENT_ZONE_X, PLACEMENT_GRID_START_Y + row * PLACEMENT_GRID_CELL_H,
                                     PLACEMENT_GRID_CELL_W, PLACEMENT_GRID_CELL_H)
@@ -652,7 +670,6 @@ class UIManager:
             pygame.draw.rect(surface, WHITE, slot_rect, 2, border_radius=10)
 
     def _draw_placement_mower(self, surface, row, info):
-        """Рисует нейросеть в увеличенном слоте."""
         img = CARD_IMAGES.get(info['type'])
         if img:
             img = pygame.transform.scale(img, (PLACEMENT_GRID_CELL_W - 10, PLACEMENT_GRID_CELL_H - 10))
@@ -684,30 +701,27 @@ class UIManager:
         placed_indices = [info.get('original_index') for info in placed_mowers.values()]
         unplaced_mower_list_with_indices = [(i, m) for i, m in enumerate(purchased_mowers) if i not in placed_indices]
 
-        # --- ИСПРАВЛЕНИЕ: Логика отрисовки панели и кнопки ---
+        panel_w, panel_h = 600, 250
+        panel_x = (SCREEN_WIDTH - panel_w) / 2
+        panel_y = (SCREEN_HEIGHT - panel_h) / 2
+        panel_rect = pygame.Rect(panel_x, panel_y, panel_w, panel_h)
+
+        self._draw_panel_with_title(surface, panel_rect, "Расставьте нейросети по рядам")
+
+        card_size, padding, cols = 100, 20, 4
+        start_x = panel_rect.left + (panel_rect.width - (cols * card_size + (cols - 1) * padding)) / 2
+        start_y = panel_rect.top + 100
+        for i, (original_index, mower_type) in enumerate(unplaced_mower_list_with_indices):
+            row, col = divmod(i, cols)
+            x, y = start_x + col * (card_size + padding), start_y + row * (card_size + padding)
+            rect = pygame.Rect(x, y, card_size, card_size)
+            self._draw_unit_card(surface, mower_type, rect, NEURO_MOWERS_DATA[mower_type])
+            unplaced_mowers_rects[original_index] = rect
+
         can_start = len(purchased_mowers) == len(placed_mowers)
-
-        # Рисуем панель, только если есть что расставлять
-        if unplaced_mower_list_with_indices:
-            panel_w, panel_h = 600, 250  # Панель стала меньше
-            panel_x = (SCREEN_WIDTH - panel_w) / 2
-            panel_y = 20  # Панель теперь сверху
-            panel_rect = pygame.Rect(panel_x, panel_y, panel_w, panel_h)
-            self._draw_panel_with_title(surface, panel_rect, "Перетащите нейросети в слоты слева")
-
-            card_size, padding, cols = 100, 20, 4
-            start_x = panel_rect.left + (panel_rect.width - (cols * card_size + (cols - 1) * padding)) / 2
-            start_y = panel_rect.top + 100
-            for i, (original_index, mower_type) in enumerate(unplaced_mower_list_with_indices):
-                row, col = divmod(i, cols)
-                x, y = start_x + col * (card_size + padding), start_y + row * (card_size + padding)
-                rect = pygame.Rect(x, y, card_size, card_size)
-                self._draw_unit_card(surface, mower_type, rect, NEURO_MOWERS_DATA[mower_type])
-                unplaced_mowers_rects[original_index] = rect
-
-        # Кнопка "В бой" рисуется всегда, но меняет цвет
         start_button_rect = pygame.Rect(0, 0, 300, 70)
-        start_button_rect.center = (SCREEN_WIDTH / 2, SCREEN_HEIGHT - 60)
+        start_button_rect.center = (panel_rect.centerx, panel_rect.bottom + 60)
+
         color = GREEN if can_start else GREY
         text_color = BLACK if can_start else DARK_GREY
         self._draw_button(surface, "В Бой!", start_button_rect, color, text_color, self.font_large)
