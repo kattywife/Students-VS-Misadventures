@@ -207,6 +207,8 @@ class Enemy(BaseSprite):
         self.slow_timer = pygame.time.get_ticks() + duration
 
 
+# entities/enemies.py
+
 class Calculus(Enemy):
     def __init__(self, row, groups, enemy_type, sound_manager):
         super().__init__(row, groups, enemy_type, sound_manager)
@@ -230,8 +232,11 @@ class Calculus(Enemy):
 
         is_shooting = False
         if defenders_group:
+            # --- ИЗМЕНЕНИЕ ЗДЕСЬ ---
+            # Теперь проверяем, что защитник находится ПЕРЕД (слева от) Матанализом
             is_shooting = any(
-                d.alive() and d.rect.centery == self.rect.centery for d in defenders_group
+                d.alive() and d.rect.centery == self.rect.centery and d.rect.right < self.rect.left
+                for d in defenders_group
             ) and self.rect.right < SCREEN_WIDTH
 
         self.is_attacking = is_shooting
@@ -247,7 +252,6 @@ class Calculus(Enemy):
         else:
             self.float_pos.x -= self.speed
             self.rect.centerx = int(self.float_pos.x)
-
 
 class MathTeacher(Enemy):
     def __init__(self, row, groups, enemy_type, sound_manager):
