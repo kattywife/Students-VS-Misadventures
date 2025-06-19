@@ -48,7 +48,6 @@ class Defender(BaseSprite):
         self.buff_multiplier = 1.0
         self.calamity_damage_multiplier = 1.0
 
-    # --- НОВЫЙ МЕТОД GET_HIT ---
     def get_hit(self, damage):
         self.health -= damage
         self.sound_manager.play_sfx('damage')
@@ -83,32 +82,30 @@ class Defender(BaseSprite):
                     self.animations[anim_type].append(fallback_surface)
 
     def animate(self):
-        if not self.animations or not self.animations[self.current_animation]:
+        if not self.animations or not self.animations.get(self.current_animation):
             return
 
         anim_sequence = self.animations[self.current_animation]
-        # Если герой атакован, он должен оставаться в анимации 'hit' до ее завершения
-        if self.current_animation == 'hit' and self.frame_index >= len(anim_sequence) - 1:
-            self.current_animation = 'idle'
-            self.frame_index = 0
 
         if self.is_being_eaten and self.current_animation != 'hit':
-            self.current_animation = 'hit'
-            self.frame_index = 0
+            if 'hit' in self.animations and self.animations['hit']:
+                self.current_animation = 'hit'
+                self.frame_index = 0
         elif not self.is_being_eaten and self.current_animation == 'hit':
-            # Не переключаем сразу на idle, даем анимации 'hit' проиграться
             pass
 
         now = pygame.time.get_ticks()
         if now - self.last_anim_update > self.anim_speed * 1000:
             self.last_anim_update = now
+
+            self.image = anim_sequence[int(self.frame_index)]
+
             self.frame_index += 1
-            anim_sequence = self.animations[self.current_animation]
+
             if self.frame_index >= len(anim_sequence):
-                if self.current_animation == 'attack' or self.current_animation == 'hit':
+                if self.current_animation in ['attack', 'hit']:
                     self.current_animation = 'idle'
                 self.frame_index = 0
-            self.image = anim_sequence[self.frame_index]
 
     def get_final_damage(self, base_damage):
         return base_damage * self.buff_multiplier * self.calamity_damage_multiplier
@@ -170,11 +167,14 @@ class ProgrammerBoy(Defender):
         enemies_group = kwargs.get('enemies_group')
         if not enemies_group: return
 
-        if self.is_being_eaten: return  # Не атакуем, если нас едят
+        if self.is_being_eaten: return
 
         now = pygame.time.get_ticks()
+        # --- ИСПРАВЛЕНИЕ: Добавлена проверка положения врага по горизонтали ---
         has_enemy_in_row = any(
-            enemy.rect.centery == self.rect.centery for enemy in enemies_group)
+            enemy.rect.centery == self.rect.centery and enemy.rect.left >= self.rect.left
+            for enemy in enemies_group)
+
         if self.alive() and has_enemy_in_row and now - self.last_shot > self.attack_cooldown:
             self.last_shot = now
             damage = self.get_final_damage(self.data['damage'])
@@ -245,8 +245,7 @@ class CoffeeMachine(Defender):
         pass
 
     def get_hit(self, damage):
-        # Кофемашина не проигрывает звук урона, но здоровье теряет
-        self.health -= damage
+        super().get_hit(damage)
 
     def animate(self):
         if self.is_producing and self.producing_frame:
@@ -291,16 +290,18 @@ class Guitarist(Defender):
         if self.is_being_eaten: return
 
         now = pygame.time.get_ticks()
-        if self.alive() and now - self.last_attack > self.attack_cooldown:
-            has_enemy_in_row = any(
-                e.rect.centery == self.rect.centery for e in enemies_group)
-            if has_enemy_in_row:
-                self.last_attack = now
-                damage = self.get_final_damage(self.data['damage'])
-                speed = self.data.get('projectile_speed', 5)
-                SoundWave(self.rect.center, (self.all_sprites,), damage, self.rect.centery, speed)
-                self.current_animation = 'attack'
-                self.frame_index = 0
+        # --- ИСПРАВЛЕНИЕ: Добавлена проверка положения врага по горизонтали ---
+        has_enemy_in_row = any(
+            e.rect.centery == self.rect.centery and e.rect.left >= self.rect.left
+            for e in enemies_group)
+
+        if self.alive() and has_enemy_in_row and now - self.last_attack > self.attack_cooldown:
+            self.last_attack = now
+            damage = self.get_final_damage(self.data['damage'])
+            speed = self.data.get('projectile_speed', 5)
+            SoundWave(self.rect.center, (self.all_sprites,), damage, self.rect.centery, speed)
+            self.current_animation = 'attack'
+            self.frame_index = 0
 
 
 class Medic(Defender):
@@ -308,9 +309,7 @@ class Medic(Defender):
         super().__init__(x, y, groups, data, sound_manager)
         self.heal_pool = self.data['heal_amount']
         self.heal_radius = self.data['radius']
-        # --- ИЗМЕНЕНИЕ: ЛЕЧИМ БОЛЬШОЙ ПОРЦИЕЙ ---
         self.heal_tick_amount = 75
-        # --- ИЗМЕНЕНИЕ: КУЛДАУН ДОЛЬШЕ ---
         self.heal_cooldown = self.data['cooldown'] * 3000
         self.last_heal_time = pygame.time.get_ticks()
 
@@ -366,7 +365,11 @@ class Artist(Defender):
         if self.is_being_eaten: return
 
         now = pygame.time.get_ticks()
-        has_enemy_in_row = any(enemy.rect.centery == self.rect.centery for enemy in enemies_group)
+        # --- ИСПРАВЛЕНИЕ: Добавлена проверка положения врага по горизонтали ---
+        has_enemy_in_row = any(
+            enemy.rect.centery == self.rect.centery and enemy.rect.left >= self.rect.left
+            for enemy in enemies_group)
+
         if self.alive() and has_enemy_in_row and now - self.last_shot > self.attack_cooldown:
             self.last_shot = now
             damage = self.get_final_damage(self.data['damage'])
@@ -374,8 +377,6 @@ class Artist(Defender):
             self.current_animation = 'attack'
             self.frame_index = 0
 
-
-# entities/defenders.py
 
 class Fashionista(Defender):
     def __init__(self, x, y, groups, data, sound_manager, all_sprites, enemies_group):
@@ -388,20 +389,14 @@ class Fashionista(Defender):
         self.target = None
 
     def update(self, **kwargs):
-        super().update(**kwargs)
         enemies_group = kwargs.get('enemies_group')
-        if not enemies_group or not self.alive(): return
+        if not enemies_group or not self.alive():
+            return
 
-        if self.is_being_eaten: return
-
-        # --- ИЗМЕНЕНИЕ ЗДЕСЬ: Немедленная проверка на столкновение ---
-        # Эта проверка выполняется в первую очередь, до всех состояний.
-        # Если есть хоть одно столкновение, Модник взрывается.
         if pygame.sprite.spritecollideany(self, enemies_group):
             self.explode(enemies_group)
-            return  # После взрыва дальнейшая логика не нужна
+            return
 
-        # Старая логика для поиска и движения, если столкновения нет
         if self.state == 'SEEKING':
             self.target = self.find_closest_enemy(enemies_group)
             if self.target:
@@ -413,9 +408,8 @@ class Fashionista(Defender):
             direction = pygame.math.Vector2(self.target.rect.center) - pygame.math.Vector2(self.rect.center)
             if direction.length() > 0:
                 self.rect.move_ip(direction.normalize() * self.speed)
-            # Эта проверка теперь дублирующая, но она не мешает
-            if self.rect.colliderect(self.target.rect):
-                self.explode(enemies_group)
+
+        super().update(**kwargs)
 
     def find_closest_enemy(self, enemies_group):
         closest_enemy = None
@@ -428,12 +422,16 @@ class Fashionista(Defender):
         return closest_enemy
 
     def explode(self, enemies_group):
+        if not self.alive(): return
+
         self.sound_manager.play_sfx('explosion')
 
         pixel_radius = self.explosion_radius * CELL_SIZE_W
         ExplosionEffect(self.rect.center, pixel_radius, self.all_sprites)
-        # Наносим урон всем врагам в радиусе
         for enemy in enemies_group:
             if pygame.math.Vector2(self.rect.center).distance_to(enemy.rect.center) <= pixel_radius:
                 enemy.get_hit(self.damage)
         self.kill()
+
+    def kill(self):
+        pygame.sprite.Sprite.kill(self)

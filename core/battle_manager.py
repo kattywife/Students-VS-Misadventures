@@ -30,7 +30,8 @@ class BattleManager:
         self.coffee = level_manager.level_data.get('start_coffee', 150)
         self.selected_defender = None
 
-        self.background_image = load_image('battle_background.png', DEFAULT_COLORS['background'], (SCREEN_WIDTH, SCREEN_HEIGHT))
+        self.background_image = load_image('battle_background.png', DEFAULT_COLORS['background'],
+                                           (SCREEN_WIDTH, SCREEN_HEIGHT))
 
         self.ui_manager.create_battle_shop(self.team_data)
         self.place_neuro_mowers()
@@ -61,8 +62,6 @@ class BattleManager:
         if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE: return 'PAUSE'
         return None
 
-        # core/battle_manager.py
-
     def handle_click(self, pos):
         clicked_shop_item = self.ui_manager.handle_shop_click(pos)
         if clicked_shop_item:
@@ -77,7 +76,6 @@ class BattleManager:
                 return
         if self.selected_defender:
             cost = DEFENDERS_DATA[self.selected_defender]['cost']
-            # --- НАЧАЛО ИЗМЕНЕНИЙ ---
             if self.coffee >= cost:
                 grid_pos = self._get_grid_cell(pos)
                 if grid_pos and not self._is_cell_occupied(grid_pos):
@@ -85,11 +83,9 @@ class BattleManager:
                     self._place_defender(grid_pos)
                     self.selected_defender = None
             else:
-                # Если кофе не хватает, проигрываем звук отказа
                 self.sound_manager.play_sfx('no_money')
-                # И сбрасываем выбор, чтобы игрок не спамил кликами
                 self.selected_defender = None
-            # --- КОНЕЦ ИЗМЕНЕНИЙ ---
+
     def _get_grid_cell(self, pos):
         x, y = pos
         if GRID_START_X <= x < GRID_START_X + GRID_WIDTH and GRID_START_Y <= y < GRID_START_Y + GRID_HEIGHT:
@@ -239,38 +235,45 @@ class BattleManager:
             if hasattr(sprite, 'revert_calamity_effect'): sprite.revert_calamity_effect(self.active_calamity)
         self.active_calamity = None
 
-        # core/battle_manager.py
-
+    # --- ИСПРАВЛЕНИЕ: Полностью переработанная логика столкновений ---
     def check_collisions(self):
+        # 1. Проверка обычных снарядов (те, что летят и исчезают при попадании)
         for proj in list(self.projectiles):
-            if not proj.alive(): continue
+            if not proj.alive():
+                continue
 
-            # --- ИЗМЕНЕНИЕ: ОБЪЕДИНЯЕМ ЛОГИКУ ДЛЯ ВСЕХ СНАРЯДОВ ---
-            # Проверяем столкновение с врагами
-            if not isinstance(proj, Integral):
-                hits = pygame.sprite.spritecollide(proj, self.enemies, False)
+            target_group = None
+            if hasattr(proj, 'target_type'):
+                if proj.target_type == 'enemy':
+                    target_group = self.enemies
+                elif proj.target_type == 'defender':
+                    target_group = self.defenders
+
+            if target_group:
+                # Проверяем столкновение снаряда с его группой целей
+                hits = pygame.sprite.spritecollide(proj, target_group, False)
                 if hits:
-                    target = hits[0]
+                    target = hits[0]  # Берем первую цель
                     if target.alive():
+                        # Особая логика для замедления от Художницы
                         if isinstance(proj, PaintSplat):
                             target.slow_down(proj.artist.data['slow_factor'], proj.artist.data['slow_duration'])
+
+                        # Наносим урон и проигрываем звук/анимацию через метод цели
                         target.get_hit(proj.damage)
-                        proj.kill()
-            # Проверяем столкновение с героями (для вражеских снарядов)
-            else:
-                hits = pygame.sprite.spritecollide(proj, self.defenders, False)
-                if hits:
-                    target = hits[0]
-                    if target.alive():
-                        target.get_hit(proj.damage)  # Используем новый метод get_hit
+
+                        # Уничтожаем снаряд
                         proj.kill()
 
+        # 2. Проверка звуковой волны (которая пробивает насквозь)
         for wave in [s for s in self.all_sprites if isinstance(s, SoundWave)]:
             for enemy in self.enemies:
+                # Проверяем, что волна столкнулась с врагом и еще не била его
                 if wave.rect.colliderect(enemy.rect) and enemy not in wave.hit_enemies:
                     enemy.get_hit(wave.damage)
-                    wave.hit_enemies.add(enemy)
+                    wave.hit_enemies.add(enemy)  # Запоминаем, что уже ударили этого врага
 
+        # 3. Проверка активации газонокосилок
         for mower in list(self.neuro_mowers):
             if not mower.is_active:
                 colliding_enemies = pygame.sprite.spritecollide(mower, self.enemies, False)

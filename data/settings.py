@@ -70,7 +70,8 @@ DEFENDERS_DATA = {
     'coffee_machine': {'cost': 50, 'health': 200, 'damage': 0, 'cooldown': 5, 'production': 25, 'display_name': 'Кофемашина', 'category': 'defenders',
                        'description': "Источник жизни и бодрости для всей команды. Не атакует, но исправно генерирует кофейные зернышки, необходимые для вызова новых защитников. Защищайте ее любой ценой!",
                        'upgrades': { 'production': {'value': 15, 'cost': 25}, 'health': {'value': 150, 'cost': 20} },
-                       'animation_data': { 'folder': 'coffee_machine', 'speed': 0.3, 'idle': [], 'attack': [] }},
+                       # --- ИСПРАВЛЕНИЕ: Добавляем 'hit' в анимации ---
+                       'animation_data': { 'folder': 'coffee_machine', 'speed': 0.3, 'idle': [], 'attack': [], 'hit': [] }},
     'activist': {'cost': 75, 'health': 400, 'damage': 0, 'cooldown': None, 'radius': 2, 'buff': 1.5,
                  'display_name': 'Активист', 'category': 'defenders',
                  'description': "Его пламенные речи и несокрушимый энтузиазм вдохновляют всех вокруг. Создает ауру, которая значительно увеличивает урон союзников, попавших в ее радиус.",
