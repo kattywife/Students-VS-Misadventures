@@ -35,6 +35,7 @@ class Enemy(BaseSprite):
 
         y = GRID_START_Y + row * CELL_SIZE_H + CELL_SIZE_H / 2
         self.rect = self.image.get_rect(center=(SCREEN_WIDTH, y))
+        self.float_pos = pygame.math.Vector2(self.rect.center)
         self._layer = self.rect.bottom
 
         self.anim_speed = self.data.get('animation_data', {}).get('speed', 0.3)
@@ -140,6 +141,7 @@ class Enemy(BaseSprite):
     def perform_melee_attack(self, target):
         self.is_attacking = True
         self.rect.right = target.rect.centerx + 20
+        self.float_pos.x = self.rect.centerx
         self._layer = target._layer + 1
 
         if self.current_target != target:
@@ -184,7 +186,8 @@ class Enemy(BaseSprite):
             if self.current_target:
                 self.current_target.is_being_eaten = False
                 self.current_target = None
-            self.rect.x -= self.speed
+            self.float_pos.x -= self.speed
+            self.rect.centerx = int(self.float_pos.x)
 
     def kill(self):
         if self.alive():
@@ -242,7 +245,8 @@ class Calculus(Enemy):
                 projectile_image = PROJECTILE_IMAGES[random_projectile_type]
                 Integral(self.rect.left, self.rect.centery, (all_sprites, projectiles), damage, projectile_image)
         else:
-            self.rect.x -= self.speed
+            self.float_pos.x -= self.speed
+            self.rect.centerx = int(self.float_pos.x)
 
 
 class MathTeacher(Enemy):
@@ -251,7 +255,7 @@ class MathTeacher(Enemy):
         self.state = 'WALKING'
         self.has_jumped = False
         self.jump_target = None
-        self.original_y = self.rect.y
+        self.original_y = self.float_pos.y
         self.vy = 0
         self.gravity = 0.5
         self.jump_power = -15
@@ -264,6 +268,10 @@ class MathTeacher(Enemy):
         self.animate()
         self._layer = self.rect.bottom
         if self.health <= 0: self.kill(); return
+
+        if self.is_slowed and pygame.time.get_ticks() > self.slow_timer:
+            self.speed = self.original_speed
+            self.is_slowed = False
 
         if self.has_jumped:
             super().update(**kwargs)
@@ -280,26 +288,29 @@ class MathTeacher(Enemy):
                 self.vy = self.jump_power
                 self.jump_start_time = pygame.time.get_ticks()
 
-                self.jump_start_x = self.rect.centerx
+                self.jump_start_x = self.float_pos.x
                 self.jump_end_x = target.rect.centerx - CELL_SIZE_W
             else:
-                self.rect.x -= self.speed
+                self.float_pos.x -= self.speed
+                self.rect.centerx = int(self.float_pos.x)
 
         elif self.state == 'JUMPING':
             elapsed_time = pygame.time.get_ticks() - self.jump_start_time
             progress = min(1.0, elapsed_time / self.jump_duration)
 
-            current_x = self.jump_start_x + (self.jump_end_x - self.jump_start_x) * progress
-            self.rect.centerx = int(current_x)
+            self.float_pos.x = self.jump_start_x + (self.jump_end_x - self.jump_start_x) * progress
 
             self.vy += self.gravity
-            self.rect.y += self.vy
+            self.float_pos.y += self.vy
+            self.rect.center = (int(self.float_pos.x), int(self.float_pos.y))
 
             if progress >= 1.0:
-                self.rect.y = self.original_y
+                self.float_pos.y = self.original_y
+                self.rect.centery = int(self.float_pos.y)
 
                 if self.jump_target and self.jump_target.alive():
                     self.rect.right = self.jump_target.rect.left - 10
+                    self.float_pos.x = self.rect.centerx
 
                 self.state = 'WALKING'
                 self.is_attacking = False
@@ -332,6 +343,10 @@ class Addict(Enemy):
         self._layer = self.rect.bottom
         if self.health <= 0: self.kill(); return
 
+        if self.is_slowed and pygame.time.get_ticks() > self.slow_timer:
+            self.speed = self.original_speed
+            self.is_slowed = False
+
         self.is_attacking = (self.state == 'GRABBING')
 
         if self.state == 'SEEKING':
@@ -341,17 +356,18 @@ class Addict(Enemy):
             if self.target_defender:
                 self.state = 'CHASING'
             else:
-                self.rect.x -= self.speed
+                self.float_pos.x -= self.speed
+                self.rect.centerx = int(self.float_pos.x)
 
         elif self.state == 'CHASING':
             if not self.target_defender or not self.target_defender.alive():
                 self.state = 'SEEKING'
                 return
-            direction = pygame.math.Vector2(self.target_defender.rect.center) - pygame.math.Vector2(self.rect.center)
+            direction = pygame.math.Vector2(self.target_defender.rect.center) - self.float_pos
             if direction.length() > 0:
                 norm_dir = direction.normalize()
-                self.rect.x += norm_dir.x * self.speed
-                self.rect.y += norm_dir.y * self.speed
+                self.float_pos += norm_dir * self.speed
+                self.rect.center = (int(self.float_pos.x), int(self.float_pos.y))
 
             if self.rect.colliderect(self.target_defender.rect):
                 self.victim = self.target_defender
@@ -365,7 +381,8 @@ class Addict(Enemy):
             self.state = 'ESCAPING'
 
         elif self.state == 'ESCAPING':
-            self.rect.x += self.speed * 2
+            self.float_pos.x += self.speed * 2
+            self.rect.centerx = int(self.float_pos.x)
             if self.victim:
                 self.victim.rect.midright = self.rect.midright
             if self.rect.left > SCREEN_WIDTH:
@@ -391,14 +408,15 @@ class Thief(Enemy):
     def update(self, **kwargs):
         defenders_group = kwargs.get('defenders_group')
 
-        if self.current_target_machine and self.current_target_machine.alive():
-            pass
-
         self.animate()
         self._layer = self.rect.bottom
         if self.health <= 0:
             self.kill()
             return
+
+        if self.is_slowed and pygame.time.get_ticks() > self.slow_timer:
+            self.speed = self.original_speed
+            self.is_slowed = False
 
         if self.current_target_machine and not self.current_target_machine.alive():
             self.current_target_machine = None
@@ -409,8 +427,7 @@ class Thief(Enemy):
                 self.machine_targets = [d for d in defenders_group if isinstance(d, CoffeeMachine) and d.alive()]
 
             if self.machine_targets:
-                self.machine_targets.sort(
-                    key=lambda m: pygame.math.Vector2(self.rect.center).distance_to(m.rect.center))
+                self.machine_targets.sort(key=lambda m: self.float_pos.distance_to(m.rect.center))
                 self.state = 'SEEKING'
             else:
                 self.state = 'BASIC_ATTACK_MODE'
@@ -424,14 +441,13 @@ class Thief(Enemy):
 
         elif self.state == 'CHASING':
             if self.current_target_machine and self.current_target_machine.alive():
-                direction = pygame.math.Vector2(self.current_target_machine.rect.center) - pygame.math.Vector2(
-                    self.rect.center)
+                direction = pygame.math.Vector2(self.current_target_machine.rect.center) - self.float_pos
                 if direction.length() < 10:
                     self.state = 'STEALING'
                 else:
                     norm_dir = direction.normalize()
-                    self.rect.x += norm_dir.x * self.speed
-                    self.rect.y += norm_dir.y * self.speed
+                    self.float_pos += norm_dir * self.speed
+                    self.rect.center = (int(self.float_pos.x), int(self.float_pos.y))
             else:
                 self.state = 'SEEKING'
 
@@ -445,7 +461,8 @@ class Thief(Enemy):
             self.state = 'SEEKING'
 
         elif self.state == 'ESCAPING':
-            self.rect.x += self.speed * 2
+            self.float_pos.x += self.speed * 2
+            self.rect.centerx = int(self.float_pos.x)
             if self.rect.left > SCREEN_WIDTH:
                 self.kill()
 
