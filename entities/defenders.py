@@ -12,7 +12,22 @@ from entities.other_sprites import CoffeeBean, AuraEffect
 
 
 class Defender(BaseSprite):
+    """
+    Базовый класс для всех юнитов-защитников (студентов).
+    Содержит общую логику: здоровье, анимации, получение урона,
+    применение эффектов и т.д.
+    """
     def __init__(self, x, y, groups, data, sound_manager):
+        """
+        Инициализирует защитника.
+
+        Args:
+            x (int): Координата X центра спрайта.
+            y (int): Координата Y центра спрайта.
+            groups (tuple): Группы спрайтов, в которые нужно добавить защитника.
+            data (dict): Словарь с характеристиками из DEFENDERS_DATA.
+            sound_manager (SoundManager): Менеджер для воспроизведения звуков.
+        """
         super().__init__(groups)
         self.sound_manager = sound_manager
         self.data = data
@@ -27,6 +42,7 @@ class Defender(BaseSprite):
         self.frame_index = 0
         self.image = self.animations.get(self.current_animation, [None])[0]
 
+        # Установка rect'а. Если анимация не загрузилась, создается резервный прямоугольник.
         if self.image:
             self.rect = self.image.get_rect(center=(x, y))
         else:
@@ -41,21 +57,25 @@ class Defender(BaseSprite):
         self._layer = self.rect.bottom
         self.is_animate = 'animation_data' in self.data
 
-        self.is_being_eaten = False
-        self.scream_channel = None
-        self.attacker = None
-        self.is_upgraded = False
-        self.buff_multiplier = 1.0
-        self.calamity_damage_multiplier = 1.0
+        # --- Состояния и флаги ---
+        self.is_being_eaten = False # Флаг, что защитника атакует враг в ближнем бою
+        self.scream_channel = None  # Канал для звука крика, чтобы его можно было остановить
+        self.attacker = None        # Ссылка на врага, который атакует
+        self.is_upgraded = False    # Был ли юнит улучшен на экране подготовки
+        self.buff_multiplier = 1.0  # Множитель урона от аур (например, Активиста)
+        self.calamity_damage_multiplier = 1.0 # Множитель урона/здоровья от "напастей"
 
     def get_hit(self, damage):
+        """Обрабатывает получение урона."""
         self.health -= damage
         self.sound_manager.play_sfx('damage')
+        # Запускает анимацию получения урона, если она есть
         if 'hit' in self.animations and self.animations['hit']:
             self.current_animation = 'hit'
             self.frame_index = 0
 
     def load_animations(self):
+        """Загружает все кадры анимаций для юнита из файлов."""
         anim_data = self.data.get('animation_data')
         if not anim_data:
             return
@@ -65,10 +85,12 @@ class Defender(BaseSprite):
         folder = anim_data.get('folder', self.data.get('type'))
 
         for anim_type in anim_data:
+            # Пропускаем ключи, не являющиеся типами анимации
             if anim_type not in ['folder', 'speed']:
                 self.animations[anim_type] = []
                 path_to_folder = os.path.join(IMAGES_DIR, category, folder)
                 if os.path.exists(path_to_folder):
+                    # Находим все файлы, начинающиеся с `anim_type_` (например, `idle_0.png`)
                     filenames = sorted(
                         [f for f in os.listdir(path_to_folder) if f.startswith(f"{anim_type}_") and f.endswith('.png')])
                     for filename in filenames:
@@ -76,17 +98,20 @@ class Defender(BaseSprite):
                         img = load_image(path, DEFAULT_COLORS.get(self.data['type']), size)
                         self.animations[anim_type].append(img)
 
+                # Если кадры для анимации не найдены, добавляем пустую поверхность, чтобы избежать ошибок
                 if not self.animations[anim_type]:
                     fallback_surface = pygame.Surface(size, pygame.SRCALPHA)
                     fallback_surface.fill((0, 0, 0, 0))
                     self.animations[anim_type].append(fallback_surface)
 
     def animate(self):
+        """Управляет сменой кадров текущей анимации."""
         if not self.animations or not self.animations.get(self.current_animation):
             return
 
         anim_sequence = self.animations[self.current_animation]
 
+        # Принудительно включаем анимацию 'hit', если юнита едят
         if self.is_being_eaten and self.current_animation != 'hit':
             if 'hit' in self.animations and self.animations['hit']:
                 self.current_animation = 'hit'
@@ -99,24 +124,31 @@ class Defender(BaseSprite):
             self.last_anim_update = now
             self.image = anim_sequence[int(self.frame_index)]
             self.frame_index += 1
+            # Если анимация дошла до конца
             if self.frame_index >= len(anim_sequence):
+                # Цикличные анимации (attack, hit) возвращаются к idle
                 if self.current_animation in ['attack', 'hit']:
                     self.current_animation = 'idle'
                 self.frame_index = 0
 
     def get_final_damage(self, base_damage):
+        """Рассчитывает итоговый урон с учетом всех модификаторов."""
         return base_damage * self.buff_multiplier * self.calamity_damage_multiplier
 
     def apply_calamity_effect(self, calamity_type):
+        """Применяет негативный эффект от "напасти"."""
         if calamity_type == 'epidemic':
             self.calamity_damage_multiplier /= CALAMITY_EPIDEMIC_MULTIPLIER
             self.health /= CALAMITY_EPIDEMIC_MULTIPLIER
 
     def revert_calamity_effect(self, calamity_type):
+        """Отменяет эффект от "напасти"."""
         if calamity_type == 'epidemic':
             self.calamity_damage_multiplier *= CALAMITY_EPIDEMIC_MULTIPLIER
 
     def update(self, **kwargs):
+        """Обновляет состояние защитника каждый кадр."""
+        # Сбрасываем состояние "поедания", если атакующий враг исчез
         if self.is_being_eaten and (not self.attacker or not self.attacker.alive()):
             self.is_being_eaten = False
             self.attacker = None
@@ -128,20 +160,26 @@ class Defender(BaseSprite):
             self.kill()
 
     def manage_scream_sound(self):
+        """Управляет воспроизведением и остановкой звука крика."""
+        # Если юнита едят и звук еще не играет, запускаем его
         if self.is_being_eaten and not (self.scream_channel and self.scream_channel.get_busy()):
             self.scream_channel = self.sound_manager.play_sfx('scream')
+        # Если юнита перестали есть, останавливаем звук
         elif not self.is_being_eaten and self.scream_channel:
             self.scream_channel.stop()
             self.scream_channel = None
 
     def draw_aura(self, surface):
+        """Рисует ауру под юнитом, если он улучшен. (В текущей версии не используется)."""
         if self.is_upgraded:
             aura_surf = pygame.Surface(self.rect.size, pygame.SRCALPHA)
             pygame.draw.ellipse(aura_surf, AURA_PINK, aura_surf.get_rect())
             surface.blit(aura_surf, self.rect.topleft)
 
     def kill(self):
+        """Переопределенный метод уничтожения спрайта для дополнительной логики."""
         if not self.alive(): return
+        # Убеждаемся, что звук крика прекращается при смерти
         if self.scream_channel:
             self.scream_channel.stop()
             self.scream_channel = None
@@ -151,6 +189,7 @@ class Defender(BaseSprite):
 
 
 class ProgrammerBoy(Defender):
+    """Стандартный стрелок, атакующий врагов на своей линии."""
     def __init__(self, x, y, groups, data, sound_manager, all_sprites, projectile_group, enemies_group):
         super().__init__(x, y, groups, data, sound_manager)
         self.all_sprites = all_sprites
@@ -166,10 +205,12 @@ class ProgrammerBoy(Defender):
         if self.is_being_eaten: return
 
         now = pygame.time.get_ticks()
+        # Проверяем, есть ли враг на линии справа от юнита
         has_enemy_in_row = any(
             enemy.rect.centery == self.rect.centery and enemy.rect.left >= self.rect.left
             for enemy in enemies_group)
 
+        # Если есть враг и перезарядка прошла, стреляем
         if self.alive() and has_enemy_in_row and now - self.last_shot > self.attack_cooldown:
             self.last_shot = now
             damage = self.get_final_damage(self.data['damage'])
@@ -182,6 +223,7 @@ class ProgrammerBoy(Defender):
 
 
 class BotanistGirl(Defender):
+    """Юнит, атакующий по области вокруг самого "сильного" врага."""
     def __init__(self, x, y, groups, data, sound_manager, all_sprites, enemies_group):
         super().__init__(x, y, groups, data, sound_manager)
         self.all_sprites = all_sprites
@@ -193,9 +235,7 @@ class BotanistGirl(Defender):
     def update(self, **kwargs):
         super().update(**kwargs)
         enemies_group = kwargs.get('enemies_group')
-        if not enemies_group: return
-
-        if self.is_being_eaten: return
+        if not enemies_group or self.is_being_eaten: return
 
         now = pygame.time.get_ticks()
         if self.alive() and now - self.last_attack > self.attack_cooldown:
@@ -207,21 +247,25 @@ class BotanistGirl(Defender):
                 self.frame_index = 0
 
     def find_strongest_enemy(self, enemies_group):
+        """Находит врага с наибольшим текущим здоровьем."""
         if not enemies_group:
             return None
         return max(enemies_group, key=lambda e: e.health)
 
     def attack(self, target, enemies_group):
+        """Наносит урон по области вокруг цели."""
         damage = self.get_final_damage(self.data['damage'])
         explosion_center = target.rect.center
         pixel_radius = self.explosion_radius * CELL_SIZE_W
         BookAttackEffect(explosion_center, self.all_sprites, pixel_radius * 2)
+        # Проверяем каждого врага на попадание в радиус взрыва
         for enemy in enemies_group:
             if pygame.math.Vector2(enemy.rect.center).distance_to(explosion_center) <= pixel_radius:
                 enemy.get_hit(damage)
 
 
 class CoffeeMachine(Defender):
+    """Юнит, генерирующий ресурсы (кофе). Не атакует."""
     def __init__(self, x, y, groups, data, sound_manager, all_sprites, coffee_bean_group):
         super().__init__(x, y, groups, data, sound_manager)
         self.all_sprites = all_sprites
@@ -231,18 +275,23 @@ class CoffeeMachine(Defender):
         self.is_producing = False
         self.producing_timer = 0
         self.producing_duration = COFFEE_MACHINE_PRODUCING_DURATION
+        # Кэшируем кадр анимации производства для производительности
         self.producing_frame = self.animations.get('attack', [None])[0] or self.animations.get('idle', [None])[0]
 
     def kill(self):
+        """У Кофемашины нет звука смерти героя, поэтому используется базовый kill."""
         pygame.sprite.Sprite.kill(self)
 
     def manage_scream_sound(self):
+        """Кофемашина не кричит, когда ее атакуют."""
         pass
 
     def get_hit(self, damage):
+        """Переопределено, чтобы убедиться, что звук 'damage' играется."""
         super().get_hit(damage)
 
     def animate(self):
+        """Особая логика анимации: во время производства показывается один кадр."""
         if self.is_producing and self.producing_frame:
             self.image = self.producing_frame
         else:
@@ -251,26 +300,32 @@ class CoffeeMachine(Defender):
     def update(self, **kwargs):
         self.animate()
         now = pygame.time.get_ticks()
+
         if self.is_producing and now - self.producing_timer > self.producing_duration:
             self.is_producing = False
+
         if not self.is_producing and self.alive() and now - self.last_production > self.production_cooldown:
             self.last_production = now
             CoffeeBean(self.rect.centerx, self.rect.top, (self.all_sprites, self.coffee_bean_group),
                        self.data['production'])
             self.is_producing = True
             self.producing_timer = now
+
         if self.health <= 0:
             self.kill()
 
 
 class Activist(Defender):
+    """Юнит поддержки, создающий ауру, усиливающую урон союзников."""
     def __init__(self, x, y, groups, data, sound_manager, all_sprites):
         super().__init__(x, y, groups, data, sound_manager)
         self.all_sprites = all_sprites
+        # При создании Активиста сразу создается связанный с ним спрайт Ауры
         AuraEffect((self.all_sprites,), self)
 
 
 class Guitarist(Defender):
+    """Атакует всех врагов на своей линии проникающей звуковой волной."""
     def __init__(self, x, y, groups, data, sound_manager, all_sprites, enemies_group):
         super().__init__(x, y, groups, data, sound_manager)
         self.all_sprites = all_sprites
@@ -280,9 +335,7 @@ class Guitarist(Defender):
     def update(self, **kwargs):
         super().update(**kwargs)
         enemies_group = kwargs.get('enemies_group')
-        if not enemies_group: return
-
-        if self.is_being_eaten: return
+        if not enemies_group or self.is_being_eaten: return
 
         now = pygame.time.get_ticks()
         has_enemy_in_row = any(
@@ -299,9 +352,10 @@ class Guitarist(Defender):
 
 
 class Medic(Defender):
+    """Юнит поддержки, лечащий союзников в радиусе за счет своего запаса здоровья."""
     def __init__(self, x, y, groups, data, sound_manager, defenders_group):
         super().__init__(x, y, groups, data, sound_manager)
-        self.heal_pool = self.data['heal_amount']
+        self.heal_pool = self.data['heal_amount'] # "Мана" для лечения
         self.heal_radius = self.data['radius']
         self.heal_tick_amount = MEDIC_HEAL_TICK_AMOUNT
         self.heal_cooldown = MEDIC_HEAL_COOLDOWN_MS
@@ -318,13 +372,16 @@ class Medic(Defender):
         if now - self.last_heal_time > self.heal_cooldown:
             self.last_heal_time = now
             healed = self.heal(defenders_group)
+            # Запускаем анимацию, только если лечение произошло
             if healed and self.heal_pool > 0:
                 self.current_animation = 'attack'
                 self.frame_index = 0
+        # Медик исчезает, когда его "мана" заканчивается
         if self.heal_pool <= 0:
             self.kill()
 
     def find_most_wounded_ally_in_range(self, defenders_group):
+        """Находит союзника с наименьшим процентом здоровья в радиусе."""
         pixel_radius = self.heal_radius * CELL_SIZE_W
         allies_in_range = [
             d for d in defenders_group
@@ -333,9 +390,11 @@ class Medic(Defender):
         ]
         if not allies_in_range:
             return None
+        # Ключ для сортировки - процент здоровья, чтобы лечить наиболее раненых
         return min(allies_in_range, key=lambda d: d.health / d.max_health)
 
     def heal(self, defenders_group):
+        """Лечит найденную цель."""
         target = self.find_most_wounded_ally_in_range(defenders_group)
         if target:
             heal_amount = min(self.heal_tick_amount, self.heal_pool)
@@ -346,6 +405,7 @@ class Medic(Defender):
 
 
 class Artist(Defender):
+    """Стрелок, чьи атаки замедляют врагов."""
     def __init__(self, x, y, groups, data, sound_manager, all_sprites, projectile_group, enemies_group):
         super().__init__(x, y, groups, data, sound_manager)
         self.all_sprites = all_sprites
@@ -368,19 +428,21 @@ class Artist(Defender):
         if self.alive() and has_enemy_in_row and now - self.last_shot > self.attack_cooldown:
             self.last_shot = now
             damage = self.get_final_damage(self.data['damage'])
+            # Создаем особый снаряд, который несет в себе ссылку на художника
             PaintSplat(self.rect.right, self.rect.centery, (self.all_sprites, self.projectile_group), damage, self)
             self.current_animation = 'attack'
             self.frame_index = 0
 
 
 class Fashionista(Defender):
+    """Юнит-камикадзе, который ищет ближайшего врага и взрывается."""
     def __init__(self, x, y, groups, data, sound_manager, all_sprites, enemies_group):
         super().__init__(x, y, groups, data, sound_manager)
         self.all_sprites = all_sprites
         self.speed = data['speed']
         self.explosion_radius = data['radius']
         self.damage = data['damage']
-        self.state = 'SEEKING'
+        self.state = 'SEEKING'  # Начальное состояние - поиск цели
         self.target = None
 
     def update(self, **kwargs):
@@ -388,6 +450,7 @@ class Fashionista(Defender):
         if not enemies_group or not self.alive():
             return
 
+        # Если уже столкнулся с врагом, взрывается
         if pygame.sprite.spritecollideany(self, enemies_group):
             self.explode(enemies_group)
             return
@@ -397,9 +460,11 @@ class Fashionista(Defender):
             if self.target:
                 self.state = 'WALKING'
         elif self.state == 'WALKING':
+            # Если цель исчезла, ищем новую
             if not self.target or not self.target.alive():
                 self.state = 'SEEKING'
                 return
+            # Движемся в направлении цели
             direction = pygame.math.Vector2(self.target.rect.center) - pygame.math.Vector2(self.rect.center)
             if direction.length() > 0:
                 self.rect.move_ip(direction.normalize() * self.speed)
@@ -407,6 +472,7 @@ class Fashionista(Defender):
         super().update(**kwargs)
 
     def find_closest_enemy(self, enemies_group):
+        """Находит ближайшего врага на всем поле."""
         closest_enemy = None
         min_dist = float('inf')
         for enemy in enemies_group:
@@ -417,6 +483,7 @@ class Fashionista(Defender):
         return closest_enemy
 
     def explode(self, enemies_group):
+        """Создает эффект взрыва и наносит урон всем врагам в радиусе."""
         if not self.alive(): return
 
         self.sound_manager.play_sfx('explosion')
@@ -429,6 +496,6 @@ class Fashionista(Defender):
         self.kill()
 
     def kill(self):
-        # Модник не оставляет звука смерти героя, он взрывается
+        """Переопределенный метод, чтобы убрать стандартный звук смерти героя."""
         if self.alive():
              pygame.sprite.Sprite.kill(self)

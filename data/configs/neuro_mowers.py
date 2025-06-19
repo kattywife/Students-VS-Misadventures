@@ -1,5 +1,14 @@
 # data/configs/neuro_mowers.py
 
+# Этот файл содержит словарь с данными для всех Нейросетей ("газонокосилок").
+#
+# Структура данных для каждой нейросети:
+#   - 'cost': Стоимость покупки на экране подготовки (в стипендии).
+#   - 'display_name': Имя, отображаемое в UI.
+#   - 'category': Категория для поиска ассетов ('systems').
+#   - 'fallback_color': Цвет для резервной отрисовки.
+#   - 'description': Текст с описанием для UI.
+
 NEURO_MOWERS_DATA = {
     'chat_gpt': {
         'cost': 25, 'display_name': 'ChatGPT', 'category': 'systems', 'fallback_color': (0, 168, 150),

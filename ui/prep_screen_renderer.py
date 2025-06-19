@@ -3,21 +3,33 @@
 import pygame
 from data.settings import *
 from data.assets import CARD_IMAGES, load_image
-# ИСПРАВЛЕНИЕ: Возвращаем относительные импорты
 from .base_component import BaseUIComponent
 from .description_panel_renderer import DescriptionPanelRenderer
 
 
 class PrepScreenRenderer(BaseUIComponent):
-    """Отвечает за отрисовку экрана подготовки к бою."""
+    """
+    Отвечает за отрисовку экрана подготовки к бою.
+    Это самый сложный экран UI, состоящий из трех основных панелей:
+    1. "Твоя команда" - слева, показывает выбранных героев и нейросети.
+    2. "Выбор юнитов" - в центре, содержит всех доступных для выбора героев и нейросетей.
+    3. "Учебный план" - справа, информирует о врагах и напастях на уровне.
+    """
 
     def __init__(self, screen):
+        """
+        Инициализирует рендерер экрана подготовки.
+
+        Args:
+            screen (pygame.Surface): Основная поверхность для отрисовки.
+        """
         super().__init__(screen)
         self.background_image = load_image('prep_background.png', DEFAULT_COLORS['background'],
                                            (SCREEN_WIDTH, SCREEN_HEIGHT))
+        # Создаем экземпляр рендерера для всплывающей панели с описанием
         self.description_panel_renderer = DescriptionPanelRenderer(screen)
 
-        # Кэширование Rect'ов для панелей
+        # Кэширование Rect'ов для трех основных панелей для оптимизации
         panel_width = (SCREEN_WIDTH - 4 * PREP_PANEL_MARGIN) / 3
         panel_height = SCREEN_HEIGHT - 150
         self.team_panel_rect = pygame.Rect(PREP_PANEL_MARGIN, PREP_TOP_Y, panel_width, panel_height)
@@ -26,26 +38,44 @@ class PrepScreenRenderer(BaseUIComponent):
         self.plan_panel_rect = pygame.Rect(self.selection_panel_rect.right + PREP_PANEL_MARGIN, PREP_TOP_Y, panel_width,
                                            panel_height)
 
-        # Словари для хранения Rect'ов кликабельных карточек, будут обновляться при каждой отрисовке
+        # Словари для хранения Rect'ов кликабельных карточек. Они обновляются при каждой отрисовке
+        # и передаются в UIManager, чтобы PrepManager мог обработать клики.
         self.selection_cards_rects = {}
         self.team_card_rects = {}
         self.plan_cards_rects = {}
 
     def draw(self, surface, stipend, team, upgrades, purchased_mowers, neuro_slots, enemy_types, calamity_types,
              selected_card_info):
-        """Главный метод отрисовки экрана."""
+        """
+        Главный метод отрисовки экрана подготовки.
+
+        Args:
+            surface: Поверхность для отрисовки.
+            stipend (int): Текущая стипендия игрока.
+            team (list): Список выбранных героев.
+            upgrades (dict): Информация об улучшениях героев.
+            purchased_mowers (list): Список купленных нейросетей.
+            neuro_slots (int): Доступное количество слотов для нейросетей.
+            enemy_types (list): Типы врагов на уровне.
+            calamity_types (list): Типы возможных напастей на уровне.
+            selected_card_info (dict | None): Информация о карточке, для которой нужно показать панель описания.
+
+        Returns:
+            tuple: (prep_buttons, random_buttons, info_panel_buttons) - словари с Rect'ами
+                   всех кликабельных элементов на экране.
+        """
         surface.blit(self.background_image, (0, 0))
 
-        # Отрисовка трех основных панелей
+        # Отрисовка трех основных панелей и получение их кликабельных элементов
         random_buttons = self._draw_team_panel(surface, team, upgrades, purchased_mowers, neuro_slots)
         self.selection_cards_rects = self._draw_selection_panel(surface, upgrades, team, purchased_mowers)
         self.plan_cards_rects = self._draw_plan_panel(surface, enemy_types, calamity_types)
 
-        # Отрисовка HUD и стипендии
+        # Отрисовка HUD (нижние кнопки) и панели стипендии
         prep_buttons = self._draw_prep_hud(surface, len(team) > 0)
         self._draw_stipend_panel(surface, stipend)
 
-        # Отрисовка панели с описанием, если выбрана карточка
+        # Если выбрана какая-либо карточка, рисуем поверх всего панель с описанием
         info_panel_buttons = {}
         if selected_card_info:
             info_panel_buttons = self.description_panel_renderer.draw(surface, selected_card_info, team, upgrades,
@@ -54,20 +84,24 @@ class PrepScreenRenderer(BaseUIComponent):
         return prep_buttons, random_buttons, info_panel_buttons
 
     def _draw_team_panel(self, surface, team, upgrades, purchased_mowers, neuro_slots):
-        """Отрисовка левой панели с командой игрока."""
+        """Отрисовка левой панели "Твоя команда"."""
         self._draw_panel_with_title(surface, self.team_panel_rect, "Твоя команда")
-        self.team_card_rects = {}
+        self.team_card_rects = {} # Очищаем перед перерисовкой
 
+        # Отрисовка слотов для героев и получение Y-координаты низа этого блока
         hero_slots_bottom_y = self._render_hero_slots(surface, team, upgrades)
 
+        # Кнопка "Случайная команда"
         random_team_rect = pygame.Rect((0, 0), PREP_RANDOM_TEAM_BTN_SIZE)
         random_team_rect.center = (self.team_panel_rect.centerx, hero_slots_bottom_y + PREP_RANDOM_TEAM_BTN_TOP_OFFSET)
         self._draw_button(surface, "Случайная команда", random_team_rect, RANDOM_BUTTON_COLOR, WHITE,
                           self.fonts['tiny'])
 
+        # Отрисовка слотов для нейросетей
         neuro_slots_start_y = random_team_rect.bottom + PREP_NEURO_SLOTS_TOP_MARGIN
         neuro_slots_bottom_y = self._render_neuro_slots(surface, purchased_mowers, neuro_slots, neuro_slots_start_y)
 
+        # Кнопка "Случайные нейросети"
         random_neuro_rect = pygame.Rect((0, 0), PREP_RANDOM_TEAM_BTN_SIZE)
         random_neuro_rect.center = (
         self.team_panel_rect.centerx, neuro_slots_bottom_y + PREP_RANDOM_NEURO_BTN_TOP_OFFSET)
@@ -77,7 +111,7 @@ class PrepScreenRenderer(BaseUIComponent):
         return {'team': random_team_rect, 'neuro': random_neuro_rect}
 
     def _render_hero_slots(self, surface, team, upgrades):
-        """Отрисовка карточек героев в команде."""
+        """Отрисовка карточек героев в команде (или пустых слотов)."""
         self._render_text_with_title(surface, "Одногруппники:", self.fonts['small'], YELLOW,
                                      self.team_panel_rect.centerx,
                                      self.team_panel_rect.top + PREP_HERO_SLOTS_TITLE_TOP_OFFSET)
@@ -94,15 +128,16 @@ class PrepScreenRenderer(BaseUIComponent):
                 hero_type = team[i]
                 self._draw_unit_card(surface, hero_type, slot_rect, DEFENDERS_DATA[hero_type],
                                      is_upgraded=(hero_type in upgrades))
-                self.team_card_rects[hero_type] = slot_rect
+                self.team_card_rects[hero_type] = slot_rect # Сохраняем Rect для обработки кликов
             else:
+                # Рисуем пустой полупрозрачный слот
                 pygame.draw.rect(surface, (*BLACK, PREP_EMPTY_SLOT_ALPHA), slot_rect,
                                  border_radius=DEFAULT_BORDER_RADIUS)
             bottom_y = slot_rect.bottom
         return bottom_y
 
     def _render_neuro_slots(self, surface, purchased_mowers, neuro_slots, start_y):
-        """Отрисовка карточек нейросетей в команде."""
+        """Отрисовка карточек купленных нейросетей (или пустых слотов)."""
         title = f"Нейросети ({len(purchased_mowers)}/{neuro_slots}):"
         self._render_text_with_title(surface, title, self.fonts['small'], YELLOW, self.team_panel_rect.centerx, start_y)
         card_size, spacing = PREP_NEURO_CARD_SIZE, PREP_NEURO_CARD_H_SPACING
@@ -115,6 +150,7 @@ class PrepScreenRenderer(BaseUIComponent):
             if i < len(purchased_mowers):
                 mower_type = purchased_mowers[i]
                 self._draw_unit_card(surface, mower_type, rect, NEURO_MOWERS_DATA[mower_type])
+                # Ключ уникализирован индексом, так как нейросети могут повторяться
                 unique_key = f"{mower_type}_{i}"
                 self.team_card_rects[unique_key] = rect
             else:
@@ -123,15 +159,17 @@ class PrepScreenRenderer(BaseUIComponent):
         return bottom_y
 
     def _draw_selection_panel(self, surface, upgrades, current_team, current_mowers):
-        """Отрисовка центральной панели со всеми доступными юнитами."""
+        """Отрисовка центральной панели со всеми доступными для выбора юнитами."""
         self._draw_panel_with_title(surface, self.selection_panel_rect, "Выбор юнитов")
 
+        # Отрисовка списка героев
         self._render_text_with_title(surface, "Герои:", self.fonts['small'], WHITE, self.selection_panel_rect.centerx,
                                      self.selection_panel_rect.top + PREP_SELECTION_HEROES_TITLE_TOP)
         rects1 = self._draw_card_selection_list(surface, self.selection_panel_rect, list(DEFENDERS_DATA.keys()),
                                                 DEFENDERS_DATA, PREP_SELECTION_HEROES_LIST_TOP, upgrades, current_team,
                                                 current_mowers)
 
+        # Отрисовка списка нейросетей
         self._render_text_with_title(surface, "Нейросети:", self.fonts['small'], WHITE,
                                      self.selection_panel_rect.centerx,
                                      self.selection_panel_rect.top + PREP_SELECTION_NEURO_TITLE_TOP)
@@ -145,12 +183,14 @@ class PrepScreenRenderer(BaseUIComponent):
         """Отрисовка правой панели с информацией о предстоящем уровне."""
         self._draw_panel_with_title(surface, self.plan_panel_rect, "Учебный план")
 
+        # Отрисовка карточек врагов
         self._render_text_with_title(surface, "Ожидаемые враги:", self.fonts['small'], WHITE,
                                      self.plan_panel_rect.centerx,
                                      self.plan_panel_rect.top + PREP_SELECTION_HEROES_TITLE_TOP)
         enemy_rects = self._draw_card_selection_list(surface, self.plan_panel_rect, enemy_types, ENEMIES_DATA,
                                                      PREP_SELECTION_HEROES_LIST_TOP)
 
+        # Отрисовка карточек напастей, если они есть на уровне
         calamity_rects = {}
         if calamity_types:
             self._render_text_with_title(surface, "Возможные напасти:", self.fonts['small'], YELLOW,
@@ -163,7 +203,7 @@ class PrepScreenRenderer(BaseUIComponent):
 
     def _draw_card_selection_list(self, surface, panel_rect, types, data_source, start_y_offset, upgrades=None,
                                   current_team=None, current_mowers=None):
-        """Вспомогательный метод для отрисовки сетки карточек."""
+        """Утилитарный метод для отрисовки сетки карточек в любой из трех панелей."""
         card_rects = {}
         if not types: return card_rects
 
@@ -179,14 +219,14 @@ class PrepScreenRenderer(BaseUIComponent):
             card_rect = pygame.Rect(x, y, card_size, card_size)
             if item_type in data_source:
                 is_upgraded = upgrades and item_type in upgrades
-                is_selected = (current_team and item_type in current_team) or (
-                            current_mowers and item_type in current_mowers)
+                is_selected = (current_team and item_type in current_team) or \
+                              (current_mowers and item_type in current_mowers) # Проверка для серой рамки
                 self._draw_unit_card(surface, item_type, card_rect, data_source[item_type], is_upgraded, is_selected)
                 card_rects[item_type] = card_rect
         return card_rects
 
     def _draw_stipend_panel(self, surface, stipend):
-        """Отрисовка панели стипендии вверху экрана."""
+        """Отрисовка панели стипендии вверху по центру экрана."""
         stipend_bg_rect = pygame.Rect((0, 0), (PREP_STIPEND_PANEL_WIDTH, PREP_STIPEND_PANEL_HEIGHT))
         stipend_bg_rect.centerx = SCREEN_WIDTH / 2
         pygame.draw.rect(surface, DEFAULT_COLORS['shop_panel'], stipend_bg_rect, border_radius=DEFAULT_BORDER_RADIUS)
@@ -194,6 +234,7 @@ class PrepScreenRenderer(BaseUIComponent):
         stipend_text = self.fonts['default'].render(f"Стипендия: {stipend}", True, YELLOW)
         text_rect = stipend_text.get_rect(center=stipend_bg_rect.center)
 
+        # Добавляем иконку стипендии, если она загружена
         stipend_icon = CARD_IMAGES.get('stipend')
         if stipend_icon:
             text_rect.centerx += PREP_STIPEND_ICON_X_OFFSET
@@ -209,11 +250,13 @@ class PrepScreenRenderer(BaseUIComponent):
         btn_width, btn_height = PREP_HUD_BUTTON_SIZE
         buttons = {}
 
+        # Кнопка "Назад"
         back_rect = pygame.Rect(PREP_HUD_BOTTOM_MARGIN, SCREEN_HEIGHT - btn_height - PREP_HUD_BOTTOM_MARGIN, btn_width,
                                 btn_height)
         self._draw_button(surface, "Назад", back_rect, GREY, WHITE, self.fonts['default'])
         buttons['back'] = back_rect
 
+        # Кнопка "К расстановке", которая активна только если в команде есть хотя бы 1 герой
         start_rect = pygame.Rect(SCREEN_WIDTH - btn_width - PREP_HUD_BOTTOM_MARGIN,
                                  SCREEN_HEIGHT - btn_height - PREP_HUD_BOTTOM_MARGIN, btn_width, btn_height)
         color = GREEN if is_ready else GREY
@@ -224,23 +267,30 @@ class PrepScreenRenderer(BaseUIComponent):
         return buttons
 
     def _draw_unit_card(self, surface, unit_type, rect, data, is_upgraded=False, is_selected=False):
-        """Отрисовывает одну карточку юнита с рамками и стоимостью."""
+        """
+        Отрисовывает одну карточку юнита с рамками (улучшен, выбран) и стоимостью.
+        """
         pygame.draw.rect(surface, DEFAULT_COLORS['shop_card'], rect, border_radius=DEFAULT_BORDER_RADIUS)
+        # Розовая рамка для улучшенных
         if is_upgraded:
             pygame.draw.rect(surface, AURA_PINK,
                              rect.inflate(PREP_UPGRADED_BORDER_INFLATE, PREP_UPGRADED_BORDER_INFLATE),
                              SHOP_UPGRADE_BORDER_WIDTH, border_radius=PREP_UPGRADED_BORDER_RADIUS)
+        # Желтая рамка для уже выбранных в команду
         if is_selected:
             pygame.draw.rect(surface, YELLOW, rect, THICK_BORDER_WIDTH, border_radius=PREP_SELECTED_BORDER_RADIUS)
 
+        # Изображение юнита
         img = CARD_IMAGES.get(unit_type)
         if img:
             img = pygame.transform.scale(img, (
             rect.width - PREP_UNIT_CARD_IMG_PADDING, rect.height - PREP_UNIT_CARD_IMG_PADDING))
             surface.blit(img, img.get_rect(center=rect.center))
 
+        # Стоимость (если есть)
         cost = data.get('cost')
         if cost is not None:
+            # Разный цвет для стоимости в стипендии и в кофе
             cost_color = COFFEE_COST_COLOR if unit_type in DEFENDERS_DATA else YELLOW
             cost_surf = self.fonts['tiny'].render(str(cost), True, cost_color)
             cost_rect = cost_surf.get_rect(bottomright=(
