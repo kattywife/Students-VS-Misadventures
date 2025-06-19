@@ -1,20 +1,39 @@
 # data/configs/calamities.py
 
+# Этот файл содержит данные для "напастей" (Calamities) - случайных
+# событий, усложняющих игру.
+#
+# Структура словаря:
+# 'ключ_напасти': {
+#     'display_name': Название, отображаемое в UI.
+#     'category': Категория ассета для поиска иконки.
+#     'fallback_color': Цвет для резервной отрисовки, если иконка не найдена.
+#     'description': Описание эффекта, отображаемое в уведомлении.
+# }
+
 CALAMITIES_DATA = {
     'epidemic': {
-        'display_name': 'Эпидемия гриппа', 'category': 'calamities', 'fallback_color': (152, 251, 152, 100),
+        'display_name': 'Эпидемия гриппа',
+        'category': 'calamities',
+        'fallback_color': (152, 251, 152, 100),
         'description': 'Все ваши герои заболевают! Их здоровье и урон временно падают в 2 раза.'
     },
     'big_party': {
-        'display_name': 'Великая туса', 'category': 'calamities', 'fallback_color': (255, 20, 147, 100),
+        'display_name': 'Великая туса',
+        'category': 'calamities',
+        'fallback_color': (255, 20, 147, 100),
         'description': 'Зов вечеринки! 80% ваших героев (кроме Кофемашин) случайным образом покидают поле боя.'
     },
     'colloquium': {
-        'display_name': 'Внезапный коллоквиум', 'category': 'calamities', 'fallback_color': (255, 69, 0, 100),
+        'display_name': 'Внезапный коллоквиум',
+        'category': 'calamities',
+        'fallback_color': (255, 69, 0, 100),
         'description': 'Все враги на поле получают прилив уверенности! Их атаки временно становятся в 1.5 раза сильнее.'
     },
     'internet_down': {
-        'display_name': 'Отключение интернета', 'category': 'calamities', 'fallback_color': (75, 0, 130, 100),
+        'display_name': 'Отключение интернета',
+        'category': 'calamities',
+        'fallback_color': (75, 0, 130, 100),
         'description': 'Студенты не могут списать. Здоровье всех врагов на поле временно удваивается.'
     }
 }
