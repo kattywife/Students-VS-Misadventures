@@ -74,7 +74,7 @@ class UIManager:
         for name, rect in buttons.items():
             button_color = DEFAULT_COLORS['button']
             if name == "Начать обучение":
-                button_color = GREEN
+                button_color = START_BUTTON_GREEN
             elif name == "Выход":
                 button_color = EXIT_BUTTON_RED
 

@@ -220,6 +220,16 @@ class CoffeeMachine(Defender):
         self.producing_duration = 500
         self.producing_frame = self.animations.get('attack', [None])[0] or self.animations.get('idle', [None])[0]
 
+    def kill(self):
+        """
+        Переопределяем родительский метод, чтобы умирать молча.
+        Этот метод напрямую вызывает kill() из самого верхнего класса pygame.sprite.Sprite,
+        полностью игнорируя логику звука в классе Defender.
+        """
+        pygame.sprite.Sprite.kill(self)
+    def manage_scream_sound(self):
+        """Кофемашина не кричит, когда ее едят."""
+        pass # Ничего не делаем
     def animate(self):
         if self.is_producing and self.producing_frame:
             self.image = self.producing_frame

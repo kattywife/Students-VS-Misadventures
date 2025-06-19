@@ -28,6 +28,7 @@ def load_all_resources():
     load_sound('tuning', 'tuning.mp3')
     load_sound('lose', 'lose.mp3')
     load_sound('no_money', 'no_money.mp3')
+    load_sound('thief_laugh', 'thief_laugh.mp3')
 
 
     # Загрузка музыки

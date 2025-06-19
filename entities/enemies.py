@@ -139,6 +139,9 @@ class Enemy(BaseSprite):
 
     def perform_melee_attack(self, target):
         self.is_attacking = True
+        self.rect.right = target.rect.centerx + 20
+        self._layer = target._layer + 1
+
         if self.current_target != target:
             if self.current_target:
                 self.current_target.is_being_eaten = False
@@ -150,6 +153,8 @@ class Enemy(BaseSprite):
         now = pygame.time.get_ticks()
         if now - self.last_attack_time > self.attack_cooldown:
             self.last_attack_time = now
+            if isinstance(target, CoffeeMachine):
+                self.sound_manager.play_sfx('eating')
             target.health -= self.damage * self.damage_multiplier
 
     def update(self, **kwargs):
@@ -193,12 +198,9 @@ class Enemy(BaseSprite):
             super().kill()
 
     def slow_down(self, factor, duration):
-        # Если враг еще не замедлен, применяем эффект к его оригинальной скорости
         if not self.is_slowed:
-            self.speed = self.original_speed * factor  # <-- КЛЮЧЕВОЕ ИЗМЕНЕНИЕ
+            self.speed = self.original_speed * factor
             self.is_slowed = True
-
-        # В любом случае обновляем таймер замедления
         self.slow_timer = pygame.time.get_ticks() + duration
 
 
@@ -246,20 +248,69 @@ class Calculus(Enemy):
 class MathTeacher(Enemy):
     def __init__(self, row, groups, enemy_type, sound_manager):
         super().__init__(row, groups, enemy_type, sound_manager)
+        self.state = 'WALKING'
         self.has_jumped = False
+        self.jump_target = None
+        self.original_y = self.rect.y
+        self.vy = 0
+        self.gravity = 0.5
+        self.jump_power = -15
+        self.jump_start_x = 0
+        self.jump_end_x = 0
+        self.jump_duration = 600
+        self.jump_start_time = 0
 
     def update(self, **kwargs):
+        self.animate()
+        self._layer = self.rect.bottom
+        if self.health <= 0: self.kill(); return
+
+        if self.has_jumped:
+            super().update(**kwargs)
+            return
+
         defenders_group = kwargs.get('defenders_group')
 
-        if not self.has_jumped and defenders_group:
-            for defender in defenders_group:
-                if defender.alive() and self.rect.colliderect(
-                        defender.rect) and defender.rect.centery == self.rect.centery:
-                    self.rect.x = defender.rect.left - self.rect.width - 5
-                    self.has_jumped = True
-                    self.speed /= 2
-                    break
-        super().update(**kwargs)
+        if self.state == 'WALKING':
+            target = self.find_jump_target(defenders_group)
+            if target:
+                self.state = 'JUMPING'
+                self.jump_target = target
+                self.is_attacking = True
+                self.vy = self.jump_power
+                self.jump_start_time = pygame.time.get_ticks()
+
+                self.jump_start_x = self.rect.centerx
+                self.jump_end_x = target.rect.centerx - CELL_SIZE_W
+            else:
+                self.rect.x -= self.speed
+
+        elif self.state == 'JUMPING':
+            elapsed_time = pygame.time.get_ticks() - self.jump_start_time
+            progress = min(1.0, elapsed_time / self.jump_duration)
+
+            current_x = self.jump_start_x + (self.jump_end_x - self.jump_start_x) * progress
+            self.rect.centerx = int(current_x)
+
+            self.vy += self.gravity
+            self.rect.y += self.vy
+
+            if progress >= 1.0:
+                self.rect.y = self.original_y
+
+                if self.jump_target and self.jump_target.alive():
+                    self.rect.right = self.jump_target.rect.left - 10
+
+                self.state = 'WALKING'
+                self.is_attacking = False
+                self.has_jumped = True
+                self.speed /= 2
+
+    def find_jump_target(self, defenders_group):
+        for defender in defenders_group:
+            if defender.alive() and self.rect.colliderect(defender.rect) and defender.rect.centery == self.rect.centery:
+                return defender
+        return None
 
 
 class Addict(Enemy):
@@ -387,7 +438,7 @@ class Thief(Enemy):
         elif self.state == 'STEALING':
             self.is_attacking = True
             if self.current_target_machine and self.current_target_machine.alive():
-                self.sound_manager.play_sfx('eating')
+                self.sound_manager.play_sfx('thief_laugh')
                 self.current_target_machine.kill()
                 self.current_target_machine = None
             self.is_attacking = False
