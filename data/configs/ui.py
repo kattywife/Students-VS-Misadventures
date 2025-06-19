@@ -19,6 +19,24 @@ START_SCREEN_BUTTON_V_SPACING = 120
 PAUSE_MENU_BUTTON_SIZE = (400, 80)
 PAUSE_MENU_V_SPACING = 100
 
+# --- Конфигурации кнопок для универсального меню ---
+PAUSE_MENU_BUTTONS = [
+    ("Продолжить", PAUSE_MENU_BUTTON_SIZE),
+    ("Рестарт", PAUSE_MENU_BUTTON_SIZE),
+    ("Главное меню", PAUSE_MENU_BUTTON_SIZE)
+]
+GAME_OVER_BUTTONS = [
+    ("Попробовать снова", PAUSE_MENU_BUTTON_SIZE),
+    ("Главное меню", PAUSE_MENU_BUTTON_SIZE)
+]
+LEVEL_VICTORY_BUTTONS = [
+    ("Следующий курс", PAUSE_MENU_BUTTON_SIZE),
+    ("Главное меню", PAUSE_MENU_BUTTON_SIZE)
+]
+GAME_VICTORY_BUTTONS = [
+    ("Главное меню", PAUSE_MENU_BUTTON_SIZE)
+]
+
 # --- Главное меню ---
 MAIN_MENU_PANEL_SIZE = (500, 600)
 MAIN_MENU_PANEL_X_OFFSET = 100
