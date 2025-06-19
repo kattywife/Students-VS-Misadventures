@@ -12,8 +12,7 @@ class Bracket(BaseSprite):
         self.damage = damage
         self.image = image
         self.rect = self.image.get_rect(center=(x, y))
-        self.speed = 10
-        # --- ИЗМЕНЕНИЕ: Снаряд знает, в кого целиться ---
+        self.speed = BRACKET_PROJECTILE_SPEED
         self.target_type = 'enemy'
 
     def update(self, *args, **kwargs):
@@ -30,7 +29,7 @@ class PaintSplat(Bracket):
 
 
 class SoundWave(BaseSprite):
-    def __init__(self, center, groups, damage, row_y, speed=5):
+    def __init__(self, center, groups, damage, row_y, speed=SOUNDWAVE_PROJECTILE_SPEED):
         super().__init__(groups)
         self.damage = damage
         self.image = load_image('projectiles/sound_wave.png', DEFAULT_COLORS['sound_wave'], (40, CELL_SIZE_H - 10))
@@ -39,7 +38,7 @@ class SoundWave(BaseSprite):
         self.speed = speed
         self.hit_enemies = set()
         self.spawn_time = pygame.time.get_ticks()
-        self.lifetime = 5000
+        self.lifetime = SOUNDWAVE_LIFETIME
 
     def update(self, **kwargs):
         self.rect.x += self.speed
@@ -50,8 +49,7 @@ class SoundWave(BaseSprite):
 class Integral(Bracket):
     def __init__(self, x, y, groups, damage, image):
         super().__init__(x, y, groups, damage, image)
-        self.speed = -5 # Летит в другую сторону
-        # --- ИЗМЕНЕНИЕ: Снаряд знает, в кого целиться ---
+        self.speed = INTEGRAL_PROJECTILE_SPEED
         self.target_type = 'defender'
 
     def update(self, *args, **kwargs):

@@ -3,9 +3,9 @@
 import pygame
 import os
 import random
+import math
 from data.settings import *
 from data.assets import PROJECTILE_IMAGES, load_image
-from data.settings import PROGRAMMER_PROJECTILE_TYPES
 from entities.base_sprite import BaseSprite, ExplosionEffect, BookAttackEffect
 from entities.projectiles import Bracket, PaintSplat, SoundWave
 from entities.other_sprites import CoffeeBean, AuraEffect
@@ -97,11 +97,8 @@ class Defender(BaseSprite):
         now = pygame.time.get_ticks()
         if now - self.last_anim_update > self.anim_speed * 1000:
             self.last_anim_update = now
-
             self.image = anim_sequence[int(self.frame_index)]
-
             self.frame_index += 1
-
             if self.frame_index >= len(anim_sequence):
                 if self.current_animation in ['attack', 'hit']:
                     self.current_animation = 'idle'
@@ -112,12 +109,12 @@ class Defender(BaseSprite):
 
     def apply_calamity_effect(self, calamity_type):
         if calamity_type == 'epidemic':
-            self.calamity_damage_multiplier /= 2
-            self.health /= 2
+            self.calamity_damage_multiplier /= CALAMITY_EPIDEMIC_MULTIPLIER
+            self.health /= CALAMITY_EPIDEMIC_MULTIPLIER
 
     def revert_calamity_effect(self, calamity_type):
         if calamity_type == 'epidemic':
-            self.calamity_damage_multiplier *= 2
+            self.calamity_damage_multiplier *= CALAMITY_EPIDEMIC_MULTIPLIER
 
     def update(self, **kwargs):
         if self.is_being_eaten and (not self.attacker or not self.attacker.alive()):
@@ -144,8 +141,7 @@ class Defender(BaseSprite):
             surface.blit(aura_surf, self.rect.topleft)
 
     def kill(self):
-        if not self.alive():
-            return
+        if not self.alive(): return
         if self.scream_channel:
             self.scream_channel.stop()
             self.scream_channel = None
@@ -170,7 +166,6 @@ class ProgrammerBoy(Defender):
         if self.is_being_eaten: return
 
         now = pygame.time.get_ticks()
-        # --- ИСПРАВЛЕНИЕ: Добавлена проверка положения врага по горизонтали ---
         has_enemy_in_row = any(
             enemy.rect.centery == self.rect.centery and enemy.rect.left >= self.rect.left
             for enemy in enemies_group)
@@ -235,7 +230,7 @@ class CoffeeMachine(Defender):
         self.last_production = pygame.time.get_ticks()
         self.is_producing = False
         self.producing_timer = 0
-        self.producing_duration = 500
+        self.producing_duration = COFFEE_MACHINE_PRODUCING_DURATION
         self.producing_frame = self.animations.get('attack', [None])[0] or self.animations.get('idle', [None])[0]
 
     def kill(self):
@@ -290,7 +285,6 @@ class Guitarist(Defender):
         if self.is_being_eaten: return
 
         now = pygame.time.get_ticks()
-        # --- ИСПРАВЛЕНИЕ: Добавлена проверка положения врага по горизонтали ---
         has_enemy_in_row = any(
             e.rect.centery == self.rect.centery and e.rect.left >= self.rect.left
             for e in enemies_group)
@@ -298,7 +292,7 @@ class Guitarist(Defender):
         if self.alive() and has_enemy_in_row and now - self.last_attack > self.attack_cooldown:
             self.last_attack = now
             damage = self.get_final_damage(self.data['damage'])
-            speed = self.data.get('projectile_speed', 5)
+            speed = self.data.get('projectile_speed', SOUNDWAVE_PROJECTILE_SPEED)
             SoundWave(self.rect.center, (self.all_sprites,), damage, self.rect.centery, speed)
             self.current_animation = 'attack'
             self.frame_index = 0
@@ -309,8 +303,8 @@ class Medic(Defender):
         super().__init__(x, y, groups, data, sound_manager)
         self.heal_pool = self.data['heal_amount']
         self.heal_radius = self.data['radius']
-        self.heal_tick_amount = 75
-        self.heal_cooldown = self.data['cooldown'] * 3000
+        self.heal_tick_amount = MEDIC_HEAL_TICK_AMOUNT
+        self.heal_cooldown = MEDIC_HEAL_COOLDOWN_MS
         self.last_heal_time = pygame.time.get_ticks()
 
     def update(self, **kwargs):
@@ -323,8 +317,8 @@ class Medic(Defender):
         now = pygame.time.get_ticks()
         if now - self.last_heal_time > self.heal_cooldown:
             self.last_heal_time = now
-            self.heal(defenders_group)
-            if self.heal_pool > 0:
+            healed = self.heal(defenders_group)
+            if healed and self.heal_pool > 0:
                 self.current_animation = 'attack'
                 self.frame_index = 0
         if self.heal_pool <= 0:
@@ -347,6 +341,8 @@ class Medic(Defender):
             heal_amount = min(self.heal_tick_amount, self.heal_pool)
             target.health = min(target.max_health, target.health + heal_amount)
             self.heal_pool -= heal_amount
+            return True
+        return False
 
 
 class Artist(Defender):
@@ -365,7 +361,6 @@ class Artist(Defender):
         if self.is_being_eaten: return
 
         now = pygame.time.get_ticks()
-        # --- ИСПРАВЛЕНИЕ: Добавлена проверка положения врага по горизонтали ---
         has_enemy_in_row = any(
             enemy.rect.centery == self.rect.centery and enemy.rect.left >= self.rect.left
             for enemy in enemies_group)
@@ -434,4 +429,6 @@ class Fashionista(Defender):
         self.kill()
 
     def kill(self):
-        pygame.sprite.Sprite.kill(self)
+        # Модник не оставляет звука смерти героя, он взрывается
+        if self.alive():
+             pygame.sprite.Sprite.kill(self)

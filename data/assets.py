@@ -3,7 +3,7 @@
 import pygame
 import os
 from data.settings import *
-from data.levels import LEVELS  # Импортируем уровни для получения ID
+from data.levels import LEVELS
 
 SOUNDS = {}
 CARD_IMAGES = {}
@@ -30,17 +30,15 @@ def load_all_resources():
     load_sound('no_money', 'no_money.mp3')
     load_sound('thief_laugh', 'thief_laugh.mp3')
 
-
-    # Загрузка музыки
     load_music('main_team', 'main_team.mp3')
     load_music('prep_screen', 'prep_screen.mp3')
     for level_id in LEVELS:
-        load_music(f'level_{level_id}', f'level_{level_id}.mp3')
+        if level_id > 0: # Не загружаем музыку для тестового уровня
+            load_music(f'level_{level_id}', f'level_{level_id}.mp3')
 
-
-    UI_IMAGES['toggle_on'] = load_image('ui/toggle_on.png', GREEN, (120, 60))
-    UI_IMAGES['toggle_off'] = load_image('ui/toggle_off.png', GREY, (120, 60))
-    UI_IMAGES['title_plaque'] = load_image('ui/title_plaque.png', None, (900, 180))
+    UI_IMAGES['toggle_on'] = load_image('ui/toggle_on.png', GREEN, SETTINGS_TOGGLE_SIZE)
+    UI_IMAGES['toggle_off'] = load_image('ui/toggle_off.png', GREY, SETTINGS_TOGGLE_SIZE)
+    UI_IMAGES['title_plaque'] = load_image('ui/title_plaque.png', None, TITLE_PLAQUE_SIZE)
 
     all_units = {**DEFENDERS_DATA, **ENEMIES_DATA, **NEURO_MOWERS_DATA, **CALAMITIES_DATA, **UI_ELEMENTS_DATA}
     card_size = (SHOP_CARD_SIZE - 10, SHOP_CARD_SIZE - 10)
@@ -52,10 +50,9 @@ def load_all_resources():
         if category:
             if anim_data:
                 folder = anim_data.get('folder', unit_type)
-                if category == 'enemies':
-                    path_to_card_img = os.path.join(category, folder, 'walk_0.png')
-                else:
-                    path_to_card_img = os.path.join(category, folder, 'idle_0.png')
+                # Для врагов берем анимацию ходьбы, для остальных - ожидания
+                anim_type_for_card = 'walk' if category == 'enemies' else 'idle'
+                path_to_card_img = os.path.join(category, folder, f'{anim_type_for_card}_0.png')
             else:
                 path_to_card_img = os.path.join(category, f"{unit_type}.png")
 
@@ -76,8 +73,6 @@ def load_all_resources():
         PROJECTILE_IMAGES[p_type] = load_image(path, DEFAULT_COLORS['bracket'], projectile_size)
 
 
-# data/assets.py
-
 def load_image(path, default_color, size=None):
     full_path = os.path.join(IMAGES_DIR, path)
     try:
@@ -89,16 +84,16 @@ def load_image(path, default_color, size=None):
         print(f"Warning: Image '{full_path}' not found. Using fallback surface.")
         if size is None:
             size = (CELL_SIZE_W, CELL_SIZE_H)
-        fallback_surface = pygame.Surface(size)
+        fallback_surface = pygame.Surface(size, pygame.SRCALPHA)
 
-        # --- ИЗМЕНЕНИЕ: Проверяем, есть ли цвет, перед заливкой ---
         if default_color:
             fallback_surface.fill(default_color)
         else:
-            # Если цвета нет, заливаем ярким цветом для отладки
-            fallback_surface.fill((255, 0, 255))
+            # Если цвета нет, делаем поверхность прозрачной
+            fallback_surface.fill((0, 0, 0, 0))
 
         return fallback_surface
+
 
 def load_sound(name, filename):
     path = os.path.join(ASSETS_DIR, 'sounds', filename)

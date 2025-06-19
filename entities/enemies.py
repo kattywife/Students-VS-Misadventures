@@ -3,13 +3,13 @@
 import pygame
 import random
 import os
+import math
 from data.settings import *
 from data.assets import load_image, PROJECTILE_IMAGES
 from entities.base_sprite import BaseSprite
 from entities.projectiles import Integral
 from entities.defenders import CoffeeMachine
 from entities.other_sprites import CalamityAuraEffect
-import math
 
 
 class Enemy(BaseSprite):
@@ -42,7 +42,7 @@ class Enemy(BaseSprite):
         self.anim_speed = self.data.get('animation_data', {}).get('speed', 0.3)
         self.last_anim_update = pygame.time.get_ticks()
 
-        self.attack_cooldown = self.data['cooldown'] * 1000 if self.data['cooldown'] else 1000
+        self.attack_cooldown = self.data['cooldown'] * 1000 if self.data['cooldown'] else DEFAULT_ATTACK_COOLDOWN_MS
         self.last_attack_time = 0
 
         self.current_target = None
@@ -54,8 +54,7 @@ class Enemy(BaseSprite):
         anim_data = self.data.get('animation_data')
         if not anim_data: return
 
-        size = self.data.get('battle_size', (CELL_SIZE_W - 20, CELL_SIZE_H - 10))
-
+        size = (CELL_SIZE_W - 20, CELL_SIZE_H - 10)
         category = self.data.get('category', 'enemies')
         folder = anim_data.get('folder', self.enemy_type)
 
@@ -94,11 +93,9 @@ class Enemy(BaseSprite):
         now = pygame.time.get_ticks()
         if now - self.last_anim_update > self.anim_speed * 1000:
             self.last_anim_update = now
-            self.frame_index += 1
-            if self.frame_index >= len(anim_sequence):
-                if self.current_animation in ['hit', 'attack']:
-                    self.set_animation('walk')
-                self.frame_index = 0
+            self.frame_index = (self.frame_index + 1) % len(anim_sequence)
+            if self.frame_index == 0 and self.current_animation in ['hit', 'attack']:
+                 self.set_animation('walk')
 
         self.image = anim_sequence[self.frame_index]
 
@@ -110,10 +107,10 @@ class Enemy(BaseSprite):
 
     def apply_calamity_effect(self, calamity_type):
         if calamity_type == 'colloquium':
-            self.damage_multiplier *= 1.5
+            self.damage_multiplier *= CALAMITY_COLLOQUIUM_MULTIPLIER
         elif calamity_type == 'internet_down':
-            ratio = self.health / self.max_health if self.max_health > 0 else 1
-            self.max_health *= 2
+            ratio = self.health / self.max_health if self.max_health > 0 else 1.0
+            self.max_health *= CALAMITY_INTERNET_DOWN_MULTIPLIER
             self.health = self.max_health * ratio
 
         if calamity_type != 'big_party' and not self.aura_effect:
@@ -121,10 +118,10 @@ class Enemy(BaseSprite):
 
     def revert_calamity_effect(self, calamity_type):
         if calamity_type == 'colloquium':
-            self.damage_multiplier /= 1.5
+            self.damage_multiplier /= CALAMITY_COLLOQUIUM_MULTIPLIER
         elif calamity_type == 'internet_down':
-            ratio = self.health / self.max_health if self.max_health > 0 else 1
-            self.max_health /= 2
+            ratio = self.health / self.max_health if self.max_health > 0 else 1.0
+            self.max_health /= CALAMITY_INTERNET_DOWN_MULTIPLIER
             self.health = max(1, self.max_health * ratio)
 
         if self.aura_effect:
@@ -139,10 +136,9 @@ class Enemy(BaseSprite):
                 return defender
         return None
 
-    # --- ИСПРАВЛЕНИЕ: ЗВУК ПОЕДАНИЯ ДЛЯ ВСЕХ ГЕРОЕВ ---
     def perform_melee_attack(self, target):
         self.is_attacking = True
-        self.rect.right = target.rect.centerx + 80
+        self.rect.right = target.rect.centerx + ENEMY_ATTACK_OFFSET
         self.float_pos.x = self.rect.centerx
         self._layer = target._layer + 1
 
@@ -159,11 +155,7 @@ class Enemy(BaseSprite):
         now = pygame.time.get_ticks()
         if now - self.last_attack_time > self.attack_cooldown:
             self.last_attack_time = now
-
-            # Проигрываем звук поедания при атаке любого героя
             self.sound_manager.play_sfx('eating')
-
-            # Наносим урон цели через ее метод get_hit
             target.get_hit(self.damage * self.damage_multiplier)
 
     def update(self, **kwargs):
@@ -256,6 +248,7 @@ class Calculus(Enemy):
             self.float_pos.x -= self.speed
             self.rect.centerx = int(self.float_pos.x)
 
+
 class MathTeacher(Enemy):
     def __init__(self, row, groups, enemy_type, sound_manager):
         super().__init__(row, groups, enemy_type, sound_manager)
@@ -263,8 +256,8 @@ class MathTeacher(Enemy):
         self.has_jumped = False
         self.original_y = self.float_pos.y
 
-        self.jump_height = 90
-        self.jump_duration = 1300
+        self.jump_height = MATH_TEACHER_JUMP_HEIGHT
+        self.jump_duration = MATH_TEACHER_JUMP_DURATION
         self.jump_timer = 0
         self.jump_start_pos = None
         self.jump_target_pos = None
@@ -312,7 +305,7 @@ class MathTeacher(Enemy):
                 self.state = 'WALKING'
                 self.is_attacking = False
                 self.has_jumped = True
-                self.speed /= 2
+                self.speed /= 2.0
 
     def find_jump_target(self, defenders_group):
         for defender in defenders_group:
@@ -371,7 +364,6 @@ class Addict(Enemy):
                 self.state = 'GRABBING'
                 if self.victim:
                     self.victim.is_being_eaten = True
-                    # --- ИСПРАВЛЕНИЕ: СООБЩАЕМ ЖЕРТВЕ, КТО НАПАЛ ---
                     self.victim.attacker = self
 
         elif self.state == 'GRABBING':
@@ -380,7 +372,7 @@ class Addict(Enemy):
             self.state = 'ESCAPING'
 
         elif self.state == 'ESCAPING':
-            self.float_pos.x += self.speed * 2
+            self.float_pos.x += self.speed * ADDICT_ESCAPE_SPEED_MULTIPLIER
             self.rect.centerx = int(self.float_pos.x)
             if self.victim:
                 self.victim.rect.midright = self.rect.midright
@@ -392,7 +384,7 @@ class Addict(Enemy):
     def kill(self):
         if hasattr(self, 'victim') and self.victim:
             self.victim.is_being_eaten = False
-            self.victim.attacker = None # <-- Освобождаем жертву
+            self.victim.attacker = None
 
             if self.rect.right > 0:
                 victim_center = self.victim.rect.center
@@ -404,7 +396,6 @@ class Addict(Enemy):
 
                 self.victim.rect.center = (new_x, new_y)
                 self.victim._layer = self.victim.rect.bottom
-
         super().kill()
 
 
@@ -454,7 +445,7 @@ class Thief(Enemy):
         elif self.state == 'CHASING':
             if self.current_target_machine and self.current_target_machine.alive():
                 direction = pygame.math.Vector2(self.current_target_machine.rect.center) - self.float_pos
-                if direction.length() < 10:
+                if direction.length() < THIEF_STEAL_DISTANCE_THRESHOLD:
                     self.state = 'STEALING'
                 else:
                     norm_dir = direction.normalize()
@@ -473,7 +464,7 @@ class Thief(Enemy):
             self.state = 'SEEKING'
 
         elif self.state == 'ESCAPING':
-            self.float_pos.x += self.speed * 2
+            self.float_pos.x += self.speed * THIEF_ESCAPE_SPEED_MULTIPLIER
             self.rect.centerx = int(self.float_pos.x)
             if self.rect.left > SCREEN_WIDTH:
                 self.kill()

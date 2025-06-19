@@ -2,7 +2,7 @@
 
 import pygame
 from data.settings import *
-from data.assets import load_image, SOUNDS
+from data.assets import load_image
 
 
 class BaseSprite(pygame.sprite.Sprite):
@@ -22,7 +22,7 @@ class ExplosionEffect(BaseSprite):
         self.image = load_image('projectiles/explosion.png', DEFAULT_COLORS['explosion'], (self.radius * 2, self.radius * 2))
         self.rect = self.image.get_rect(center=center)
         self.spawn_time = pygame.time.get_ticks()
-        self.lifetime = 300 # 300 миллисекунд
+        self.lifetime = EXPLOSION_LIFETIME
 
     def update(self, *args, **kwargs):
         if pygame.time.get_ticks() - self.spawn_time > self.lifetime:
@@ -36,7 +36,7 @@ class BookAttackEffect(BaseSprite):
         self.image.set_alpha(150)
         self.rect = self.image.get_rect(center=center_pos)
         self.spawn_time = pygame.time.get_ticks()
-        self.lifetime = 200 # 200 миллисекунд
+        self.lifetime = BOOK_ATTACK_LIFETIME
 
     def update(self, *args, **kwargs):
         if pygame.time.get_ticks() - self.spawn_time > self.lifetime:

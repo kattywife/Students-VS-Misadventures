@@ -16,7 +16,7 @@ class CoffeeBean(BaseSprite):
         self.rect = self.image.get_rect(center=(x, y))
         self._layer = self.rect.bottom + 1
         self.spawn_time = pygame.time.get_ticks()
-        self.lifetime = 8000
+        self.lifetime = COFFEE_BEAN_LIFETIME
 
     def update(self, *args, **kwargs):
         if pygame.time.get_ticks() - self.spawn_time > self.lifetime:
@@ -32,9 +32,9 @@ class AuraEffect(BaseSprite):
         self.animations = []
         self.load_animations()
         self.frame_index = 0
-        self.image = self.animations[0]
+        self.image = self.animations[0] if self.animations else pygame.Surface((0, 0))
         self.rect = self.image.get_rect(center=self.parent.rect.center)
-        self.anim_speed = 0.1
+        self.anim_speed = AURA_ANIMATION_SPEED
         self.last_anim_update = pygame.time.get_ticks()
         self._layer = self.parent._layer - 1
         self.add(self.groups_tuple)
@@ -57,15 +57,21 @@ class AuraEffect(BaseSprite):
         if not self.parent.alive():
             self.kill()
             return
+
+        if not self.animations:
+            return
+
         now = pygame.time.get_ticks()
         if now - self.last_anim_update > self.anim_speed * 1000:
             self.last_anim_update = now
             self.frame_index = (self.frame_index + 1) % len(self.animations)
             self.image = self.animations[self.frame_index]
+
         self.rect.center = self.parent.rect.center
-        if self._layer != self.parent._layer - 1:
+        new_layer = self.parent._layer - 1
+        if self._layer != new_layer:
             self.remove(self.groups_tuple)
-            self._layer = self.parent._layer - 1
+            self._layer = new_layer
             self.add(self.groups_tuple)
 
 
@@ -86,13 +92,12 @@ class CalamityAuraEffect(BaseSprite):
             self.kill()
             return
         self.rect.center = self.parent.rect.center
-        if self._layer != self.parent._layer - 1:
+        new_layer = self.parent._layer - 1
+        if self._layer != new_layer:
             self.remove(self.groups_tuple)
-            self._layer = self.parent._layer - 1
+            self._layer = new_layer
             self.add(self.groups_tuple)
 
-
-# entities/other_sprites.py
 
 class NeuroMower(BaseSprite):
     def __init__(self, row, groups, mower_type, sound_manager):
@@ -105,7 +110,7 @@ class NeuroMower(BaseSprite):
         y = GRID_START_Y + row * CELL_SIZE_H + CELL_SIZE_H / 2
         self.rect = self.image.get_rect(center=(GRID_START_X - CELL_SIZE_W / 2, y))
         self.is_active = False
-        self.speed = 12
+        self.speed = NEURO_MOWER_CHAT_GPT_SPEED
 
     def activate(self, enemies_group, activator):
         if self.is_active: return
@@ -113,16 +118,15 @@ class NeuroMower(BaseSprite):
         self.sound_manager.play_sfx('tuning')
 
         if self.mower_type == 'deepseek':
-            # Сначала определяем цели, потом убиваем, чтобы не было конфликтов
-            targets = sorted(list(enemies_group), key=lambda e: e.rect.left)[:3]
+            targets = sorted(list(enemies_group), key=lambda e: e.rect.left)[:NEURO_MOWER_DEEPSEEK_TARGET_COUNT]
             for enemy in targets:
                 enemy.kill()
         elif self.mower_type == 'gemini':
-            targets = sorted(list(enemies_group), key=lambda e: e.health, reverse=True)[:4]
+            targets = sorted(list(enemies_group), key=lambda e: e.health, reverse=True)[
+                      :NEURO_MOWER_GEMINI_TARGET_COUNT]
             for enemy in targets:
                 enemy.kill()
 
-        # Уничтожаем врага, который активировал газонокосилку, если он еще жив
         if activator.alive():
             activator.kill()
 
@@ -134,7 +138,6 @@ class NeuroMower(BaseSprite):
 
             enemies_on_line = kwargs.get('enemies_group')
             if enemies_on_line:
-                # Враги умирают и проигрывают звук смерти через свой собственный метод kill
                 pygame.sprite.spritecollide(self, enemies_on_line, True)
 
         elif self.is_active and self.mower_type != 'chat_gpt':

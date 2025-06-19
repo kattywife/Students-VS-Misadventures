@@ -38,14 +38,14 @@ class BattleManager:
 
         self.pending_calamities = self.level_manager.calamities.copy()
         random.shuffle(self.pending_calamities)
-        self.calamity_triggers = [0.3, 0.7]
+        self.calamity_triggers = CALAMITY_TRIGGERS.copy()
         self.calamity_notification = None
         self.calamity_notification_timer = 0
-        self.notification_duration = 3000
+        self.notification_duration = CALAMITY_NOTIFICATION_DURATION
 
         self.active_calamity = None
         self.calamity_end_time = 0
-        self.calamity_duration = 15000
+        self.calamity_duration = CALAMITY_DURATION
 
     def start(self):
         self.level_manager.start()
@@ -220,7 +220,7 @@ class BattleManager:
         if self.active_calamity == 'big_party':
             heroes_to_consider = [d for d in self.defenders if d.alive() and not isinstance(d, CoffeeMachine)]
             if heroes_to_consider:
-                num_to_remove = int(len(heroes_to_consider) * 0.8)
+                num_to_remove = int(len(heroes_to_consider) * CALAMITY_BIG_PARTY_REMOVAL_RATIO)
                 heroes_to_remove = random.sample(heroes_to_consider, k=min(num_to_remove, len(heroes_to_consider)))
                 for hero in heroes_to_remove:
                     hero.kill()
@@ -235,9 +235,7 @@ class BattleManager:
             if hasattr(sprite, 'revert_calamity_effect'): sprite.revert_calamity_effect(self.active_calamity)
         self.active_calamity = None
 
-    # --- ИСПРАВЛЕНИЕ: Полностью переработанная логика столкновений ---
     def check_collisions(self):
-        # 1. Проверка обычных снарядов (те, что летят и исчезают при попадании)
         for proj in list(self.projectiles):
             if not proj.alive():
                 continue
@@ -250,30 +248,21 @@ class BattleManager:
                     target_group = self.defenders
 
             if target_group:
-                # Проверяем столкновение снаряда с его группой целей
                 hits = pygame.sprite.spritecollide(proj, target_group, False)
                 if hits:
-                    target = hits[0]  # Берем первую цель
+                    target = hits[0]
                     if target.alive():
-                        # Особая логика для замедления от Художницы
                         if isinstance(proj, PaintSplat):
                             target.slow_down(proj.artist.data['slow_factor'], proj.artist.data['slow_duration'])
-
-                        # Наносим урон и проигрываем звук/анимацию через метод цели
                         target.get_hit(proj.damage)
-
-                        # Уничтожаем снаряд
                         proj.kill()
 
-        # 2. Проверка звуковой волны (которая пробивает насквозь)
         for wave in [s for s in self.all_sprites if isinstance(s, SoundWave)]:
             for enemy in self.enemies:
-                # Проверяем, что волна столкнулась с врагом и еще не била его
                 if wave.rect.colliderect(enemy.rect) and enemy not in wave.hit_enemies:
                     enemy.get_hit(wave.damage)
-                    wave.hit_enemies.add(enemy)  # Запоминаем, что уже ударили этого врага
+                    wave.hit_enemies.add(enemy)
 
-        # 3. Проверка активации газонокосилок
         for mower in list(self.neuro_mowers):
             if not mower.is_active:
                 colliding_enemies = pygame.sprite.spritecollide(mower, self.enemies, False)

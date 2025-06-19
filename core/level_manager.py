@@ -8,7 +8,7 @@ from data.settings import *
 
 
 class LevelManager:
-    def __init__(self, level_id, enemy_group, all_sprites_group, sound_manager=None):
+    def __init__(self, level_id, enemy_group=None, all_sprites_group=None, sound_manager=None):
         self.level_data = LEVELS.get(level_id, LEVELS[1])
         self.enemy_spawn_list = self.level_data['enemies'].copy()
         random.shuffle(self.enemy_spawn_list)
@@ -24,9 +24,9 @@ class LevelManager:
         self.enemies_killed = 0
         self.enemies_spawned = 0
 
-        self.spawn_cooldown = 5000
+        self.spawn_cooldown = INITIAL_SPAWN_COOLDOWN
         self.last_spawn_time = 0
-        self.final_wave_threshold = 0.6
+        self.final_wave_threshold = FINAL_WAVE_THRESHOLD
         self.in_final_wave = False
 
     def start(self):
@@ -58,22 +58,23 @@ class LevelManager:
         return self.level_data.get('calamities', [])
 
     def update(self):
-        if not self.is_running or not self.enemy_spawn_list: return
+        # --- ИСПРАВЛЕНИЕ: Проверяем на 'is None' вместо 'not' ---
+        # Эта проверка теперь корректно отличает отсутствие группы от пустой группы.
+        if not self.is_running or not self.enemy_spawn_list or self.enemy_group is None:
+            return
 
         now = pygame.time.get_ticks()
 
-        if not self.in_final_wave and self.total_enemies_in_level > 0 and (
-                self.enemies_spawned / self.total_enemies_in_level) >= self.final_wave_threshold:
+        if not self.in_final_wave and self.total_enemies_in_level > 0 and \
+                (self.enemies_spawned / self.total_enemies_in_level) >= self.final_wave_threshold:
             self.in_final_wave = True
-            self.spawn_cooldown = 2000
+            self.spawn_cooldown = FINAL_WAVE_SPAWN_COOLDOWN
 
         if now - self.last_spawn_time > self.spawn_cooldown:
             self.last_spawn_time = now
             enemy_type, row = self.enemy_spawn_list.pop(0)
             self.spawn_enemy(enemy_type, row)
             self.enemies_spawned += 1
-
-        # core/level_manager.py
 
     def spawn_enemy(self, enemy_type, row):
         groups = (self.enemy_group, self.all_sprites_group)
@@ -85,17 +86,13 @@ class LevelManager:
             'thief': Thief
         }
 
-        enemy_class = enemy_map.get(enemy_type)
-
-        if enemy_class:
-            # --- ИСПРАВЛЕНИЕ ЗДЕСЬ ---
-            # Передаем все 4 необходимых аргумента
-            enemy_class(row, groups, enemy_type, self.sound_manager)
-        else:
-            # Для базового врага вызов был правильным
-            Enemy(row, groups, enemy_type, self.sound_manager)
+        enemy_class = enemy_map.get(enemy_type, Enemy)
+        enemy_class(row, groups, enemy_type, self.sound_manager)
 
     def is_complete(self):
-        all_spawned = len(self.enemy_spawn_list) == 0
+        if self.total_enemies_in_level == 0:
+            return False
+
+        all_spawned = not self.enemy_spawn_list
         all_defeated = self.enemies_killed >= self.total_enemies_in_level
-        return all_spawned and all_defeated and self.total_enemies_in_level > 0
+        return all_spawned and all_defeated

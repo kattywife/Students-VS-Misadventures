@@ -4,6 +4,7 @@ import pygame
 import random
 from data.settings import *
 from data.levels import LEVELS
+from core.level_manager import LevelManager  # <-- ДОБАВЛЯЕМ ЭТОТ ИМПОРТ
 
 
 class PrepManager:
@@ -19,7 +20,7 @@ class PrepManager:
         self.upgrades = {}
 
         self.neuro_mower_slots = self.level_data.get('neuro_slots', 2)
-        self.chat_gpt_limit = 2
+        self.chat_gpt_limit = CHAT_GPT_LIMIT
         self.purchased_mowers = []
 
         self.all_defenders = list(DEFENDERS_DATA.keys())
@@ -28,6 +29,11 @@ class PrepManager:
         self.selected_card_info = None
         self.info_panel_buttons = {}
         self.random_buttons_rects = {}
+
+        # --- ИЗМЕНЕНИЕ: ГОТОВИМ ДАННЫЕ ДЛЯ UI СРАЗУ ---
+        temp_level_manager = LevelManager(self.level_id, None, None)
+        self.enemy_types = temp_level_manager.get_enemy_types_for_level()
+        self.calamity_types = temp_level_manager.get_calamity_types_for_level()
 
     def handle_event(self, event):
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
@@ -193,11 +199,13 @@ class PrepManager:
         }
 
     def draw(self, surface):
+        # --- ИЗМЕНЕНИЕ: ПЕРЕДАЕМ ГОТОВЫЕ ДАННЫЕ В UI MANAGER ---
         prep_buttons, self.random_buttons_rects, self.info_panel_buttons = self.ui_manager.draw_preparation_screen(
             surface, self.stipend, self.team, self.upgrades, self.purchased_mowers,
             self.all_defenders, self.all_neuro_mowers,
-            self.level_id, self.selected_card_info, self.neuro_mower_slots,
-            self.team, self.purchased_mowers
+            self.selected_card_info, self.neuro_mower_slots,
+            self.team, self.purchased_mowers,
+            self.enemy_types, self.calamity_types
         )
         return prep_buttons
 
