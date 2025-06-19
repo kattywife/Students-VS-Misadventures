@@ -3,7 +3,7 @@
 import pygame
 import sys
 from data.settings import *
-from core.ui_manager import UIManager
+from ui.ui_manager import UIManager  # <-- ИЗМЕНЕННЫЙ ИМПОРТ
 from core.level_manager import LevelManager
 from data.assets import load_all_resources, load_image
 from data.levels import LEVELS
@@ -122,7 +122,7 @@ class Game:
         for i, (text, size) in enumerate(buttons_data.items()):
             rect = pygame.Rect((0, 0), size)
             rect.center = (
-            SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2 + START_SCREEN_BUTTON_V_OFFSET + i * START_SCREEN_BUTTON_V_SPACING)
+                SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2 + START_SCREEN_BUTTON_V_OFFSET + i * START_SCREEN_BUTTON_V_SPACING)
             buttons[text] = rect
 
         for event in pygame.event.get():
@@ -172,11 +172,8 @@ class Game:
 
     def _settings_loop(self):
         self.screen.blit(self.background, (0, 0))
+        # Рисуем главное меню на фоне для красивого эффекта
         self.ui_manager.draw_main_menu(self.screen, self.max_level_unlocked)
-
-        overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
-        overlay.fill((0, 0, 0, MENU_OVERLAY_ALPHA))
-        self.screen.blit(overlay, (0, 0))
 
         buttons = self.ui_manager.draw_settings_menu(self.screen, self.sound_manager.music_enabled,
                                                      self.sound_manager.sfx_enabled)
@@ -218,18 +215,20 @@ class Game:
                                                                                  self.prep_manager.purchased_mowers,
                                                                                  self.placed_neuro_mowers,
                                                                                  self.dragged_mower)
-        placement_grid_start_y = (SCREEN_HEIGHT - GRID_ROWS * PLACEMENT_GRID_CELL_H) / 2
+        placement_grid_start_y = self.ui_manager.neuro_placement_renderer.placement_grid_start_y
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT: self.running = False
             if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                 if self.dragged_mower is None:
+                    # Проверяем клик по нерасставленным нейросетям
                     for index, rect in unplaced_rects.items():
                         if rect.collidepoint(event.pos):
                             self.sound_manager.play_sfx('purchase')
                             self.dragged_mower = {'type': self.prep_manager.purchased_mowers[index],
                                                   'original_index': index, 'pos': event.pos}
                             return
+                    # Проверяем клик по уже расставленным нейросетям, чтобы поднять их
                     for row, info in list(self.placed_neuro_mowers.items()):
                         mower_rect = pygame.Rect(
                             PLACEMENT_ZONE_X,
@@ -243,8 +242,7 @@ class Game:
                             self.dragged_mower['pos'] = event.pos
                             return
 
-                if start_rect and start_rect.collidepoint(event.pos) and len(
-                        self.prep_manager.purchased_mowers) == len(self.placed_neuro_mowers):
+                if start_rect and start_rect.collidepoint(event.pos):
                     self.sound_manager.play_sfx('button')
                     self._start_battle()
                     return
@@ -323,15 +321,7 @@ class Game:
                             self.sound_manager.play_music('main_team')
                             self.state = "MAIN_MENU"
 
-        self.battle_manager.draw_world(self.screen)
-        self.ui_manager.draw_shop(self.screen, self.battle_manager.selected_defender, self.battle_manager.coffee,
-                                  self.battle_manager.upgrades)
-        spawn_progress = self.battle_manager.level_manager.get_spawn_progress()
-        kill_progress = self.battle_manager.level_manager.get_kill_progress()
-        spawn_data = self.battle_manager.level_manager.get_spawn_count_data()
-        kill_data = self.battle_manager.level_manager.get_kill_count_data()
-        self.ui_manager.draw_hud(self.screen, spawn_progress, kill_progress, spawn_data, kill_data,
-                                 self.battle_manager.calamity_notification)
+        self.battle_manager.draw_for_pause(self.screen)
         self.ui_manager.draw_menu(self.screen, "Пауза", self.pause_menu_buttons)
 
     def _level_clear_loop(self):
@@ -345,7 +335,9 @@ class Game:
 
         level_clear_duration = self.level_clear_duration
         if self.sound_manager.sfx_enabled:
-            level_clear_duration = self.sound_manager.get_sfx_length('win') * 1000
+            sfx_len = self.sound_manager.get_sfx_length('win')
+            if sfx_len > 0:
+                level_clear_duration = sfx_len * 1000
 
         if self.victory_sound_played and now - self.level_clear_timer > level_clear_duration:
             if self.current_level_id >= len(LEVELS) - 1:
@@ -353,10 +345,9 @@ class Game:
             else:
                 self.state = 'LEVEL_VICTORY'
             return
+
         self.battle_manager.draw_world(self.screen)
         self.ui_manager.draw_level_clear_message(self.screen)
-
-    # --- ИЗМЕНЕНИЯ ЗДЕСЬ: Удаляем _menu_loop_template и делаем явные циклы ---
 
     def _game_over_loop(self):
         buttons = {
@@ -374,8 +365,11 @@ class Game:
                     if rect.collidepoint(event.pos):
                         self.sound_manager.play_sfx('button')
                         pygame.time.delay(BUTTON_CLICK_DELAY)
-                        self.state = "MAIN_MENU"
-                        self.sound_manager.play_music('main_team')
+                        if text == "Попробовать снова":
+                            self._prepare_level(self.current_level_id)
+                        else:
+                            self.state = "MAIN_MENU"
+                            self.sound_manager.play_music('main_team')
                         return
 
         self.screen.blit(self.background, (0, 0))

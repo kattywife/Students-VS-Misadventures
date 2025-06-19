@@ -4,7 +4,7 @@ import pygame
 import random
 from data.settings import *
 from data.levels import LEVELS
-from core.level_manager import LevelManager  # <-- ДОБАВЛЯЕМ ЭТОТ ИМПОРТ
+from core.level_manager import LevelManager
 
 
 class PrepManager:
@@ -30,7 +30,6 @@ class PrepManager:
         self.info_panel_buttons = {}
         self.random_buttons_rects = {}
 
-        # --- ИЗМЕНЕНИЕ: ГОТОВИМ ДАННЫЕ ДЛЯ UI СРАЗУ ---
         temp_level_manager = LevelManager(self.level_id, None, None)
         self.enemy_types = temp_level_manager.get_enemy_types_for_level()
         self.calamity_types = temp_level_manager.get_calamity_types_for_level()
@@ -149,10 +148,17 @@ class PrepManager:
                 del self.upgrades[unit_type]
         elif unit_type in self.purchased_mowers:
             try:
-                index_to_remove = self.purchased_mowers.index(unit_type)
-                self.purchased_mowers.pop(index_to_remove)
-                cost = NEURO_MOWERS_DATA[unit_type].get('cost', 0)
-                self.stipend += cost
+                # Находим первый попавшийся экземпляр и удаляем его
+                index_to_remove = -1
+                for i, mower in enumerate(self.purchased_mowers):
+                    if mower == unit_type:
+                        index_to_remove = i
+                        break
+
+                if index_to_remove != -1:
+                    self.purchased_mowers.pop(index_to_remove)
+                    cost = NEURO_MOWERS_DATA[unit_type].get('cost', 0)
+                    self.stipend += cost
             except ValueError:
                 pass
 
@@ -199,13 +205,18 @@ class PrepManager:
         }
 
     def draw(self, surface):
-        # --- ИЗМЕНЕНИЕ: ПЕРЕДАЕМ ГОТОВЫЕ ДАННЫЕ В UI MANAGER ---
+        # ИСПРАВЛЕНИЕ: Вызываем метод с правильным количеством аргументов.
+        # Лишние аргументы были удалены, так как они теперь не нужны рендереру.
         prep_buttons, self.random_buttons_rects, self.info_panel_buttons = self.ui_manager.draw_preparation_screen(
-            surface, self.stipend, self.team, self.upgrades, self.purchased_mowers,
-            self.all_defenders, self.all_neuro_mowers,
-            self.selected_card_info, self.neuro_mower_slots,
-            self.team, self.purchased_mowers,
-            self.enemy_types, self.calamity_types
+            surface,
+            self.stipend,
+            self.team,
+            self.upgrades,
+            self.purchased_mowers,
+            self.neuro_mower_slots,
+            self.enemy_types,
+            self.calamity_types,
+            self.selected_card_info
         )
         return prep_buttons
 

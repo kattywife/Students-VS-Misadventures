@@ -57,9 +57,13 @@ class BattleManager:
     def handle_event(self, event):
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
             pos = event.pos
-            if self.ui_manager.pause_button_rect.collidepoint(pos): return 'PAUSE'
+            # Обработка клика по кнопке паузы делегирована UIManager'у
+            clicked_item = self.ui_manager.handle_shop_click(pos)
+            if clicked_item == 'pause_button':
+                return 'PAUSE'
             self.handle_click(pos)
-        if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE: return 'PAUSE'
+        if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+            return 'PAUSE'
         return None
 
     def handle_click(self, pos):
@@ -285,18 +289,31 @@ class BattleManager:
                     defender.buff_multiplier *= activist.data['buff']
 
     def draw(self, surface):
+        """Полная отрисовка боевого экрана."""
         self.draw_world(surface)
-        self.ui_manager.draw_shop(surface, self.selected_defender, self.coffee, self.upgrades)
-        spawn_progress = self.level_manager.get_spawn_progress()
-        kill_progress = self.level_manager.get_kill_progress()
-        spawn_data = self.level_manager.get_spawn_count_data()
-        kill_data = self.level_manager.get_kill_count_data()
-        self.ui_manager.draw_hud(surface, spawn_progress, kill_progress, spawn_data, kill_data,
-                                 self.calamity_notification)
+        self.draw_hud(surface)
 
     def draw_world(self, surface):
+        """Отрисовка только игрового мира (фон, сетка, спрайты)."""
         surface.blit(self.background_image, (0, 0))
         self.ui_manager.draw_grid(surface)
 
         for sprite in sorted(self.all_sprites, key=lambda s: s._layer):
             surface.blit(sprite.image, sprite.rect)
+
+    def draw_hud(self, surface):
+        """Отрисовка только интерфейса (магазин, прогресс-бары)."""
+        spawn_progress = self.level_manager.get_spawn_progress()
+        kill_progress = self.level_manager.get_kill_progress()
+        spawn_data = self.level_manager.get_spawn_count_data()
+        kill_data = self.level_manager.get_kill_count_data()
+        self.ui_manager.draw_shop_and_hud(
+            surface, self.selected_defender, self.coffee, self.upgrades,
+            spawn_progress, kill_progress, spawn_data, kill_data,
+            self.calamity_notification
+        )
+
+    def draw_for_pause(self, surface):
+        """Отрисовка 'замороженного' кадра для меню паузы."""
+        self.draw_world(surface)
+        self.draw_hud(surface)

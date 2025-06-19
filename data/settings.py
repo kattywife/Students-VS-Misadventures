@@ -84,6 +84,11 @@ FONT_SIZE_HUGE = 120
 FONT_SIZE_TITLE = 55
 
 # =============================================================================
+# 5.1. НАСТРОЙКИ ОБРАБОТКИ ТЕКСТА
+# =============================================================================
+WORD_SEPARATOR = ' '
+
+# =============================================================================
 # 6. НАСТРОЙКИ БОЕВОЙ СЕТКИ
 # =============================================================================
 CELL_SIZE_W = 110
@@ -173,6 +178,13 @@ PREP_SELECTION_COLS = 4
 PREP_SELECTION_CARD_V_SPACING = 20
 PREP_HUD_BOTTOM_MARGIN = 30
 PREP_HUD_BUTTON_SIZE = (250, 60)
+PREP_UNIT_CARD_IMG_PADDING = 10         # Отступ для изображения внутри карточки юнита
+PREP_UNIT_CARD_COST_RIGHT_OFFSET = 5    # Отступ стоимости от правого края карточки
+PREP_UNIT_CARD_COST_BOTTOM_OFFSET = 2   # Отступ стоимости от нижнего края карточки
+PREP_UPGRADED_BORDER_INFLATE = 4        # Насколько "раздувается" рамка улучшенного юнита
+PREP_UPGRADED_BORDER_RADIUS = 12        # Скругление для рамки улучшенного юнита
+PREP_SELECTED_BORDER_RADIUS = 12        # Скругление для рамки выбранного юнита
+PREP_EMPTY_SLOT_ALPHA = 50              # Прозрачность для пустого слота в команде
 # --- Панель описания юнита ---
 DESC_PANEL_SIZE = (700, 600)
 DESC_PANEL_BORDER_RADIUS = 15
@@ -197,6 +209,9 @@ DESC_PANEL_CLOSE_BUTTON_MARGIN = 10
 PLACEMENT_GRID_CELL_W = 125
 PLACEMENT_GRID_CELL_H = 120
 PLACEMENT_ZONE_X = 20
+PLACEMENT_MOWER_SLOT_ALPHA = 200        # Прозрачность фона слота для нейросети
+PLACEMENT_MOWER_IMG_PADDING = 10        # Отступ для изображения внутри карточки нейросети
+
 # *** УДАЛЕНО: PLACEMENT_GRID_START_Y. Будет вычисляться локально. ***
 PLACEMENT_GRID_START_X = PLACEMENT_ZONE_X + PLACEMENT_GRID_CELL_W + 20
 PLACEMENT_PANEL_SIZE = (600, 250)
