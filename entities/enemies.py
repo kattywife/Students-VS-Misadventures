@@ -9,6 +9,7 @@ from entities.base_sprite import BaseSprite
 from entities.projectiles import Integral
 from entities.defenders import CoffeeMachine
 from entities.other_sprites import CalamityAuraEffect
+import math
 
 
 class Enemy(BaseSprite):
@@ -138,27 +139,40 @@ class Enemy(BaseSprite):
                 return defender
         return None
 
+        # entities/enemies.py
+
+        # entities/enemies.py
+
     def perform_melee_attack(self, target):
         self.is_attacking = True
-        self.rect.right = target.rect.centerx + 20
+        self.rect.right = target.rect.centerx + 80
         self.float_pos.x = self.rect.centerx
         self._layer = target._layer + 1
 
         if self.current_target != target:
             if self.current_target:
                 self.current_target.is_being_eaten = False
+                self.current_target.attacker = None
             self.current_target = target
 
         if self.current_target:
             self.current_target.is_being_eaten = True
+            self.current_target.attacker = self
 
         now = pygame.time.get_ticks()
         if now - self.last_attack_time > self.attack_cooldown:
             self.last_attack_time = now
+
+            # --- ИСПРАВЛЕНИЕ ЗДЕСЬ: Убираем проверку на щит ---
+            # Просто наносим урон через метод get_hit цели
+
+            # Особый звук для поедания кофемашины
             if isinstance(target, CoffeeMachine):
                 self.sound_manager.play_sfx('eating')
-            target.health -= self.damage * self.damage_multiplier
 
+            # Наносим урон любой цели через ее метод get_hit
+            # Это автоматически проиграет звук урона и запустит анимацию
+            target.get_hit(self.damage * self.damage_multiplier)
     def update(self, **kwargs):
         defenders_group = kwargs.get('defenders_group')
 
@@ -258,15 +272,14 @@ class MathTeacher(Enemy):
         super().__init__(row, groups, enemy_type, sound_manager)
         self.state = 'WALKING'
         self.has_jumped = False
-        self.jump_target = None
         self.original_y = self.float_pos.y
-        self.vy = 0
-        self.gravity = 0.5
-        self.jump_power = -15
-        self.jump_start_x = 0
-        self.jump_end_x = 0
-        self.jump_duration = 600
-        self.jump_start_time = 0
+
+        # --- НОВЫЕ ПАРАМETERS ПРЫЖКА ---
+        self.jump_height = 90       # Максимальная высота прыжка в пикселях
+        self.jump_duration = 1300   # Длительность прыжка в миллисекундах
+        self.jump_timer = 0
+        self.jump_start_pos = None
+        self.jump_target_pos = None
 
     def update(self, **kwargs):
         self.animate()
@@ -287,35 +300,35 @@ class MathTeacher(Enemy):
             target = self.find_jump_target(defenders_group)
             if target:
                 self.state = 'JUMPING'
-                self.jump_target = target
                 self.is_attacking = True
-                self.vy = self.jump_power
-                self.jump_start_time = pygame.time.get_ticks()
-
-                self.jump_start_x = self.float_pos.x
-                self.jump_end_x = target.rect.centerx - CELL_SIZE_W
+                self.jump_timer = pygame.time.get_ticks()
+                self.jump_start_pos = self.float_pos.copy()
+                # Цель - центр следующей клетки после героя
+                target_x = target.rect.centerx - CELL_SIZE_W
+                self.jump_target_pos = pygame.math.Vector2(target_x, self.original_y)
             else:
                 self.float_pos.x -= self.speed
                 self.rect.centerx = int(self.float_pos.x)
 
         elif self.state == 'JUMPING':
-            elapsed_time = pygame.time.get_ticks() - self.jump_start_time
+            elapsed_time = pygame.time.get_ticks() - self.jump_timer
             progress = min(1.0, elapsed_time / self.jump_duration)
 
-            self.float_pos.x = self.jump_start_x + (self.jump_end_x - self.jump_start_x) * progress
+            # Горизонтальное движение (линейная интерполяция)
+            # Плавно движемся от начальной точки к конечной
+            self.float_pos.x = self.jump_start_pos.x + (self.jump_target_pos.x - self.jump_start_pos.x) * progress
 
-            self.vy += self.gravity
-            self.float_pos.y += self.vy
+            # Вертикальное движение (арка с помощью синуса)
+            # sin(0*PI)=0, sin(0.5*PI)=1, sin(1*PI)=0. Это создает идеальную арку.
+            y_offset = math.sin(progress * math.pi) * self.jump_height
+            self.float_pos.y = self.original_y - y_offset
+
             self.rect.center = (int(self.float_pos.x), int(self.float_pos.y))
 
+            # Проверка завершения прыжка
             if progress >= 1.0:
-                self.float_pos.y = self.original_y
-                self.rect.centery = int(self.float_pos.y)
-
-                if self.jump_target and self.jump_target.alive():
-                    self.rect.right = self.jump_target.rect.left - 10
-                    self.float_pos.x = self.rect.centerx
-
+                self.float_pos = self.jump_target_pos.copy()
+                self.rect.center = (int(self.float_pos.x), int(self.float_pos.y))
                 self.state = 'WALKING'
                 self.is_attacking = False
                 self.has_jumped = True
@@ -339,6 +352,8 @@ class Addict(Enemy):
         living_defenders = [d for d in defenders_group if d.alive() and not isinstance(d, CoffeeMachine)]
         if not living_defenders: return None
         return max(living_defenders, key=lambda d: d.get_final_damage(d.data.get('damage', 0)))
+
+        # entities/enemies.py
 
     def update(self, **kwargs):
         defenders_group = kwargs.get('defenders_group')
@@ -378,6 +393,7 @@ class Addict(Enemy):
                 self.state = 'GRABBING'
                 if self.victim:
                     self.victim.is_being_eaten = True
+                    self.victim.attacker = self  # <-- ИЗМЕНЕНИЕ ЗДЕСЬ
 
         elif self.state == 'GRABBING':
             if self.victim:
@@ -395,8 +411,27 @@ class Addict(Enemy):
                 self.kill()
 
     def kill(self):
+        # Если у наркомана была жертва
         if hasattr(self, 'victim') and self.victim:
+            # Освобождаем ее
             self.victim.is_being_eaten = False
+
+            # Если наркомана убили на экране (а не за его пределами)
+            if self.rect.right > 0:
+                # Находим ближайшую клетку сетки к месту, где был брошен герой
+                victim_center = self.victim.rect.center
+                col = max(0, min(GRID_COLS - 1, int((victim_center[0] - GRID_START_X) / CELL_SIZE_W)))
+                row = max(0, min(GRID_ROWS - 1, int((victim_center[1] - GRID_START_Y) / CELL_SIZE_H)))
+
+                # Вычисляем центр этой клетки
+                new_x = GRID_START_X + col * CELL_SIZE_W + CELL_SIZE_W / 2
+                new_y = GRID_START_Y + row * CELL_SIZE_H + CELL_SIZE_H / 2
+
+                # Перемещаем героя в центр этой клетки
+                self.victim.rect.center = (new_x, new_y)
+                self.victim._layer = self.victim.rect.bottom
+
+        # Вызываем родительский метод kill, чтобы наркоман корректно исчез
         super().kill()
 
 

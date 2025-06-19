@@ -43,9 +43,18 @@ class Defender(BaseSprite):
 
         self.is_being_eaten = False
         self.scream_channel = None
+        self.attacker = None
         self.is_upgraded = False
         self.buff_multiplier = 1.0
         self.calamity_damage_multiplier = 1.0
+
+    # --- НОВЫЙ МЕТОД GET_HIT ---
+    def get_hit(self, damage):
+        self.health -= damage
+        self.sound_manager.play_sfx('damage')
+        if 'hit' in self.animations and self.animations['hit']:
+            self.current_animation = 'hit'
+            self.frame_index = 0
 
     def load_animations(self):
         anim_data = self.data.get('animation_data')
@@ -76,20 +85,30 @@ class Defender(BaseSprite):
     def animate(self):
         if not self.animations or not self.animations[self.current_animation]:
             return
-        if self.is_being_eaten and 'hit' in self.animations and self.animations['hit']:
-            self.current_animation = 'hit'
-        elif not self.is_being_eaten and self.current_animation == 'hit':
+
+        anim_sequence = self.animations[self.current_animation]
+        # Если герой атакован, он должен оставаться в анимации 'hit' до ее завершения
+        if self.current_animation == 'hit' and self.frame_index >= len(anim_sequence) - 1:
             self.current_animation = 'idle'
+            self.frame_index = 0
+
+        if self.is_being_eaten and self.current_animation != 'hit':
+            self.current_animation = 'hit'
+            self.frame_index = 0
+        elif not self.is_being_eaten and self.current_animation == 'hit':
+            # Не переключаем сразу на idle, даем анимации 'hit' проиграться
+            pass
+
         now = pygame.time.get_ticks()
         if now - self.last_anim_update > self.anim_speed * 1000:
             self.last_anim_update = now
             self.frame_index += 1
             anim_sequence = self.animations[self.current_animation]
             if self.frame_index >= len(anim_sequence):
-                if self.current_animation == 'attack':
+                if self.current_animation == 'attack' or self.current_animation == 'hit':
                     self.current_animation = 'idle'
                 self.frame_index = 0
-            self.image = self.animations[self.current_animation][self.frame_index]
+            self.image = anim_sequence[self.frame_index]
 
     def get_final_damage(self, base_damage):
         return base_damage * self.buff_multiplier * self.calamity_damage_multiplier
@@ -104,6 +123,10 @@ class Defender(BaseSprite):
             self.calamity_damage_multiplier *= 2
 
     def update(self, **kwargs):
+        if self.is_being_eaten and (not self.attacker or not self.attacker.alive()):
+            self.is_being_eaten = False
+            self.attacker = None
+
         self.animate()
         if self.is_animate:
             self.manage_scream_sound()
@@ -111,7 +134,6 @@ class Defender(BaseSprite):
             self.kill()
 
     def manage_scream_sound(self):
-        """Управляет проигрыванием звука крика для этого конкретного защитника."""
         if self.is_being_eaten and not (self.scream_channel and self.scream_channel.get_busy()):
             self.scream_channel = self.sound_manager.play_sfx('scream')
         elif not self.is_being_eaten and self.scream_channel:
@@ -148,9 +170,9 @@ class ProgrammerBoy(Defender):
         enemies_group = kwargs.get('enemies_group')
         if not enemies_group: return
 
+        if self.is_being_eaten: return  # Не атакуем, если нас едят
+
         now = pygame.time.get_ticks()
-        # --- ИЗМЕНЕНИЕ ЗДЕСЬ ---
-        # Убираем 'and enemy.rect.right < SCREEN_WIDTH', чтобы видеть врагов сразу
         has_enemy_in_row = any(
             enemy.rect.centery == self.rect.centery for enemy in enemies_group)
         if self.alive() and has_enemy_in_row and now - self.last_shot > self.attack_cooldown:
@@ -178,6 +200,8 @@ class BotanistGirl(Defender):
         enemies_group = kwargs.get('enemies_group')
         if not enemies_group: return
 
+        if self.is_being_eaten: return
+
         now = pygame.time.get_ticks()
         if self.alive() and now - self.last_attack > self.attack_cooldown:
             target = self.find_strongest_enemy(enemies_group)
@@ -188,8 +212,6 @@ class BotanistGirl(Defender):
                 self.frame_index = 0
 
     def find_strongest_enemy(self, enemies_group):
-        # --- ИЗМЕНЕНИЕ ЗДЕСЬ ---
-        # Убираем фильтр 'visible_enemies', чтобы видеть всех врагов с момента спавна
         if not enemies_group:
             return None
         return max(enemies_group, key=lambda e: e.health)
@@ -221,6 +243,10 @@ class CoffeeMachine(Defender):
 
     def manage_scream_sound(self):
         pass
+
+    def get_hit(self, damage):
+        # Кофемашина не проигрывает звук урона, но здоровье теряет
+        self.health -= damage
 
     def animate(self):
         if self.is_producing and self.producing_frame:
@@ -262,10 +288,10 @@ class Guitarist(Defender):
         enemies_group = kwargs.get('enemies_group')
         if not enemies_group: return
 
+        if self.is_being_eaten: return
+
         now = pygame.time.get_ticks()
         if self.alive() and now - self.last_attack > self.attack_cooldown:
-            # --- ИЗМЕНЕНИЕ ЗДЕСЬ ---
-            # Убираем 'and e.rect.right < SCREEN_WIDTH', чтобы видеть врагов сразу
             has_enemy_in_row = any(
                 e.rect.centery == self.rect.centery for e in enemies_group)
             if has_enemy_in_row:
@@ -282,14 +308,18 @@ class Medic(Defender):
         super().__init__(x, y, groups, data, sound_manager)
         self.heal_pool = self.data['heal_amount']
         self.heal_radius = self.data['radius']
-        self.heal_tick_amount = 20
-        self.heal_cooldown = self.data['cooldown'] * 1000
+        # --- ИЗМЕНЕНИЕ: ЛЕЧИМ БОЛЬШОЙ ПОРЦИЕЙ ---
+        self.heal_tick_amount = 75
+        # --- ИЗМЕНЕНИЕ: КУЛДАУН ДОЛЬШЕ ---
+        self.heal_cooldown = self.data['cooldown'] * 3000
         self.last_heal_time = pygame.time.get_ticks()
 
     def update(self, **kwargs):
         super().update(**kwargs)
         defenders_group = kwargs.get('defenders_group')
         if not defenders_group or not self.alive(): return
+
+        if self.is_being_eaten: return
 
         now = pygame.time.get_ticks()
         if now - self.last_heal_time > self.heal_cooldown:
@@ -333,6 +363,8 @@ class Artist(Defender):
         enemies_group = kwargs.get('enemies_group')
         if not enemies_group: return
 
+        if self.is_being_eaten: return
+
         now = pygame.time.get_ticks()
         has_enemy_in_row = any(enemy.rect.centery == self.rect.centery for enemy in enemies_group)
         if self.alive() and has_enemy_in_row and now - self.last_shot > self.attack_cooldown:
@@ -342,6 +374,8 @@ class Artist(Defender):
             self.current_animation = 'attack'
             self.frame_index = 0
 
+
+# entities/defenders.py
 
 class Fashionista(Defender):
     def __init__(self, x, y, groups, data, sound_manager, all_sprites, enemies_group):
@@ -358,6 +392,16 @@ class Fashionista(Defender):
         enemies_group = kwargs.get('enemies_group')
         if not enemies_group or not self.alive(): return
 
+        if self.is_being_eaten: return
+
+        # --- ИЗМЕНЕНИЕ ЗДЕСЬ: Немедленная проверка на столкновение ---
+        # Эта проверка выполняется в первую очередь, до всех состояний.
+        # Если есть хоть одно столкновение, Модник взрывается.
+        if pygame.sprite.spritecollideany(self, enemies_group):
+            self.explode(enemies_group)
+            return  # После взрыва дальнейшая логика не нужна
+
+        # Старая логика для поиска и движения, если столкновения нет
         if self.state == 'SEEKING':
             self.target = self.find_closest_enemy(enemies_group)
             if self.target:
@@ -369,14 +413,13 @@ class Fashionista(Defender):
             direction = pygame.math.Vector2(self.target.rect.center) - pygame.math.Vector2(self.rect.center)
             if direction.length() > 0:
                 self.rect.move_ip(direction.normalize() * self.speed)
+            # Эта проверка теперь дублирующая, но она не мешает
             if self.rect.colliderect(self.target.rect):
                 self.explode(enemies_group)
 
     def find_closest_enemy(self, enemies_group):
         closest_enemy = None
         min_dist = float('inf')
-        # --- ИЗМЕНЕНИЕ ЗДЕСЬ ---
-        # Убираем фильтр 'visible_enemies', чтобы искать цель сразу
         for enemy in enemies_group:
             dist = pygame.math.Vector2(self.rect.center).distance_to(enemy.rect.center)
             if dist < min_dist:
@@ -389,6 +432,7 @@ class Fashionista(Defender):
 
         pixel_radius = self.explosion_radius * CELL_SIZE_W
         ExplosionEffect(self.rect.center, pixel_radius, self.all_sprites)
+        # Наносим урон всем врагам в радиусе
         for enemy in enemies_group:
             if pygame.math.Vector2(self.rect.center).distance_to(enemy.rect.center) <= pixel_radius:
                 enemy.get_hit(self.damage)

@@ -49,8 +49,11 @@ class SoundWave(BaseSprite):
 
 class Integral(Bracket):
     def __init__(self, x, y, groups, damage, image):
-        BaseSprite.__init__(self, groups)
-        self.damage = damage
-        self.image = image
-        self.rect = self.image.get_rect(center=(x, y))
-        self.speed = -5
+        # Используем __init__ от родителя, так как он делает почти то же самое
+        super().__init__(x, y, groups, damage, image)
+        self.speed = -5 # Просто летит в другую сторону
+
+    def update(self, *args, **kwargs):
+        self.rect.x += self.speed
+        if self.rect.right < 0:
+            self.kill()

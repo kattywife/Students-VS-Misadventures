@@ -97,7 +97,9 @@ DEFENDERS_DATA = {
 ENEMIES_DATA = {
     'alarm_clock': {'health': 100, 'speed': 0.8, 'damage': 50, 'cooldown': 1.0, 'display_name': "Первая пара", 'category': 'enemies', 'description': "Самое страшное для первокурсника. Обычный враг, который просто идет вперед и больно кусает первого встречного. Берет числом, а не умением.",
                     'animation_data': {'folder': 'alarm_clock', 'speed': 0.3, 'walk': [], 'attack': [], 'hit': []}},
-    'calculus': {'health': 180, 'speed': 0.8, 'damage': 15, 'cooldown': 3.0, 'display_name': "Матанализ", 'category': 'enemies', 'description': "Опасный дальнобойный противник. Останавливается при виде защитника на своей линии и начинает обстреливать его интегралами, пределами и производными с безопасного расстояния.",
+    'calculus': {'health': 180, 'speed': 0.8, 'damage': 10, 'cooldown': 3.0, 'display_name': "Матанализ",
+                 'category': 'enemies',
+                 'description': "Опасный дальнобойный противник. Останавливается при виде защитника на своей линии и начинает обстреливать его интегралами, пределами и производными с безопасного расстояния.",
                  'animation_data': {'folder': 'calculus', 'speed': 0.3, 'walk': [], 'attack': [], 'hit': []}},
     'math_teacher': {'health': 150, 'speed': 1.5, 'damage': 80, 'cooldown': 1.0, 'display_name': "Злая математичка", 'category': 'enemies', 'description': "Быстрый и непредсказуемый враг. При столкновении с первым защитником на линии перепрыгивает его, чтобы прорваться в тыл. После прыжка ее скорость снижается вдвое.",
                      'animation_data': {'folder': 'math_teacher', 'speed': 0.3, 'walk': [], 'attack': [], 'hit': []}},

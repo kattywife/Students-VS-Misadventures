@@ -239,10 +239,14 @@ class BattleManager:
             if hasattr(sprite, 'revert_calamity_effect'): sprite.revert_calamity_effect(self.active_calamity)
         self.active_calamity = None
 
+        # core/battle_manager.py
+
     def check_collisions(self):
         for proj in list(self.projectiles):
             if not proj.alive(): continue
 
+            # --- ИЗМЕНЕНИЕ: ОБЪЕДИНЯЕМ ЛОГИКУ ДЛЯ ВСЕХ СНАРЯДОВ ---
+            # Проверяем столкновение с врагами
             if not isinstance(proj, Integral):
                 hits = pygame.sprite.spritecollide(proj, self.enemies, False)
                 if hits:
@@ -252,9 +256,14 @@ class BattleManager:
                             target.slow_down(proj.artist.data['slow_factor'], proj.artist.data['slow_duration'])
                         target.get_hit(proj.damage)
                         proj.kill()
-            elif isinstance(proj, Integral):
-                if pygame.sprite.spritecollide(proj, self.defenders, True):
-                    proj.kill()
+            # Проверяем столкновение с героями (для вражеских снарядов)
+            else:
+                hits = pygame.sprite.spritecollide(proj, self.defenders, False)
+                if hits:
+                    target = hits[0]
+                    if target.alive():
+                        target.get_hit(proj.damage)  # Используем новый метод get_hit
+                        proj.kill()
 
         for wave in [s for s in self.all_sprites if isinstance(s, SoundWave)]:
             for enemy in self.enemies:
