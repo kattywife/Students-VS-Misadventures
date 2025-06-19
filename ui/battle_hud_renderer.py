@@ -21,15 +21,11 @@ class BattleHUDRenderer(BaseUIComponent):
         )
 
     def create_shop_surface(self, team):
-        """
-        Создает и кэширует статическую часть панели магазина один раз перед началом боя.
-        Это оптимизация, чтобы не перерисовывать фон и рамки карточек каждый кадр.
-        """
+        """Создает и кэширует статическую часть панели магазина."""
         self.shop_items = team
         self.shop_rects = {}
         self.shop_panel_surf.fill(DEFAULT_COLORS['shop_panel'])
 
-        # Область для отображения кофе
         coffee_area_rect = pygame.Rect(0, 0, SHOP_COFFEE_AREA_WIDTH, SHOP_PANEL_HEIGHT)
         pygame.draw.rect(self.shop_panel_surf, DEFAULT_COLORS['shop_card'], coffee_area_rect.inflate(-10, -10),
                          border_radius=DEFAULT_BORDER_RADIUS)
@@ -40,7 +36,6 @@ class BattleHUDRenderer(BaseUIComponent):
                 midleft=(coffee_area_rect.left + SHOP_COFFEE_ICON_X_OFFSET, coffee_area_rect.centery))
             self.shop_panel_surf.blit(coffee_icon_scaled, icon_rect)
 
-        # Карточки юнитов
         shop_items_start_x = SHOP_COFFEE_AREA_WIDTH
         for i, item_name in enumerate(self.shop_items):
             card_x = shop_items_start_x + i * (SHOP_CARD_SIZE + SHOP_ITEM_PADDING) + SHOP_ITEM_PADDING
@@ -48,29 +43,30 @@ class BattleHUDRenderer(BaseUIComponent):
             card_rect = pygame.Rect(card_x, card_y, SHOP_CARD_SIZE, SHOP_CARD_SIZE)
             self.shop_rects[item_name] = card_rect
 
-            pygame.draw.rect(self.shop_panel_surf, DEFAULT_COLORS['shop_card'], card_rect, border_radius=5)
+            pygame.draw.rect(self.shop_panel_surf, DEFAULT_COLORS['shop_card'], card_rect,
+                             border_radius=SHOP_CARD_BORDER_RADIUS)
             pygame.draw.rect(self.shop_panel_surf, DEFAULT_COLORS['shop_border'], card_rect, THICK_BORDER_WIDTH,
-                             border_radius=5)
+                             border_radius=SHOP_CARD_BORDER_RADIUS)
 
     def draw_shop(self, surface, selected_defender, coffee, upgrades):
         """Отрисовывает всю панель магазина, включая динамические элементы."""
         surface.blit(self.shop_panel_surf, (0, 0))
-        pygame.draw.rect(surface, DEFAULT_COLORS['shop_border'], (0, 0, SCREEN_WIDTH, SHOP_PANEL_HEIGHT), 5)
+        pygame.draw.rect(surface, DEFAULT_COLORS['shop_border'], (0, 0, SCREEN_WIDTH, SHOP_PANEL_HEIGHT),
+                         SHOP_BORDER_THICKNESS)
 
-        # Количество кофе
         coffee_text = self.fonts['default'].render(str(coffee), True, WHITE)
-        text_rect = coffee_text.get_rect(midleft=(90, SHOP_PANEL_HEIGHT / 2))
+        text_rect = coffee_text.get_rect(midleft=(SHOP_COFFEE_TEXT_X_OFFSET, SHOP_PANEL_HEIGHT / 2))
         surface.blit(coffee_text, text_rect)
 
-        # Рамки для улучшенных и выбранных героев
         for hero_type in self.shop_items:
             rect = self.shop_rects[hero_type]
             if hero_type in upgrades:
-                pygame.draw.rect(surface, AURA_PINK, rect, SHOP_UPGRADE_BORDER_WIDTH, border_radius=5)
+                pygame.draw.rect(surface, AURA_PINK, rect, SHOP_UPGRADE_BORDER_WIDTH,
+                                 border_radius=SHOP_CARD_BORDER_RADIUS)
             if hero_type == selected_defender:
-                pygame.draw.rect(surface, YELLOW, rect, SHOP_SELECTED_BORDER_WIDTH, border_radius=5)
+                pygame.draw.rect(surface, YELLOW, rect, SHOP_SELECTED_BORDER_WIDTH,
+                                 border_radius=SHOP_CARD_BORDER_RADIUS)
 
-        # Иконки и стоимость героев
         for item_name in self.shop_items:
             card_rect = self.shop_rects[item_name]
             item_image = CARD_IMAGES.get(item_name)
@@ -95,12 +91,10 @@ class BattleHUDRenderer(BaseUIComponent):
         killed, total_kill = kill_data
 
         bar_x = SCREEN_WIDTH - HUD_BAR_WIDTH - HUD_RIGHT_MARGIN
-        # Прогресс-бар "БРС"
         brs_y = SCREEN_HEIGHT - HUD_BAR_HEIGHT - HUD_BOTTOM_MARGIN
         self._draw_single_progress_bar(surface, (bar_x, brs_y), kill_progress, GREEN, f"БРС: {killed} / {total_kill}",
                                        BLACK)
 
-        # Прогресс-бар "Учебный план"
         plan_y = brs_y - HUD_BAR_HEIGHT - HUD_BAR_V_GAP
         self._draw_single_progress_bar(surface, (bar_x, plan_y), spawn_progress, PROGRESS_BLUE,
                                        f"Учебный план: {spawned} / {total_spawn}", WHITE)
@@ -162,12 +156,8 @@ class BattleHUDRenderer(BaseUIComponent):
             surface.blit(line_surf, line_rect)
             current_y += line_surf.get_height()
 
-    # ИСПРАВЛЕНИЕ: Добавляем недостающий метод
     def handle_click(self, pos):
-        """
-        Проверяет клик по элементам HUD, возвращает имя элемента или None.
-        Например, 'programmer', 'botanist' или 'pause_button'.
-        """
+        """Проверяет клик по элементам HUD, возвращает имя элемента или None."""
         if self.pause_button_rect.collidepoint(pos):
             return 'pause_button'
         for name, rect in self.shop_rects.items():

@@ -3,8 +3,7 @@
 import pygame
 from data.settings import *
 from data.assets import CARD_IMAGES
-# ИСПРАВЛЕНИЕ: Возвращаем обычные импорты
-from ui.base_component import BaseUIComponent
+from .base_component import BaseUIComponent
 
 
 class NeuroPlacementRenderer(BaseUIComponent):
@@ -12,14 +11,10 @@ class NeuroPlacementRenderer(BaseUIComponent):
 
     def __init__(self, screen):
         super().__init__(screen)
-        # Рассчитываем стартовую Y-координату один раз, чтобы сетка всегда была по центру
         self.placement_grid_start_y = (SCREEN_HEIGHT - GRID_ROWS * PLACEMENT_GRID_CELL_H) / 2
 
     def draw(self, surface, background, purchased_mowers, placed_mowers, dragged_mower_info):
-        """
-        Основной метод отрисовки экрана.
-        Возвращает Rect'ы нерасставленных сетей и кнопки "В бой".
-        """
+        """Основной метод отрисовки экрана."""
         surface.blit(background, (0, 0))
         self._draw_placement_grid(surface)
         self._draw_placement_slots(surface)
@@ -52,7 +47,8 @@ class NeuroPlacementRenderer(BaseUIComponent):
                                     PLACEMENT_GRID_CELL_W, PLACEMENT_GRID_CELL_H)
             pygame.draw.rect(surface, (*BLACK, PLACEMENT_MOWER_SLOT_ALPHA), slot_rect,
                              border_radius=DEFAULT_BORDER_RADIUS)
-            pygame.draw.rect(surface, WHITE, slot_rect, DEFAULT_BORDER_WIDTH, border_radius=DEFAULT_BORDER_RADIUS)
+            pygame.draw.rect(surface, PLACEMENT_MOWER_SLOT_BORDER_COLOR, slot_rect, DEFAULT_BORDER_WIDTH,
+                             border_radius=DEFAULT_BORDER_RADIUS)
 
     def _draw_placed_mower(self, surface, row, info):
         """Отрисовка уже размещенной нейросети."""
@@ -104,7 +100,6 @@ class NeuroPlacementRenderer(BaseUIComponent):
         text_color = BLACK if can_start else DARK_GREY
         self._draw_button(surface, "В Бой!", start_button_rect, color, text_color, self.fonts['large'])
 
-        # Возвращаем Rect только если кнопка активна
         return start_button_rect if can_start else None
 
     def _draw_dragged_mower(self, surface, dragged_mower_info):
@@ -120,5 +115,5 @@ class NeuroPlacementRenderer(BaseUIComponent):
         img = CARD_IMAGES.get(unit_type)
         if img:
             img_scaled = pygame.transform.scale(img, (
-            rect.width - PLACEMENT_MOWER_IMG_PADDING, rect.height - PLACEMENT_MOWER_IMG_PADDING))
+            rect.width - PLACEMENT_MOWER_CARD_IMG_PADDING, rect.height - PLACEMENT_MOWER_CARD_IMG_PADDING))
             surface.blit(img_scaled, img_scaled.get_rect(center=rect.center))

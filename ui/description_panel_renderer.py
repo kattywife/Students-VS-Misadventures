@@ -3,7 +3,6 @@
 import pygame
 from data.settings import *
 from data.assets import CARD_IMAGES
-# ИСПРАВЛЕНИЕ: Используем относительный импорт
 from .base_component import BaseUIComponent
 
 STAT_DISPLAY_NAMES = {
@@ -26,10 +25,7 @@ class DescriptionPanelRenderer(BaseUIComponent):
         )
 
     def draw(self, surface, card_data, team, upgrades, purchased_mowers, neuro_slots):
-        """
-        Главный метод отрисовки панели.
-        Возвращает словарь с Rect'ами всех интерактивных кнопок.
-        """
+        """Главный метод отрисовки панели."""
         overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
         overlay.fill((0, 0, 0, MENU_OVERLAY_ALPHA))
         surface.blit(overlay, (0, 0))
@@ -79,7 +75,7 @@ class DescriptionPanelRenderer(BaseUIComponent):
         line_y = start_y
 
         for key, title in STAT_DISPLAY_NAMES.items():
-            if line_y > self.panel_rect.bottom - 150: break
+            if line_y > self.panel_rect.bottom - DESC_PANEL_STATS_MAX_Y_OFFSET: break
             if key in unit_data:
                 _, value_color, value_str = self._get_stat_display_values(unit_data, card_type, key, upgrades)
 
@@ -100,7 +96,7 @@ class DescriptionPanelRenderer(BaseUIComponent):
     def _get_stat_display_values(self, unit_data, card_type, key, upgrades):
         base_value = unit_data[key]
         value_color = WHITE
-        if base_value is None: return None, WHITE, "Нет"
+        if base_value is None: return None, WHITE, DESC_PANEL_NO_STAT_TEXT
 
         upgraded_stats_set = upgrades.get(card_type, set())
         if key in upgraded_stats_set:
@@ -108,13 +104,13 @@ class DescriptionPanelRenderer(BaseUIComponent):
             value_color = AURA_PINK
 
         if key == 'radius':
-            value_str = f"{base_value} кл."
+            value_str = f"{base_value} {DESC_PANEL_RADIUS_UNIT}"
         elif key == "slow_factor":
             value_str = f"{1 - base_value:.0%}"
         elif key == "slow_duration":
-            value_str = f"{base_value / 1000:.1f} сек."
+            value_str = f"{base_value / 1000:.1f} {DESC_PANEL_SLOW_DURATION_UNIT}"
         elif key == "cooldown":
-            value_str = f"{base_value:.1f} сек."
+            value_str = f"{base_value:.1f} {DESC_PANEL_COOLDOWN_UNIT}"
         else:
             value_str = f"{base_value:.1f}".replace('.0', '')
 
