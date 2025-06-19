@@ -42,7 +42,7 @@ class Defender(BaseSprite):
         self.is_animate = 'animation_data' in self.data
 
         self.is_being_eaten = False
-        self.scream_channel = None  # <-- ИЗМЕНЕНИЕ: Личный канал для звука крика
+        self.scream_channel = None
         self.is_upgraded = False
         self.buff_multiplier = 1.0
         self.calamity_damage_multiplier = 1.0
@@ -110,16 +110,11 @@ class Defender(BaseSprite):
         if self.health <= 0:
             self.kill()
 
-    # --- ИЗМЕНЕНИЕ ЗДЕСЬ: Полностью новая логика управления криком ---
     def manage_scream_sound(self):
         """Управляет проигрыванием звука крика для этого конкретного защитника."""
-        # Если защитника едят и его личный канал крика не активен
         if self.is_being_eaten and not (self.scream_channel and self.scream_channel.get_busy()):
-            # Проигрываем звук и сохраняем канал, чтобы отслеживать его
             self.scream_channel = self.sound_manager.play_sfx('scream')
-        # Если защитника НЕ едят, но его канал крика еще существует (т.е. он кричал)
         elif not self.is_being_eaten and self.scream_channel:
-            # Останавливаем крик и сбрасываем канал
             self.scream_channel.stop()
             self.scream_channel = None
 
@@ -132,12 +127,9 @@ class Defender(BaseSprite):
     def kill(self):
         if not self.alive():
             return
-
-        # --- ИЗМЕНЕНИЕ ЗДЕСЬ: Останавливаем крик при смерти ---
         if self.scream_channel:
             self.scream_channel.stop()
             self.scream_channel = None
-
         if self.is_animate:
             self.sound_manager.play_sfx('hero_dead')
         super().kill()
@@ -157,8 +149,10 @@ class ProgrammerBoy(Defender):
         if not enemies_group: return
 
         now = pygame.time.get_ticks()
+        # --- ИЗМЕНЕНИЕ ЗДЕСЬ ---
+        # Убираем 'and enemy.rect.right < SCREEN_WIDTH', чтобы видеть врагов сразу
         has_enemy_in_row = any(
-            enemy.rect.centery == self.rect.centery and enemy.rect.right < SCREEN_WIDTH for enemy in enemies_group)
+            enemy.rect.centery == self.rect.centery for enemy in enemies_group)
         if self.alive() and has_enemy_in_row and now - self.last_shot > self.attack_cooldown:
             self.last_shot = now
             damage = self.get_final_damage(self.data['damage'])
@@ -194,9 +188,11 @@ class BotanistGirl(Defender):
                 self.frame_index = 0
 
     def find_strongest_enemy(self, enemies_group):
-        visible_enemies = [e for e in enemies_group if e.rect.right < SCREEN_WIDTH]
-        if not visible_enemies: return None
-        return max(visible_enemies, key=lambda e: e.health)
+        # --- ИЗМЕНЕНИЕ ЗДЕСЬ ---
+        # Убираем фильтр 'visible_enemies', чтобы видеть всех врагов с момента спавна
+        if not enemies_group:
+            return None
+        return max(enemies_group, key=lambda e: e.health)
 
     def attack(self, target, enemies_group):
         damage = self.get_final_damage(self.data['damage'])
@@ -221,15 +217,11 @@ class CoffeeMachine(Defender):
         self.producing_frame = self.animations.get('attack', [None])[0] or self.animations.get('idle', [None])[0]
 
     def kill(self):
-        """
-        Переопределяем родительский метод, чтобы умирать молча.
-        Этот метод напрямую вызывает kill() из самого верхнего класса pygame.sprite.Sprite,
-        полностью игнорируя логику звука в классе Defender.
-        """
         pygame.sprite.Sprite.kill(self)
+
     def manage_scream_sound(self):
-        """Кофемашина не кричит, когда ее едят."""
-        pass # Ничего не делаем
+        pass
+
     def animate(self):
         if self.is_producing and self.producing_frame:
             self.image = self.producing_frame
@@ -272,8 +264,10 @@ class Guitarist(Defender):
 
         now = pygame.time.get_ticks()
         if self.alive() and now - self.last_attack > self.attack_cooldown:
+            # --- ИЗМЕНЕНИЕ ЗДЕСЬ ---
+            # Убираем 'and e.rect.right < SCREEN_WIDTH', чтобы видеть врагов сразу
             has_enemy_in_row = any(
-                e.rect.centery == self.rect.centery and e.rect.right < SCREEN_WIDTH for e in enemies_group)
+                e.rect.centery == self.rect.centery for e in enemies_group)
             if has_enemy_in_row:
                 self.last_attack = now
                 damage = self.get_final_damage(self.data['damage'])
@@ -381,8 +375,9 @@ class Fashionista(Defender):
     def find_closest_enemy(self, enemies_group):
         closest_enemy = None
         min_dist = float('inf')
-        visible_enemies = [e for e in enemies_group if e.rect.right < SCREEN_WIDTH]
-        for enemy in visible_enemies:
+        # --- ИЗМЕНЕНИЕ ЗДЕСЬ ---
+        # Убираем фильтр 'visible_enemies', чтобы искать цель сразу
+        for enemy in enemies_group:
             dist = pygame.math.Vector2(self.rect.center).distance_to(enemy.rect.center)
             if dist < min_dist:
                 min_dist = dist
