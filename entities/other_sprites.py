@@ -112,33 +112,40 @@ class NeuroMower(BaseSprite):
         self.is_active = False
         self.speed = NEURO_MOWER_CHAT_GPT_SPEED
 
-    def activate(self, enemies_group, activator):
+    def activate(self):
         if self.is_active: return
         self.is_active = True
         self.sound_manager.play_sfx('tuning')
 
-        if self.mower_type == 'deepseek':
-            targets = sorted(list(enemies_group), key=lambda e: e.rect.left)[:NEURO_MOWER_DEEPSEEK_TARGET_COUNT]
-            for enemy in targets:
-                enemy.kill()
-        elif self.mower_type == 'gemini':
-            targets = sorted(list(enemies_group), key=lambda e: e.health, reverse=True)[
-                      :NEURO_MOWER_GEMINI_TARGET_COUNT]
-            for enemy in targets:
-                enemy.kill()
-
-        if activator.alive():
-            activator.kill()
-
     def update(self, *args, **kwargs):
-        if self.is_active and self.mower_type == 'chat_gpt':
+        if not self.is_active:
+            return
+
+        enemies_group = kwargs.get('enemies_group')
+        level_manager = kwargs.get('level_manager')
+
+        if self.mower_type == 'chat_gpt':
             self.rect.x += self.speed
+            # Убиваем врагов при столкновении и считаем их
+            killed_enemies = pygame.sprite.spritecollide(self, enemies_group, True)
+            if killed_enemies and level_manager:
+                for _ in killed_enemies:
+                    level_manager.enemy_killed()
+
             if self.rect.left > SCREEN_WIDTH:
                 self.kill()
 
-            enemies_on_line = kwargs.get('enemies_group')
-            if enemies_on_line:
-                pygame.sprite.spritecollide(self, enemies_on_line, True)
+        else:  # Для DeepSeek и Gemini
+            if enemies_group and level_manager:
+                targets = []
+                if self.mower_type == 'deepseek':
+                    targets = sorted(list(enemies_group), key=lambda e: e.rect.left)[:NEURO_MOWER_DEEPSEEK_TARGET_COUNT]
+                elif self.mower_type == 'gemini':
+                    targets = sorted(list(enemies_group), key=lambda e: e.health, reverse=True)[
+                              :NEURO_MOWER_GEMINI_TARGET_COUNT]
 
-        elif self.is_active and self.mower_type != 'chat_gpt':
+                for enemy in targets:
+                    enemy.kill()
+                    level_manager.enemy_killed()
+
             self.kill()

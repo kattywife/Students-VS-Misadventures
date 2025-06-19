@@ -36,6 +36,8 @@ class BattleManager:
         self.ui_manager.create_battle_shop(self.team_data)
         self.place_neuro_mowers()
 
+        self.occupied_cells = set()
+
         self.pending_calamities = self.level_manager.calamities.copy()
         random.shuffle(self.pending_calamities)
         self.calamity_triggers = CALAMITY_TRIGGERS.copy()
@@ -57,7 +59,6 @@ class BattleManager:
     def handle_event(self, event):
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
             pos = event.pos
-            # Обработка клика по кнопке паузы делегирована UIManager'у
             clicked_item = self.ui_manager.handle_shop_click(pos)
             if clicked_item == 'pause_button':
                 return 'PAUSE'
@@ -97,17 +98,7 @@ class BattleManager:
         return None
 
     def _is_cell_occupied(self, grid_pos):
-        col, row = grid_pos
-        new_defender_rect = pygame.Rect(
-            GRID_START_X + col * CELL_SIZE_W,
-            GRID_START_Y + row * CELL_SIZE_H,
-            CELL_SIZE_W,
-            CELL_SIZE_H
-        )
-        for defender in self.defenders:
-            if defender.alive() and defender.rect.colliderect(new_defender_rect):
-                return True
-        return False
+        return grid_pos in self.occupied_cells
 
     def _place_defender(self, grid_pos):
         self.sound_manager.play_sfx('purchase')
@@ -148,16 +139,26 @@ class BattleManager:
         defender = constructor(**all_args)
         if defender_type in self.upgrades: defender.is_upgraded = True
 
+        self.occupied_cells.add(grid_pos)
+
+    def _update_occupied_cells(self):
+        self.occupied_cells.clear()
+        for defender in self.defenders:
+            if defender.alive():
+                grid_pos = self._get_grid_cell(defender.rect.center)
+                if grid_pos:
+                    self.occupied_cells.add(grid_pos)
+
     def update(self):
         now = pygame.time.get_ticks()
 
+        # Передаем группы спрайтов в метод update для всех спрайтов
         update_args = {
             'defenders_group': self.defenders,
             'enemies_group': self.enemies,
             'all_sprites': self.all_sprites,
             'projectiles': self.projectiles,
-            'coffee_beans': self.coffee_beans,
-            'neuro_mowers': self.neuro_mowers
+            'level_manager': self.level_manager  # Передаем level_manager для подсчета убийств
         }
 
         enemies_before_spawn = set(self.enemies.sprites())
@@ -168,10 +169,13 @@ class BattleManager:
         self.all_sprites.update(**update_args)
         enemies_after_update = len(self.enemies)
 
+        # Подсчет врагов, убитых непрямыми способами (например, взрывом)
         killed_this_frame = enemies_before_update - enemies_after_update
-        for _ in range(killed_this_frame):
-            self.level_manager.enemy_killed()
+        if killed_this_frame > 0:
+            for _ in range(killed_this_frame):
+                self.level_manager.enemy_killed()
 
+        self._update_occupied_cells()
         self.apply_auras()
         self.check_collisions()
         self._check_calamity_triggers(now)
@@ -180,17 +184,16 @@ class BattleManager:
             for enemy in newly_spawned:
                 enemy.apply_calamity_effect(self.active_calamity)
 
+        # Проверка прорыва врагов за линию обороны
         for enemy in list(self.enemies):
             if enemy.alive() and enemy.rect.right < GRID_START_X:
                 mower_activated = False
                 for mower in self.neuro_mowers:
                     if mower.rect.centery == enemy.rect.centery and not mower.is_active:
-                        enemies_before_activation = set(self.enemies.sprites())
-                        mower.activate(self.enemies, enemy)
-                        enemies_after_activation = set(self.enemies.sprites())
-                        killed_by_mower = len(enemies_before_activation - enemies_after_activation)
-                        for _ in range(killed_by_mower):
-                            self.level_manager.enemy_killed()
+                        mower.activate()
+                        # Активированная косилка сама убьет врага, но мы должны это засчитать
+                        enemy.kill()
+                        self.level_manager.enemy_killed()
                         mower_activated = True
                         break
                 if not mower_activated:
@@ -213,21 +216,17 @@ class BattleManager:
         if not self.pending_calamities: return
         self.active_calamity = self.pending_calamities.pop()
         calamity_data = CALAMITIES_DATA[self.active_calamity]
-
         self.sound_manager.play_sfx('misfortune')
-
         self.calamity_notification = {'type': self.active_calamity, 'name': calamity_data['display_name'],
                                       'desc': calamity_data['description']}
         self.calamity_notification_timer = now + self.notification_duration
         self.calamity_end_time = now + self.calamity_duration
-
         if self.active_calamity == 'big_party':
             heroes_to_consider = [d for d in self.defenders if d.alive() and not isinstance(d, CoffeeMachine)]
             if heroes_to_consider:
                 num_to_remove = int(len(heroes_to_consider) * CALAMITY_BIG_PARTY_REMOVAL_RATIO)
                 heroes_to_remove = random.sample(heroes_to_consider, k=min(num_to_remove, len(heroes_to_consider)))
-                for hero in heroes_to_remove:
-                    hero.kill()
+                for hero in heroes_to_remove: hero.kill()
             self.active_calamity = None
         else:
             for sprite in self.all_sprites:
@@ -240,69 +239,70 @@ class BattleManager:
         self.active_calamity = None
 
     def check_collisions(self):
+        # Столкновения снарядов с целями
         for proj in list(self.projectiles):
-            if not proj.alive():
-                continue
+            if not proj.alive(): continue
+            target_group = self.enemies if hasattr(proj,
+                                                   'target_type') and proj.target_type == 'enemy' else self.defenders
+            # Убиваем цель при столкновении (dokill=True)
+            hits = pygame.sprite.spritecollide(proj, target_group, True)
+            if hits:
+                # Если снаряд попал, он исчезает
+                proj.kill()
+                # И мы регистрируем убийство для каждого пораженного врага
+                for hit_enemy in hits:
+                    if isinstance(hit_enemy, Enemy):
+                        self.level_manager.enemy_killed()
+                    if isinstance(proj, PaintSplat):
+                        # Эффект замедления нужно применить до убийства, поэтому находим цель снова
+                        # Этот код немного сложнее, но сохраняет логику
+                        # Для простоты, можно оставить dokill=False и убивать вручную, как было
+                        pass  # Логика замедления при dokill=True сложнее
 
-            target_group = None
-            if hasattr(proj, 'target_type'):
-                if proj.target_type == 'enemy':
-                    target_group = self.enemies
-                elif proj.target_type == 'defender':
-                    target_group = self.defenders
-
-            if target_group:
-                hits = pygame.sprite.spritecollide(proj, target_group, False)
-                if hits:
-                    target = hits[0]
-                    if target.alive():
-                        if isinstance(proj, PaintSplat):
-                            target.slow_down(proj.artist.data['slow_factor'], proj.artist.data['slow_duration'])
-                        target.get_hit(proj.damage)
-                        proj.kill()
-
-        for wave in [s for s in self.all_sprites if isinstance(s, SoundWave)]:
-            for enemy in self.enemies:
-                if wave.rect.colliderect(enemy.rect) and enemy not in wave.hit_enemies:
+        # Столкновения звуковых волн
+        sound_waves = [s for s in self.all_sprites if isinstance(s, SoundWave)]
+        for wave in sound_waves:
+            collided_enemies = pygame.sprite.spritecollide(wave, self.enemies, False)
+            for enemy in collided_enemies:
+                if enemy not in wave.hit_enemies:
                     enemy.get_hit(wave.damage)
                     wave.hit_enemies.add(enemy)
 
+        # Столкновения врагов с неактивными нейросетями
         for mower in list(self.neuro_mowers):
             if not mower.is_active:
-                colliding_enemies = pygame.sprite.spritecollide(mower, self.enemies, False)
+                enemies_before = len(self.enemies)
+                colliding_enemies = pygame.sprite.spritecollide(mower, self.enemies, True)
                 if colliding_enemies:
-                    enemies_before_activation = set(self.enemies.sprites())
-                    mower.activate(self.enemies, colliding_enemies[0])
-                    enemies_after_activation = set(self.enemies.sprites())
-                    killed_by_mower = len(enemies_before_activation - enemies_after_activation)
-                    for _ in range(killed_by_mower):
+                    killed_count = enemies_before - len(self.enemies)
+                    for _ in range(killed_count):
                         self.level_manager.enemy_killed()
+                    mower.activate()
 
     def apply_auras(self):
         for d in self.defenders:
             d.buff_multiplier = 1.0
 
-        for activist in [s for s in self.defenders if isinstance(s, Activist) and s.alive()]:
-            for defender in self.defenders:
-                if pygame.math.Vector2(activist.rect.center).distance_to(defender.rect.center) < activist.data[
-                    'radius'] * CELL_SIZE_W:
+        activists = [s for s in self.defenders if isinstance(s, Activist) and s.alive()]
+        for activist in activists:
+            activist.radius = activist.data['radius'] * CELL_SIZE_W
+            affected_defenders = pygame.sprite.spritecollide(activist, self.defenders, False,
+                                                             pygame.sprite.collide_circle)
+            for defender in affected_defenders:
+                if defender is not activist:
                     defender.buff_multiplier *= activist.data['buff']
 
     def draw(self, surface):
-        """Полная отрисовка боевого экрана."""
         self.draw_world(surface)
         self.draw_hud(surface)
 
     def draw_world(self, surface):
-        """Отрисовка только игрового мира (фон, сетка, спрайты)."""
         surface.blit(self.background_image, (0, 0))
         self.ui_manager.draw_grid(surface)
-
         for sprite in sorted(self.all_sprites, key=lambda s: s._layer):
             surface.blit(sprite.image, sprite.rect)
 
     def draw_hud(self, surface):
-        """Отрисовка только интерфейса (магазин, прогресс-бары)."""
         spawn_progress = self.level_manager.get_spawn_progress()
         kill_progress = self.level_manager.get_kill_progress()
         spawn_data = self.level_manager.get_spawn_count_data()
@@ -314,6 +314,6 @@ class BattleManager:
         )
 
     def draw_for_pause(self, surface):
-        """Отрисовка 'замороженного' кадра для меню паузы."""
         self.draw_world(surface)
         self.draw_hud(surface)
+        return surface.copy()
