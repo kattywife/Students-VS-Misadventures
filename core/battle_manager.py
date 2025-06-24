@@ -71,6 +71,18 @@ class BattleManager:
         self.calamity_end_time = 0
         self.calamity_duration = CALAMITY_DURATION
 
+    def _get_walkable_grid(self):
+        """Создает 2D-сетку проходимости, где 0 - свободно, 1 - препятствие."""
+        grid = [[0 for _ in range(GRID_COLS)] for _ in range(GRID_ROWS)]
+        for defender in self.defenders:
+            if defender.alive():
+                # Конвертируем пиксельные координаты в координаты сетки
+                col = int((defender.rect.centerx - GRID_START_X) / CELL_SIZE_W)
+                row = int((defender.rect.centery - GRID_START_Y) / CELL_SIZE_H)
+                if 0 <= row < GRID_ROWS and 0 <= col < GRID_COLS:
+                    grid[row][col] = 1  # 1 означает препятствие
+        return grid
+
     def start(self):
         """Запускает начало боя, активируя LevelManager."""
         self.level_manager.start()
@@ -225,13 +237,16 @@ class BattleManager:
         now = pygame.time.get_ticks()
 
         # Словарь с группами спрайтов, который передается в метод update каждого спрайта
+        grid_state = self._get_walkable_grid()
+
         update_args = {
             'defenders_group': self.defenders,
             'enemies_group': self.enemies,
             'all_sprites': self.all_sprites,
             'projectiles': self.projectiles,
             'coffee_beans': self.coffee_beans,
-            'neuro_mowers': self.neuro_mowers
+            'neuro_mowers': self.neuro_mowers,
+            'grid_state': grid_state
         }
 
         # Отслеживаем появление новых врагов для применения эффектов напастей

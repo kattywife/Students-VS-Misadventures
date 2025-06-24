@@ -10,7 +10,7 @@ from entities.base_sprite import BaseSprite
 from entities.projectiles import Integral
 from entities.defenders import CoffeeMachine
 from entities.other_sprites import CalamityAuraEffect
-
+from core.pathfinding import find_path
 
 class Enemy(BaseSprite):
     """
@@ -368,21 +368,45 @@ class MathTeacher(Enemy):
 
 
 class Addict(Enemy):
-    """Враг-убийца, который ищет самого сильного защитника, хватает и уносит."""
+
     def __init__(self, row, groups, enemy_type, sound_manager):
         super().__init__(row, groups, enemy_type, sound_manager)
         self.state = 'SEEKING'
         self.target_defender = None
         self.victim = None
+        self.path = []  # Список кортежей (row, col) для пути
+        self.path_recalculation_cooldown = 1000  # мс
+        self.last_path_recalculation = 0
 
     def find_strongest_defender(self, defenders_group):
-        """Находит защитника с самым высоким уроном (кроме Кофемашин)."""
         living_defenders = [d for d in defenders_group if d.alive() and not isinstance(d, CoffeeMachine)]
         if not living_defenders: return None
         return max(living_defenders, key=lambda d: d.get_final_damage(d.data.get('damage', 0)))
 
+    def _recalculate_path(self, grid_state):
+        """Пересчитывает путь до цели с помощью A*."""
+        self.last_path_recalculation = pygame.time.get_ticks()
+
+        # 1. Определяем начальные и конечные координаты в сетке
+        start_row = max(0, min(GRID_ROWS - 1, int((self.rect.centery - GRID_START_Y) / CELL_SIZE_H)))
+        start_col = max(0, min(GRID_COLS - 1, int((self.rect.centerx - GRID_START_X) / CELL_SIZE_W)))
+
+        end_row = max(0, min(GRID_ROWS - 1, int((self.target_defender.rect.centery - GRID_START_Y) / CELL_SIZE_H)))
+        end_col = max(0, min(GRID_COLS - 1, int((self.target_defender.rect.centerx - GRID_START_X) / CELL_SIZE_W)))
+
+        # 2. Создаем КОПИЮ сетки, чтобы не изменять оригинал
+        grid_copy = [row[:] for row in grid_state]
+
+        # 3. <--- КЛЮЧЕВОЕ ИСПРАВЛЕНИЕ --->
+        # Делаем целевую клетку временно проходимой (значение 0)
+        grid_copy[end_row][end_col] = 0
+
+        # 4. Ищем путь по модифицированной сетке
+        self.path = find_path(grid_copy, (start_row, start_col), (end_row, end_col))
+
     def update(self, **kwargs):
         defenders_group = kwargs.get('defenders_group')
+        grid_state = kwargs.get('grid_state')
 
         self.animate()
         self._layer = self.rect.bottom
@@ -394,43 +418,66 @@ class Addict(Enemy):
 
         self.is_attacking = (self.state == 'GRABBING')
 
-        if self.state == 'SEEKING':
-            if defenders_group:
-                self.target_defender = self.find_strongest_defender(defenders_group)
+        # --- НАЧАЛО ИЗМЕНЕННОЙ ЛОГИКИ ---
 
+        # 1. Поиск и обновление цели
+        new_target = self.find_strongest_defender(defenders_group)
+        # Если появилась новая, более сильная цель, или старая цель исчезла
+        if new_target != self.target_defender:
+            self.target_defender = new_target
+            self.path = []  # Сбрасываем старый путь, чтобы пересчитать его для новой цели
+
+        # 2. Логика по состояниям
+        if self.state == 'SEEKING':
             if self.target_defender:
                 self.state = 'CHASING'
-            else: # Если целей нет, идет прямо
+            else:  # Если цели нет, идем прямо
                 self.float_pos.x -= self.speed
                 self.rect.centerx = int(self.float_pos.x)
 
         elif self.state == 'CHASING':
             if not self.target_defender or not self.target_defender.alive():
                 self.state = 'SEEKING'
+                self.path = []
                 return
-            # Движется к цели
-            direction = pygame.math.Vector2(self.target_defender.rect.center) - self.float_pos
-            if direction.length() > 0:
-                norm_dir = direction.normalize()
-                self.float_pos += norm_dir * self.speed
-                self.rect.center = (int(self.float_pos.x), int(self.float_pos.y))
 
-            # Если дошел, хватает
+            # Пересчитываем путь только если его нет
+            if not self.path and grid_state:
+                self._recalculate_path(grid_state)
+
+            # Движение по пути
+            if self.path:
+                next_node_grid_pos = self.path[0]
+                target_pixel_pos = pygame.math.Vector2(
+                    GRID_START_X + next_node_grid_pos[1] * CELL_SIZE_W + CELL_SIZE_W / 2,
+                    GRID_START_Y + next_node_grid_pos[0] * CELL_SIZE_H + CELL_SIZE_H / 2
+                )
+                direction = target_pixel_pos - self.float_pos
+
+                if direction.length() < self.speed * 1.5:
+                    self.path.pop(0)
+
+                # Движемся, даже если только что убрали последний узел
+                if direction.length() > 0:
+                    self.float_pos += direction.normalize() * self.speed
+                    self.rect.center = (int(self.float_pos.x), int(self.float_pos.y))
+            else:
+                # Если пути нет (например, цель заблокирована), переходим в режим ожидания/поиска
+                self.state = 'SEEKING'
+
+            # Переход к захвату, если столкнулись с целью
             if self.rect.colliderect(self.target_defender.rect):
                 self.victim = self.target_defender
                 self.state = 'GRABBING'
-                if self.victim:
-                    self.victim.is_being_eaten = True
-                    self.victim.attacker = self
+                self.victim.is_being_eaten = True
+                self.victim.attacker = self
 
         elif self.state == 'GRABBING':
-            # "Приклеивает" жертву к себе и переходит в состояние побега
             if self.victim:
                 self.victim.rect.midright = self.rect.midright
             self.state = 'ESCAPING'
 
         elif self.state == 'ESCAPING':
-            # Убегает с экрана вместе с жертвой
             self.float_pos.x += self.speed * ADDICT_ESCAPE_SPEED_MULTIPLIER
             self.rect.centerx = int(self.float_pos.x)
             if self.victim:
@@ -441,12 +488,10 @@ class Addict(Enemy):
                 self.kill()
 
     def kill(self):
-        # Если врага убили, пока он нес жертву, жертва "освобождается"
         if hasattr(self, 'victim') and self.victim:
             self.victim.is_being_eaten = False
             self.victim.attacker = None
 
-            # Возвращаем жертву на ближайшую ячейку сетки
             if self.rect.right > 0:
                 victim_center = self.victim.rect.center
                 col = max(0, min(GRID_COLS - 1, int((victim_center[0] - GRID_START_X) / CELL_SIZE_W)))

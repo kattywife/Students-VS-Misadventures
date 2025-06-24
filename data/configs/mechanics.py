@@ -13,11 +13,11 @@ CALCULUS_PROJECTILE_TYPES = ['plus', 'multiply', 'divide', 'seven', 'three', 'fi
 
 # --- Тайминги (в миллисекундах) ---
 # Длительности и задержки для различных событий в игре.
-INITIAL_SPAWN_COOLDOWN = 5000       # Начальная задержка между появлением врагов
-FINAL_WAVE_SPAWN_COOLDOWN = 2000    # Ускоренная задержка для финальной волны
+INITIAL_SPAWN_COOLDOWN = 3700       # Начальная задержка между появлением врагов
+FINAL_WAVE_SPAWN_COOLDOWN = 1000    # Ускоренная задержка для финальной волны
 DEFAULT_ATTACK_COOLDOWN_MS = 1000   # Резервное значение перезарядки атаки
 COFFEE_BEAN_LIFETIME = 8000         # Время жизни кофейного зерна
-COFFEE_MACHINE_PRODUCING_DURATION = 500 # Длительность анимации производства кофе
+COFFEE_MACHINE_PRODUCING_DURATION = 1000 # Длительность анимации производства кофе
 MEDIC_HEAL_COOLDOWN_MS = 3000       # Перезарядка лечения у медика
 EXPLOSION_LIFETIME = 300            # Длительность анимации взрыва
 BOOK_ATTACK_LIFETIME = 200          # Длительность анимации атаки Ботана
