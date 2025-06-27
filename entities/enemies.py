@@ -86,6 +86,7 @@ class Enemy(BaseSprite):
                         [f for f in os.listdir(path_to_folder) if f.startswith(f"{anim_type}_") and f.endswith('.png')])
                     for filename in filenames:
                         path = os.path.join(category, folder, filename)
+                        print(path)
                         img = load_image(path, DEFAULT_COLORS.get(self.enemy_type), size)
                         self.animations[anim_type].append(img)
 

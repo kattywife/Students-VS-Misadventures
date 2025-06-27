@@ -29,10 +29,10 @@ LEVELS = {
             ('thief', 4),         # Охотник за кофемашинами
 
             # # --- ВОЛНА 2: Проверка парных взаимодействий ---
-            # ('alarm_clock', 0),
-            # ('calculus', 0),      # Два врага на одной линии
-            # ('math_teacher', 3),
-            # ('thief', 3),         # Прыгун и вор на одной линии
+            ('alarm_clock', 0),
+            ('calculus', 0),      # Два врага на одной линии
+            ('math_teacher', 3),
+            ('thief', 3),         # Прыгун и вор на одной линии
 
             # --- ВОЛНА 3: Стресс-тест и хаос ---
             ('alarm_clock', 0),
@@ -63,7 +63,7 @@ LEVELS = {
     },
     2: {
         'name': "Курс 2",
-        'start_coffee': 200,
+        'start_coffee': 150,
         'neuro_slots': 3,
         'calamities': ['epidemic', 'colloquium'],
         'enemies': [
@@ -83,7 +83,7 @@ LEVELS = {
     },
     3: {
         'name': "Курс 3",
-        'start_coffee': 250,
+        'start_coffee': 150,
         'neuro_slots': 3,
         'calamities': ['colloquium', 'internet_down'],
         'enemies': [
@@ -105,7 +105,7 @@ LEVELS = {
     },
     4: {
         'name': "Курс 4",
-        'start_coffee': 300,
+        'start_coffee': 150,
         'neuro_slots': 4,
         'calamities': ['internet_down', 'big_party'],
         'enemies': [
@@ -129,21 +129,21 @@ LEVELS = {
     },
     5: {
         'name': "Защита Диплома",
-        'start_coffee': 400,
+        'start_coffee': 150,
         'neuro_slots': 4,
         'calamities': ['epidemic', 'big_party', 'colloquium', 'internet_down'],
         'enemies': [
-            ('calculus', 0), ('calculus', 4),
+            ('calculus', 0), ('calculus', 4), ('alarm_clock', 1), ('alarm_clock', 2), ('alarm_clock', 3),
             ('alarm_clock', 1), ('alarm_clock', 2), ('alarm_clock', 3),
-            ('math_teacher', 2),
+            ('math_teacher', 2), ('thief', 1), ('addict', 2),
             ('thief', 0), ('addict', 4),
             ('alarm_clock', 0), ('alarm_clock', 4),
             ('calculus', 1), ('calculus', 3),
             ('math_teacher', 0), ('math_teacher', 4),
             ('thief', 1), ('addict', 3),
             ('alarm_clock', 2), ('alarm_clock', 2),
-            ('calculus', 2),
-            ('thief', 3),
+            ('calculus', 2),('thief', 3), ('thief', 0),
+            ('thief', 3), ('math_teacher', 2), ('math_teacher', 3),
             ('addict', 1),
             ('math_teacher', 1), ('math_teacher', 3),
             ('alarm_clock', 0), ('alarm_clock', 1), ('alarm_clock', 2), ('alarm_clock', 3), ('alarm_clock', 4),

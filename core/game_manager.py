@@ -10,7 +10,7 @@ from data.levels import LEVELS
 from core.prep_manager import PrepManager
 from core.battle_manager import BattleManager
 from core.sound_manager import SoundManager
-
+from data.assets import resource_path
 
 class Game:
     """

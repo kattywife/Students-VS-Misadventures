@@ -93,8 +93,10 @@ class Defender(BaseSprite):
                     # Находим все файлы, начинающиеся с `anim_type_` (например, `idle_0.png`)
                     filenames = sorted(
                         [f for f in os.listdir(path_to_folder) if f.startswith(f"{anim_type}_") and f.endswith('.png')])
+                    print(filenames)
                     for filename in filenames:
                         path = os.path.join(category, folder, filename)
+                        print(path)
                         img = load_image(path, DEFAULT_COLORS.get(self.data['type']), size)
                         self.animations[anim_type].append(img)
 
