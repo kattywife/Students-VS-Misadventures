@@ -78,22 +78,25 @@ class Enemy(BaseSprite):
         folder = anim_data.get('folder', self.enemy_type)
 
         for anim_type in anim_data:
-            if anim_type not in ['folder', 'speed']:
-                self.animations[anim_type] = []
-                path_to_folder = os.path.join(IMAGES_DIR, category, folder)
-                if os.path.exists(path_to_folder):
-                    filenames = sorted(
-                        [f for f in os.listdir(path_to_folder) if f.startswith(f"{anim_type}_") and f.endswith('.png')])
-                    for filename in filenames:
-                        path = os.path.join(category, folder, filename)
-                        print(path)
-                        img = load_image(path, DEFAULT_COLORS.get(self.enemy_type), size)
-                        self.animations[anim_type].append(img)
+            if not isinstance(anim_data[anim_type], list):
+                continue
 
-                if not self.animations[anim_type]:
-                    fallback_surface = pygame.Surface(size, pygame.SRCALPHA)
-                    fallback_surface.fill((0, 0, 0, 0))
-                    self.animations[anim_type].append(fallback_surface)
+            self.animations[anim_type] = []
+            frame_index = 0
+            while True:
+                filename = f"{anim_type}_{frame_index}.png"
+                path = os.path.join(category, folder, filename)
+                try:
+                    img = load_image(path, DEFAULT_COLORS.get(self.enemy_type), size, raise_on_error=True)
+                    self.animations[anim_type].append(img)
+                    frame_index += 1
+                except (FileNotFoundError, pygame.error):
+                    break
+
+            if not self.animations.get(anim_type):
+                fallback_surface = pygame.Surface(size, pygame.SRCALPHA)
+                fallback_surface.fill((0, 0, 0, 0))
+                self.animations[anim_type] = [fallback_surface]
 
     def set_animation(self, new_animation_type):
         """Безопасно меняет текущую анимацию, сбрасывая индекс кадра."""

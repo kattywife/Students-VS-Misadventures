@@ -117,7 +117,9 @@ def load_all_resources():
         PROJECTILE_IMAGES[p_type] = load_image(path_in_images_dir, DEFAULT_COLORS['bracket'], projectile_size)
 
 
-def load_image(path_from_project_root, default_color, size=None):
+# In data/assets.py
+
+def load_image(path_from_project_root, default_color, size=None, raise_on_error=False):
     """
     Загружает изображение из файла. Если файл не найден, создает и возвращает
     резервную поверхность заданного цвета.
@@ -127,18 +129,22 @@ def load_image(path_from_project_root, default_color, size=None):
                                       ОТ КОРНЯ ПРОЕКТА (например, "assets/images/ui/toggle_on.png").
         default_color (tuple | None): Цвет для резервной поверхности (fallback).
         size (tuple, optional): Кортеж (ширина, высота) для масштабирования.
+        raise_on_error (bool, optional): Если True, вызовет исключение при ошибке загрузки.
+                                         По умолчанию False для обратной совместимости.
 
     Returns:
         pygame.Surface: Загруженное и (опционально) масштабированное изображение.
     """
-    # Теперь path_from_project_root - это уже полный относительный путь от корня проекта
-    actual_path = resource_path(os.path.join("assets","images",path_from_project_root))
+    actual_path = resource_path(os.path.join("assets", "images", path_from_project_root))
     try:
         image = pygame.image.load(actual_path).convert_alpha()
         if size:
             image = pygame.transform.scale(image, size)
         return image
-    except (pygame.error, FileNotFoundError):
+    except (pygame.error, FileNotFoundError) as e:
+        if raise_on_error:
+            raise e
+
         print(f"Warning: Image '{actual_path}' (original relative: '{path_from_project_root}') not found. Using fallback surface.")
         if size is None:
             size = (CELL_SIZE_W, CELL_SIZE_H)

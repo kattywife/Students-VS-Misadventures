@@ -26,7 +26,7 @@ ENEMIES_DATA = {
         'animation_data': {'folder': 'alarm_clock', 'speed': 0.3, 'walk': [], 'attack': [], 'hit': []}
     },
     'calculus': {
-        'health': 180, 'speed': 0.8, 'damage': 10, 'cooldown': 3.0, 'display_name': "Матанализ", 'category': 'enemies',
+        'health': 180, 'speed': 0.8, 'damage': 50, 'cooldown': 3.0, 'display_name': "Матанализ", 'category': 'enemies',
         'fallback_color': (70, 130, 180),
         'description': "Опасный дальнобойный противник. Останавливается и обстреливает защитников на своей линии с безопасного расстояния.",
         'animation_data': {'folder': 'calculus', 'speed': 0.3, 'walk': [], 'attack': [], 'hit': []}

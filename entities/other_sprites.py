@@ -13,6 +13,7 @@ class CoffeeBean(BaseSprite):
     Зерна создаются Кофемашиной, их можно собирать кликом мыши,
     чтобы получить ресурс "кофе". Исчезают со временем.
     """
+
     def __init__(self, x, y, groups, value):
         """
         Инициализирует кофейное зерно.
@@ -28,7 +29,7 @@ class CoffeeBean(BaseSprite):
         path_to_image = os.path.join('resources', 'coffee_bean.png')
         self.image = load_image(path_to_image, DEFAULT_COLORS['coffee_bean'], (40, 40))
         self.rect = self.image.get_rect(center=(x, y))
-        self._layer = self.rect.bottom + 1 # Рисуется поверх большинства спрайтов
+        self._layer = self.rect.bottom + 1  # Рисуется поверх большинства спрайтов
         self.spawn_time = pygame.time.get_ticks()
         self.lifetime = COFFEE_BEAN_LIFETIME
 
@@ -43,6 +44,7 @@ class AuraEffect(BaseSprite):
     Визуальный эффект ауры, привязанный к родительскому спрайту.
     Используется Активистом для отображения радиуса действия его способности.
     """
+
     def __init__(self, groups, parent):
         """
         Инициализирует эффект ауры.
@@ -62,20 +64,25 @@ class AuraEffect(BaseSprite):
         self.rect = self.image.get_rect(center=self.parent.rect.center)
         self.anim_speed = AURA_ANIMATION_SPEED
         self.last_anim_update = pygame.time.get_ticks()
-        self._layer = self.parent._layer - 1 # Рисуется под своим родителем
+        self._layer = self.parent._layer - 1  # Рисуется под своим родителем
         self.add(self.groups_tuple)
 
     def load_animations(self):
         """Загружает анимированные кадры ауры."""
         pixel_radius = self.radius * CELL_SIZE_W
         size = (pixel_radius * 2, pixel_radius * 2)
-        path = os.path.join(IMAGES_DIR, 'effects', 'activist_aura')
-        if os.path.exists(path):
-            filenames = sorted([f for f in os.listdir(path) if f.startswith('aura_') and f.endswith('.png')])
-            for filename in filenames:
-                img_path = os.path.join('effects', 'activist_aura', filename)
-                self.animations.append(load_image(img_path, (0, 0, 0, 0), size))
-        # Резервный вариант, если анимации не найдены
+        frame_index = 0
+
+        while True:
+            filename = f"aura_{frame_index}.png"
+            img_path = os.path.join('effects', 'activist_aura', filename)
+            try:
+                img = load_image(img_path, (0, 0, 0, 0), size, raise_on_error=True)
+                self.animations.append(img)
+                frame_index += 1
+            except (FileNotFoundError, pygame.error):
+                break
+
         if not self.animations:
             fallback_surface = pygame.Surface(size, pygame.SRCALPHA)
             fallback_surface.fill((0, 0, 0, 0))
@@ -113,6 +120,7 @@ class CalamityAuraEffect(BaseSprite):
     Визуальный эффект ауры, который появляется у врагов во время "напастей".
     Это статичный спрайт, который следует за своим родителем.
     """
+
     def __init__(self, groups, parent, calamity_type):
         """
         Инициализирует ауру напасти.
@@ -129,7 +137,7 @@ class CalamityAuraEffect(BaseSprite):
         size = (CELL_SIZE_W + 10, CELL_SIZE_H + 20)
         self.image = load_image(path, (0, 0, 0, 0), size)
         self.rect = self.image.get_rect(center=self.parent.rect.center)
-        self._layer = self.parent._layer - 1 # Рисуется под родителем
+        self._layer = self.parent._layer - 1  # Рисуется под родителем
         self.add(self.groups_tuple)
 
     def update(self, *args, **kwargs):
@@ -151,6 +159,7 @@ class NeuroMower(BaseSprite):
     Класс для "газонокосилок" - нейросетей последнего рубежа обороны.
     Размещаются на экране подготовки, активируются при контакте с врагом.
     """
+
     def __init__(self, row, groups, mower_type, sound_manager):
         """
         Инициализирует нейросеть.
